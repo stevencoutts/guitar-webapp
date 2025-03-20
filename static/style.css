@@ -1,30 +1,59 @@
 body {
-    background-color: #f8f9fa;
+    background-color: #ffffff;
 }
 
 .card {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid #ffebee;
 }
 
 .navbar {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background-color: #d32f2f !important;
+}
+
+.navbar-dark .navbar-brand,
+.navbar-dark .nav-link {
+    color: #ffffff !important;
+}
+
+.navbar-dark .nav-link:hover {
+    color: #ffebee !important;
 }
 
 .card-title {
-    color: #333;
+    color: #d32f2f;
 }
 
 .form-control:focus {
-    border-color: #80bdff;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    border-color: #d32f2f;
+    box-shadow: 0 0 0 0.2rem rgba(211, 47, 47, 0.25);
 }
 
 .btn-primary {
-    background-color: #007bff;
-    border-color: #007bff;
+    background-color: #d32f2f;
+    border-color: #d32f2f;
 }
 
 .btn-primary:hover {
-    background-color: #0069d9;
-    border-color: #0062cc;
+    background-color: #b71c1c;
+    border-color: #b71c1c;
+}
+
+.btn-secondary {
+    background-color: #ffffff;
+    border-color: #d32f2f;
+    color: #d32f2f;
+}
+
+.btn-secondary:hover {
+    background-color: #ffebee;
+    border-color: #d32f2f;
+    color: #d32f2f;
+}
+
+.alert-info {
+    background-color: #ffebee;
+    border-color: #ffcdd2;
+    color: #d32f2f;
 } 
