@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Welcome to Guitar Song Manager</h1>
+
+{% if current_user.is_authenticated %}
+    <div class="row mt-4">
+        <div class="col">
+            <h2>Your Songs</h2>
+            {% if songs %}
+                <div class="row">
+                    {% for song in songs %}
+                        <div class="col-md-6 mb-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ song.title }}</h5>
+                                    <p class="card-text">
+                                        <strong>Time Signature:</strong> {{ song.time_signature }}<br>
+                                        <strong>Chord Progression:</strong> {{ song.chord_progression }}<br>
+                                        <strong>Strumming Pattern:</strong> {{ song.strumming_pattern }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p>You haven't added any songs yet. <a href="{{ url_for('new_song') }}">Add your first song!</a></p>
+            {% endif %}
+        </div>
+    </div>
+{% else %}
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Get Started</h5>
+                    <p class="card-text">Create an account to start managing your guitar songs.</p>
+                    <a href="{{ url_for('register') }}" class="btn btn-primary">Register</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Already have an account?</h5>
+                    <p class="card-text">Login to access your songs.</p>
+                    <a href="{{ url_for('login') }}" class="btn btn-primary">Login</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+{% endblock %} 
