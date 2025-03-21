@@ -94,9 +94,8 @@ def create_default_admin():
 def index():
     if current_user.is_authenticated:
         songs = Song.query.filter_by(user_id=current_user.id).all()
-    else:
-        songs = []
-    return render_template('index.html', songs=songs)
+        return render_template('index.html', songs=songs)
+    return render_template('index.html', songs=None)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
