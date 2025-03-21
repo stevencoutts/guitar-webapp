@@ -27,6 +27,7 @@ ENV/
 .env
 
 # Flask
+migrations/
 instance/
 .webassets-cache
 guitar_app.db
