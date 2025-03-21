@@ -216,6 +216,64 @@ def delete_song(song_id):
     
     return redirect(url_for('index'))
 
+@app.route('/account', methods=['GET', 'POST'])
+@login_required
+def account():
+    if request.method == 'POST':
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not current_password or not new_password or not confirm_password:
+            flash('All fields are required')
+            return redirect(url_for('account'))
+            
+        if not check_password_hash(current_user.password_hash, current_password):
+            flash('Current password is incorrect')
+            return redirect(url_for('account'))
+            
+        if new_password != confirm_password:
+            flash('New passwords do not match')
+            return redirect(url_for('account'))
+            
+        if not is_valid_password(new_password):
+            flash('New password must be at least 8 characters long and contain uppercase, lowercase, and numbers')
+            return redirect(url_for('account'))
+            
+        current_user.password_hash = generate_password_hash(new_password)
+        db.session.commit()
+        flash('Password updated successfully!')
+        return redirect(url_for('account'))
+        
+    return render_template('account.html')
+
+@app.route('/account/delete', methods=['POST'])
+@login_required
+def delete_account():
+    password = request.form.get('password')
+    
+    if not password:
+        flash('Password is required to delete account')
+        return redirect(url_for('account'))
+        
+    if not check_password_hash(current_user.password_hash, password):
+        flash('Incorrect password')
+        return redirect(url_for('account'))
+    
+    try:
+        # Delete all user's songs first
+        Song.query.filter_by(user_id=current_user.id).delete()
+        # Then delete the user
+        db.session.delete(current_user)
+        db.session.commit()
+        logout_user()
+        flash('Your account has been deleted successfully')
+        return redirect(url_for('index'))
+    except Exception as e:
+        db.session.rollback()
+        flash('An error occurred while deleting your account')
+        return redirect(url_for('account'))
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
