@@ -26,6 +26,11 @@
                                 <li><a class="dropdown-item" href="{{ url_for('new_song') }}">Add New Song</a></li>
                             </ul>
                         </li>
+                        {% if current_user.is_admin %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('admin') }}">Admin</a>
+                            </li>
+                        {% endif %}
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav">

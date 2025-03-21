@@ -56,7 +56,8 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
-    songs = db.relationship('Song', backref='author', lazy=True)
+    is_admin = db.Column(db.Boolean, default=True)  # All existing users will be admins
+    songs = db.relationship('Song', backref='user', lazy=True)
 
 class Song(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -309,7 +310,59 @@ def view_song(song_id):
     
     return render_template('view_song.html', song=song)
 
+@app.route('/admin')
+@login_required
+def admin():
+    if not current_user.is_admin:
+        flash('You do not have permission to access the admin page.')
+        return redirect(url_for('index'))
+    
+    users = User.query.all()
+    return render_template('admin.html', users=users)
+
+@app.route('/admin/user/<int:user_id>/toggle_admin', methods=['POST'])
+@login_required
+def toggle_admin(user_id):
+    if not current_user.is_admin:
+        flash('You do not have permission to perform this action.')
+        return redirect(url_for('index'))
+    
+    user = User.query.get_or_404(user_id)
+    if user.id == current_user.id:
+        flash('You cannot modify your own admin status.')
+        return redirect(url_for('admin'))
+    
+    user.is_admin = not user.is_admin
+    db.session.commit()
+    
+    status = "admin" if user.is_admin else "regular user"
+    flash(f'User {user.username} is now a {status}.')
+    return redirect(url_for('admin'))
+
+@app.route('/admin/user/<int:user_id>/delete', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    if not current_user.is_admin:
+        flash('You do not have permission to perform this action.')
+        return redirect(url_for('index'))
+    
+    user = User.query.get_or_404(user_id)
+    if user.id == current_user.id:
+        flash('You cannot delete your own account.')
+        return redirect(url_for('admin'))
+    
+    # Delete all user's songs first
+    Song.query.filter_by(user_id=user.id).delete()
+    db.session.delete(user)
+    db.session.commit()
+    
+    flash(f'User {user.username} has been deleted.')
+    return redirect(url_for('admin'))
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        # Set all existing users as admins
+        User.query.update({User.is_admin: True})
+        db.session.commit()
     app.run(debug=True, port=5001)  # Enable debug mode for development 
