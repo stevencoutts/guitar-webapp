@@ -6,6 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 import os
 import re
+from datetime import datetime
 
 # Load environment variables from .env file
 load_dotenv()
@@ -16,7 +17,7 @@ app = Flask(__name__)
 if not os.environ.get('SECRET_KEY'):
     raise ValueError("No SECRET_KEY set for Flask application")
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///guitar_app.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///guitar_app.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
@@ -54,8 +55,14 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
-    is_admin = db.Column(db.Boolean, default=True)  # All existing users will be admins
+    is_admin = db.Column(db.Boolean, default=False)
     songs = db.relationship('Song', backref='user', lazy=True)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
 class Song(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -69,6 +76,16 @@ class Song(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+def create_default_admin():
+    with app.app_context():
+        # Check if admin user exists
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            admin = User(username='admin', is_admin=True)
+            admin.set_password('Password1')
+            db.session.add(admin)
+            db.session.commit()
 
 # Routes
 @app.route('/')
@@ -86,7 +103,7 @@ def login():
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
         
-        if user and check_password_hash(user.password_hash, password):
+        if user and user.check_password(password):
             login_user(user)
             return redirect(url_for('index'))
         flash('Invalid username or password')
