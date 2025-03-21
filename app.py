@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_migrate import Migrate
@@ -155,6 +155,66 @@ def new_song():
         db.session.commit()
         return redirect(url_for('index'))
     return render_template('new_song.html')
+
+@app.route('/song/<int:song_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_song(song_id):
+    song = Song.query.get_or_404(song_id)
+    
+    # Ensure the user owns this song
+    if song.user_id != current_user.id:
+        flash('You do not have permission to edit this song.')
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        title = request.form.get('title')
+        time_signature = request.form.get('time_signature')
+        chord_progression = request.form.get('chord_progression')
+        strumming_pattern = request.form.get('strumming_pattern')
+        
+        if not all([title, time_signature, chord_progression, strumming_pattern]):
+            flash('All fields are required')
+            return redirect(url_for('edit_song', song_id=song_id))
+            
+        # Basic input validation
+        if len(title) > 100:
+            flash('Title is too long')
+            return redirect(url_for('edit_song', song_id=song_id))
+            
+        if not re.match(r'^\d+/\d+$', time_signature):
+            flash('Invalid time signature format')
+            return redirect(url_for('edit_song', song_id=song_id))
+        
+        song.title = title
+        song.time_signature = time_signature
+        song.chord_progression = chord_progression
+        song.strumming_pattern = strumming_pattern
+        
+        db.session.commit()
+        flash('Song updated successfully!')
+        return redirect(url_for('index'))
+        
+    return render_template('edit_song.html', song=song)
+
+@app.route('/song/<int:song_id>/delete', methods=['POST'])
+@login_required
+def delete_song(song_id):
+    song = Song.query.get_or_404(song_id)
+    
+    # Ensure the user owns this song
+    if song.user_id != current_user.id:
+        flash('You do not have permission to delete this song.')
+        return redirect(url_for('index'))
+    
+    try:
+        db.session.delete(song)
+        db.session.commit()
+        flash('Song deleted successfully!')
+    except Exception as e:
+        db.session.rollback()
+        flash('An error occurred while deleting the song.')
+    
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     with app.app_context():
