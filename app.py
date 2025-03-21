@@ -365,6 +365,21 @@ def delete_user(user_id):
     flash(f'User {user.username} has been deleted.')
     return redirect(url_for('admin'))
 
+@app.route('/practice/chord-changes', methods=['GET', 'POST'])
+@login_required
+def chord_changes():
+    if request.method == 'POST':
+        # Handle the practice session submission
+        score = request.form.get('score', type=int)
+        chord_pairs = request.form.get('chord_pairs')
+        date = datetime.now()
+        
+        # Here you could save the practice session to the database if needed
+        flash('Practice session completed!', 'success')
+        return redirect(url_for('chord_changes'))
+        
+    return render_template('chord_changes.html')
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
