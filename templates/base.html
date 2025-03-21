@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -157,7 +158,6 @@
                     {% if current_user.is_authenticated %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="songsDropdown" role="button" data-bs-toggle="dropdown">
-<<<<<<< HEAD
                                 <i class="fas fa-music me-1"></i>Songs
                             </a>
                             <ul class="dropdown-menu">
@@ -167,24 +167,13 @@
                                 <li><a class="dropdown-item" href="{{ url_for('new_song') }}">
                                     <i class="fas fa-plus me-2"></i>Add New Song
                                 </a></li>
-=======
-                                Songs
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{{ url_for('index') }}">View Songs</a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('new_song') }}">Add New Song</a></li>
->>>>>>> 4222e76 (Fix Menus)
                             </ul>
                         </li>
                         {% if current_user.is_admin %}
                             <li class="nav-item">
-<<<<<<< HEAD
                                 <a class="nav-link" href="{{ url_for('admin') }}">
                                     <i class="fas fa-user-shield me-1"></i>Admin
                                 </a>
-=======
-                                <a class="nav-link" href="{{ url_for('admin') }}">Admin</a>
->>>>>>> 4222e76 (Fix Menus)
                             </li>
                         {% endif %}
                     {% endif %}
@@ -193,19 +182,12 @@
                     {% if current_user.is_authenticated %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
-<<<<<<< HEAD
                                 <i class="fas fa-user me-1"></i>{{ current_user.username }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li><a class="dropdown-item" href="{{ url_for('account') }}">
                                     <i class="fas fa-cog me-2"></i>My Account
                                 </a></li>
-=======
-                                {{ current_user.username }}
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="{{ url_for('account') }}">My Account</a></li>
->>>>>>> 4222e76 (Fix Menus)
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{{ url_for('logout') }}">
                                     <i class="fas fa-sign-out-alt me-2"></i>Logout
@@ -247,3 +229,4 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html> 
+

@@ -5,61 +5,32 @@
     <div class="col-md-8">
         <div class="card">
             <div class="card-body">
-                <h2 class="card-title mb-4 text-primary">
-                    <i class="fas fa-plus me-2"></i>Add New Song
-                </h2>
-                
+                <h2 class="card-title text-center mb-4">Add New Song</h2>
                 <form method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    
                     <div class="mb-3">
-                        <label for="title" class="form-label">
-                            <i class="fas fa-music me-2"></i>Title
-                        </label>
+                        <label for="title" class="form-label">Title</label>
                         <input type="text" class="form-control" id="title" name="title" required>
                     </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="time_signature" class="form-label">
-                                <i class="fas fa-clock me-2"></i>Time Signature
-                            </label>
-                            <input type="text" class="form-control" id="time_signature" name="time_signature" 
-                                   pattern="\d+/\d+" required>
-                            <div class="form-text">Format: number/number (e.g., 4/4)</div>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="bpm" class="form-label">
-                                <i class="fas fa-tachometer-alt me-2"></i>BPM
-                            </label>
-                            <input type="number" class="form-control" id="bpm" name="bpm" 
-                                   min="20" max="300" value="120" required>
-                        </div>
-                    </div>
-                    
                     <div class="mb-3">
-                        <label for="chord_progression" class="form-label">
-                            <i class="fas fa-guitar me-2"></i>Chord Progression
-                        </label>
-                        <textarea class="form-control" id="chord_progression" name="chord_progression" 
-                                  rows="5" required></textarea>
+                        <label for="time_signature" class="form-label">Time Signature</label>
+                        <input type="text" class="form-control" id="time_signature" name="time_signature" required>
+                        <small class="form-text text-muted">Format: 4/4, 3/4, etc.</small>
                     </div>
-                    
-                    <div class="mb-4">
-                        <label for="strumming_pattern" class="form-label">
-                            <i class="fas fa-hand-paper me-2"></i>Strumming Pattern
-                        </label>
-                        <textarea class="form-control" id="strumming_pattern" name="strumming_pattern" 
-                                  rows="5" required></textarea>
+                    <div class="mb-3">
+                        <label for="bpm" class="form-label">BPM</label>
+                        <input type="number" class="form-control" id="bpm" name="bpm" min="20" max="300" required>
                     </div>
-                    
+                    <div class="mb-3">
+                        <label for="chord_progression" class="form-label">Chord Progression</label>
+                        <textarea class="form-control" id="chord_progression" name="chord_progression" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="strumming_pattern" class="form-label">Strumming Pattern</label>
+                        <textarea class="form-control" id="strumming_pattern" name="strumming_pattern" rows="3" required></textarea>
+                    </div>
                     <div class="d-flex justify-content-between">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-plus me-2"></i>Add Song
-                        </button>
-                        <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
-                            <i class="fas fa-times me-2"></i>Cancel
-                        </a>
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Add Song</button>
                     </div>
                 </form>
             </div>
