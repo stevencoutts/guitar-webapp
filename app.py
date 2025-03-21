@@ -62,6 +62,7 @@ class Song(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     time_signature = db.Column(db.String(10), nullable=False)
+    bpm = db.Column(db.Integer, nullable=False, default=120)  # Default BPM of 120
     chord_progression = db.Column(db.Text, nullable=False)
     strumming_pattern = db.Column(db.Text, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -128,10 +129,11 @@ def new_song():
     if request.method == 'POST':
         title = request.form.get('title')
         time_signature = request.form.get('time_signature')
+        bpm = request.form.get('bpm')
         chord_progression = request.form.get('chord_progression')
         strumming_pattern = request.form.get('strumming_pattern')
         
-        if not all([title, time_signature, chord_progression, strumming_pattern]):
+        if not all([title, time_signature, bpm, chord_progression, strumming_pattern]):
             flash('All fields are required')
             return redirect(url_for('new_song'))
             
@@ -143,10 +145,20 @@ def new_song():
         if not re.match(r'^\d+/\d+$', time_signature):
             flash('Invalid time signature format')
             return redirect(url_for('new_song'))
+            
+        try:
+            bpm = int(bpm)
+            if bpm < 20 or bpm > 300:
+                flash('BPM must be between 20 and 300')
+                return redirect(url_for('new_song'))
+        except ValueError:
+            flash('BPM must be a valid number')
+            return redirect(url_for('new_song'))
         
         song = Song(
             title=title,
             time_signature=time_signature,
+            bpm=bpm,
             chord_progression=chord_progression,
             strumming_pattern=strumming_pattern,
             user_id=current_user.id
@@ -169,10 +181,11 @@ def edit_song(song_id):
     if request.method == 'POST':
         title = request.form.get('title')
         time_signature = request.form.get('time_signature')
+        bpm = request.form.get('bpm')
         chord_progression = request.form.get('chord_progression')
         strumming_pattern = request.form.get('strumming_pattern')
         
-        if not all([title, time_signature, chord_progression, strumming_pattern]):
+        if not all([title, time_signature, bpm, chord_progression, strumming_pattern]):
             flash('All fields are required')
             return redirect(url_for('edit_song', song_id=song_id))
             
@@ -184,9 +197,19 @@ def edit_song(song_id):
         if not re.match(r'^\d+/\d+$', time_signature):
             flash('Invalid time signature format')
             return redirect(url_for('edit_song', song_id=song_id))
+            
+        try:
+            bpm = int(bpm)
+            if bpm < 20 or bpm > 300:
+                flash('BPM must be between 20 and 300')
+                return redirect(url_for('edit_song', song_id=song_id))
+        except ValueError:
+            flash('BPM must be a valid number')
+            return redirect(url_for('edit_song', song_id=song_id))
         
         song.title = title
         song.time_signature = time_signature
+        song.bpm = bpm
         song.chord_progression = chord_progression
         song.strumming_pattern = strumming_pattern
         

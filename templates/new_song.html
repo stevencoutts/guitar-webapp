@@ -19,6 +19,11 @@
                         <small class="form-text text-muted">Format: number/number (e.g., 4/4)</small>
                     </div>
                     <div class="mb-3">
+                        <label for="bpm" class="form-label">BPM (Beats Per Minute)</label>
+                        <input type="number" class="form-control" id="bpm" name="bpm" min="20" max="300" required>
+                        <small class="form-text text-muted">Enter a value between 20 and 300</small>
+                    </div>
+                    <div class="mb-3">
                         <label for="chord_progression" class="form-label">Chord Progression</label>
                         <textarea class="form-control" id="chord_progression" name="chord_progression" 
                                   rows="5" placeholder="e.g., Am - F - C - G&#10;F - C - G - Am&#10;Em - F - C - G" 
