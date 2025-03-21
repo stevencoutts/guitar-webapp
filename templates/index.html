@@ -27,7 +27,7 @@
                                         <tr>
                                             <td>
                                                 <div class="d-flex align-items-center">
-                                                    <span class="me-3">{{ song.title }}</span>
+                                                    <a href="{{ url_for('view_song', song_id=song.id) }}" class="text-decoration-none me-3">{{ song.title }}</a>
                                                     <a href="{{ url_for('edit_song', song_id=song.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
                                                 </div>
                                             </td>
