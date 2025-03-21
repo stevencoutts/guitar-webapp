@@ -3,19 +3,53 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_migrate import Migrate
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_wtf.csrf import CSRFProtect
+from dotenv import load_dotenv
 import os
+import re
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-please-change-in-production')
+
+# Security configurations
+if not os.environ.get('SECRET_KEY'):
+    raise ValueError("No SECRET_KEY set for Flask application")
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///guitar_app.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
+# Development vs Production settings
+if app.debug:
+    app.config['SESSION_COOKIE_SECURE'] = False
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes session timeout
+else:
+    app.config['SESSION_COOKIE_SECURE'] = True  # Only send cookies over HTTPS
+    app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access to session cookie
+    app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes session timeout
+
+# Initialize extensions
+csrf = CSRFProtect(app)  # Initialize CSRF first
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+# Password validation
+def is_valid_password(password):
+    if len(password) < 8:
+        return False
+    if not re.search(r"[A-Z]", password):
+        return False
+    if not re.search(r"[a-z]", password):
+        return False
+    if not re.search(r"\d", password):
+        return False
+    return True
 
 # Models
 class User(UserMixin, db.Model):
@@ -64,6 +98,14 @@ def register():
         username = request.form.get('username')
         password = request.form.get('password')
         
+        if not username or not password:
+            flash('Username and password are required')
+            return redirect(url_for('register'))
+            
+        if not is_valid_password(password):
+            flash('Password must be at least 8 characters long and contain uppercase, lowercase, and numbers')
+            return redirect(url_for('register'))
+        
         if User.query.filter_by(username=username).first():
             flash('Username already exists')
             return redirect(url_for('register'))
@@ -84,11 +126,29 @@ def logout():
 @login_required
 def new_song():
     if request.method == 'POST':
+        title = request.form.get('title')
+        time_signature = request.form.get('time_signature')
+        chord_progression = request.form.get('chord_progression')
+        strumming_pattern = request.form.get('strumming_pattern')
+        
+        if not all([title, time_signature, chord_progression, strumming_pattern]):
+            flash('All fields are required')
+            return redirect(url_for('new_song'))
+            
+        # Basic input validation
+        if len(title) > 100:
+            flash('Title is too long')
+            return redirect(url_for('new_song'))
+            
+        if not re.match(r'^\d+/\d+$', time_signature):
+            flash('Invalid time signature format')
+            return redirect(url_for('new_song'))
+        
         song = Song(
-            title=request.form.get('title'),
-            time_signature=request.form.get('time_signature'),
-            chord_progression=request.form.get('chord_progression'),
-            strumming_pattern=request.form.get('strumming_pattern'),
+            title=title,
+            time_signature=time_signature,
+            chord_progression=chord_progression,
+            strumming_pattern=strumming_pattern,
             user_id=current_user.id
         )
         db.session.add(song)
@@ -99,4 +159,4 @@ def new_song():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True) 
+    app.run(debug=True, port=5001)  # Enable debug mode for development 

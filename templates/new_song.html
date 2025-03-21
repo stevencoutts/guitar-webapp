@@ -7,14 +7,16 @@
             <div class="card-body">
                 <h2 class="card-title text-center mb-4">Add New Song</h2>
                 <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label for="title" class="form-label">Song Title</label>
-                        <input type="text" class="form-control" id="title" name="title" required>
+                        <input type="text" class="form-control" id="title" name="title" required maxlength="100">
                     </div>
                     <div class="mb-3">
                         <label for="time_signature" class="form-label">Time Signature</label>
                         <input type="text" class="form-control" id="time_signature" name="time_signature" 
-                               placeholder="e.g., 4/4, 3/4, 6/8" required>
+                               placeholder="e.g., 4/4, 3/4, 6/8" pattern="\d+/\d+" required>
+                        <small class="form-text text-muted">Format: number/number (e.g., 4/4)</small>
                     </div>
                     <div class="mb-3">
                         <label for="chord_progression" class="form-label">Chord Progression</label>
