@@ -26,15 +26,21 @@ if app.debug:
     app.config['SESSION_COOKIE_SECURE'] = False
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes session timeout
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 else:
     app.config['SESSION_COOKIE_SECURE'] = True  # Only send cookies over HTTPS
     app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access to session cookie
     app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes session timeout
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# CSRF Configuration
+app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_SECRET_KEY'] = os.environ.get('SECRET_KEY')
+app.config['WTF_CSRF_SSL_STRICT'] = False
+app.config['WTF_CSRF_TIME_LIMIT'] = 3600  # 1 hour
 
 # Initialize extensions
 csrf = CSRFProtect(app)  # Initialize CSRF first
-app.config['WTF_CSRF_ENABLED'] = True
-app.config['WTF_CSRF_SECRET_KEY'] = os.environ.get('SECRET_KEY')
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 login_manager = LoginManager()
