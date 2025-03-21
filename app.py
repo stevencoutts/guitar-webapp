@@ -33,6 +33,8 @@ else:
 
 # Initialize extensions
 csrf = CSRFProtect(app)  # Initialize CSRF first
+app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_SECRET_KEY'] = os.environ.get('SECRET_KEY')
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 login_manager = LoginManager()
