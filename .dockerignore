@@ -10,5 +10,4 @@ venv/
 .env
 *.log
 instance/
-migrations/
-certbot/ 
+migrations/ 
