@@ -369,7 +369,5 @@ def delete_user(user_id):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-        # Set all existing users as admins
-        User.query.update({User.is_admin: True})
-        db.session.commit()
+        create_default_admin()
     app.run(debug=True, port=5001)  # Enable debug mode for development 
