@@ -25,6 +25,7 @@ USER appuser
 # Set environment variables
 ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
+ENV PORT=5001
 
 # Expose port
 EXPOSE 5001
