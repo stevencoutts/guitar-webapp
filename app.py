@@ -77,7 +77,7 @@ class Song(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 def create_default_admin():
     with app.app_context():
@@ -189,72 +189,31 @@ def new_song():
 @app.route('/song/<int:song_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_song(song_id):
-    song = Song.query.get_or_404(song_id)
-    
-    # Ensure the user owns this song
-    if song.user_id != current_user.id:
-        flash('You do not have permission to edit this song.')
+    song = db.session.get(Song, song_id)
+    if not song or song.user_id != current_user.id:
+        flash('Song not found', 'error')
         return redirect(url_for('index'))
     
     if request.method == 'POST':
-        title = request.form.get('title')
-        time_signature = request.form.get('time_signature')
-        bpm = request.form.get('bpm')
-        chord_progression = request.form.get('chord_progression')
-        strumming_pattern = request.form.get('strumming_pattern')
-        
-        if not all([title, time_signature, bpm, chord_progression, strumming_pattern]):
-            flash('All fields are required')
-            return redirect(url_for('edit_song', song_id=song_id))
-            
-        # Basic input validation
-        if len(title) > 100:
-            flash('Title is too long')
-            return redirect(url_for('edit_song', song_id=song_id))
-            
-        if not re.match(r'^\d+/\d+$', time_signature):
-            flash('Invalid time signature format')
-            return redirect(url_for('edit_song', song_id=song_id))
-            
-        try:
-            bpm = int(bpm)
-            if bpm < 20 or bpm > 300:
-                flash('BPM must be between 20 and 300')
-                return redirect(url_for('edit_song', song_id=song_id))
-        except ValueError:
-            flash('BPM must be a valid number')
-            return redirect(url_for('edit_song', song_id=song_id))
-        
-        song.title = title
-        song.time_signature = time_signature
-        song.bpm = bpm
-        song.chord_progression = chord_progression
-        song.strumming_pattern = strumming_pattern
-        
+        song.title = request.form.get('title')
+        song.time_signature = request.form.get('time_signature')
+        song.bpm = int(request.form.get('bpm'))
+        song.chord_progression = request.form.get('chord_progression')
+        song.strumming_pattern = request.form.get('strumming_pattern')
         db.session.commit()
-        flash('Song updated successfully!')
         return redirect(url_for('index'))
-        
     return render_template('edit_song.html', song=song)
 
 @app.route('/song/<int:song_id>/delete', methods=['POST'])
 @login_required
 def delete_song(song_id):
-    song = Song.query.get_or_404(song_id)
-    
-    # Ensure the user owns this song
-    if song.user_id != current_user.id:
-        flash('You do not have permission to delete this song.')
+    song = db.session.get(Song, song_id)
+    if not song or song.user_id != current_user.id:
+        flash('Song not found', 'error')
         return redirect(url_for('index'))
-    
-    try:
-        db.session.delete(song)
-        db.session.commit()
-        flash('Song deleted successfully!')
-    except Exception as e:
-        db.session.rollback()
-        flash('An error occurred while deleting the song.')
-    
+    db.session.delete(song)
+    db.session.commit()
+    flash('Song deleted successfully', 'success')
     return redirect(url_for('index'))
 
 @app.route('/account', methods=['GET', 'POST'])
@@ -318,13 +277,10 @@ def delete_account():
 @app.route('/song/<int:song_id>', methods=['GET'])
 @login_required
 def view_song(song_id):
-    song = Song.query.get_or_404(song_id)
-    
-    # Ensure the user owns this song
-    if song.user_id != current_user.id:
-        flash('You do not have permission to view this song.')
+    song = db.session.get(Song, song_id)
+    if not song or song.user_id != current_user.id:
+        flash('Song not found', 'error')
         return redirect(url_for('index'))
-    
     return render_template('view_song.html', song=song)
 
 @app.route('/admin')
@@ -344,7 +300,7 @@ def toggle_admin(user_id):
         flash('You do not have permission to perform this action.')
         return redirect(url_for('index'))
     
-    user = User.query.get_or_404(user_id)
+    user = db.session.get(User, user_id)
     if user.id == current_user.id:
         flash('You cannot modify your own admin status.')
         return redirect(url_for('admin'))
@@ -397,7 +353,7 @@ def delete_user(user_id):
         flash('You do not have permission to perform this action.')
         return redirect(url_for('index'))
     
-    user = User.query.get_or_404(user_id)
+    user = db.session.get(User, user_id)
     if user.id == current_user.id:
         flash('You cannot delete your own account.')
         return redirect(url_for('admin'))
