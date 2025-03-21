@@ -7,37 +7,30 @@
             <div class="card-body">
                 <h2 class="card-title text-center mb-4">Add New Song</h2>
                 <form method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
-                        <label for="title" class="form-label">Song Title</label>
-                        <input type="text" class="form-control" id="title" name="title" required maxlength="100">
+                        <label for="title" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="title" name="title" required>
                     </div>
                     <div class="mb-3">
                         <label for="time_signature" class="form-label">Time Signature</label>
-                        <input type="text" class="form-control" id="time_signature" name="time_signature" 
-                               placeholder="e.g., 4/4, 3/4, 6/8" pattern="\d+/\d+" required>
-                        <small class="form-text text-muted">Format: number/number (e.g., 4/4)</small>
+                        <input type="text" class="form-control" id="time_signature" name="time_signature" required>
+                        <small class="form-text text-muted">Format: 4/4, 3/4, etc.</small>
                     </div>
                     <div class="mb-3">
-                        <label for="bpm" class="form-label">BPM (Beats Per Minute)</label>
+                        <label for="bpm" class="form-label">BPM</label>
                         <input type="number" class="form-control" id="bpm" name="bpm" min="20" max="300" required>
-                        <small class="form-text text-muted">Enter a value between 20 and 300</small>
                     </div>
                     <div class="mb-3">
                         <label for="chord_progression" class="form-label">Chord Progression</label>
-                        <textarea class="form-control" id="chord_progression" name="chord_progression" 
-                                  rows="5" placeholder="e.g., Am - F - C - G&#10;F - C - G - Am&#10;Em - F - C - G" 
-                                  style="white-space: pre-wrap;" required></textarea>
-                        <small class="form-text text-muted">Each line will be displayed on a new line. Use line breaks to separate verses or sections.</small>
+                        <textarea class="form-control" id="chord_progression" name="chord_progression" rows="3" required></textarea>
                     </div>
                     <div class="mb-3">
                         <label for="strumming_pattern" class="form-label">Strumming Pattern</label>
-                        <textarea class="form-control" id="strumming_pattern" name="strumming_pattern" 
-                                  rows="3" placeholder="e.g., D D U U D U" required></textarea>
+                        <textarea class="form-control" id="strumming_pattern" name="strumming_pattern" rows="3" required></textarea>
                     </div>
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">Save Song</button>
+                    <div class="d-flex justify-content-between">
                         <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Add Song</button>
                     </div>
                 </form>
             </div>

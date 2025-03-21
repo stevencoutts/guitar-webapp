@@ -35,7 +35,6 @@
                                             <td>{{ song.bpm }}</td>
                                             <td>
                                                 <form method="POST" action="{{ url_for('delete_song', song_id=song.id) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this song?');">
-                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
                                                 </form>
                                             </td>
