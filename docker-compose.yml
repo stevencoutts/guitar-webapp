@@ -7,8 +7,6 @@ services:
       - "5001:5001"
     volumes:
       - ./instance:/app/instance
-    environment:
-      - FLASK_APP=app.py
-      - FLASK_ENV=production
-      - SECRET_KEY=your-secret-key-here
+    env_file:
+      - .env
     restart: always 
