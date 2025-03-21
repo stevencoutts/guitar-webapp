@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import os
 import re
 from datetime import datetime
+from flask_wtf.csrf import CSRFProtect
 
 # Load environment variables from .env file
 load_dotenv()
@@ -37,6 +38,7 @@ migrate = Migrate(app, db)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+csrf = CSRFProtect(app)
 
 # Password validation
 def is_valid_password(password):

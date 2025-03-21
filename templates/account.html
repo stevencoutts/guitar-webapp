@@ -2,47 +2,95 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6">
+    <div class="col-md-8">
         <div class="card">
             <div class="card-body">
-                <h2 class="card-title text-center mb-4">My Account</h2>
-                
-                <div class="mb-4">
-                    <h5>Account Information</h5>
-                    <p><strong>Username:</strong> {{ current_user.username }}</p>
-                    <p><strong>Member Since:</strong> {{ current_user.id }}</p>
-                    <p><strong>Number of Songs:</strong> {{ current_user.songs|length }}</p>
+                <h2 class="card-title mb-4 text-primary">
+                    <i class="fas fa-user me-2"></i>My Account
+                </h2>
+
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h5 class="text-primary">
+                            <i class="fas fa-user-circle me-2"></i>Username
+                        </h5>
+                        <p class="mb-0">{{ current_user.username }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h5 class="text-primary">
+                            <i class="fas fa-calendar me-2"></i>Member Since
+                        </h5>
+                        <p class="mb-0">{{ current_user.id }}</p>
+                    </div>
                 </div>
 
-                <div class="mb-4">
-                    <h5>Change Password</h5>
-                    <form method="POST">
-                        <div class="mb-3">
-                            <label for="current_password" class="form-label">Current Password</label>
-                            <input type="password" class="form-control" id="current_password" name="current_password" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="new_password" class="form-label">New Password</label>
-                            <input type="password" class="form-control" id="new_password" name="new_password" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="confirm_password" class="form-label">Confirm New Password</label>
-                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Update Password</button>
-                    </form>
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h5 class="text-primary">
+                            <i class="fas fa-music me-2"></i>Number of Songs
+                        </h5>
+                        <p class="mb-0">{{ current_user.songs|length }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h5 class="text-primary">
+                            <i class="fas fa-user-shield me-2"></i>Account Type
+                        </h5>
+                        <p class="mb-0">
+                            {% if current_user.is_admin %}
+                                <span class="badge bg-primary">Admin</span>
+                            {% else %}
+                                <span class="badge bg-secondary">User</span>
+                            {% endif %}
+                        </p>
+                    </div>
                 </div>
 
-                <div class="mb-4">
-                    <h5>Delete Account</h5>
-                    <form method="POST" action="{{ url_for('delete_account') }}" onsubmit="return confirm('Are you sure you want to delete your account? This action cannot be undone.');">
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Enter your password to confirm</label>
-                            <input type="password" class="form-control" id="password" name="password" required>
-                        </div>
-                        <button type="submit" class="btn btn-danger">Delete Account</button>
-                    </form>
-                </div>
+                <hr class="my-4">
+
+                <h3 class="h5 text-primary mb-3">
+                    <i class="fas fa-key me-2"></i>Change Password
+                </h3>
+                <form method="POST" class="mb-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="mb-3">
+                        <label for="current_password" class="form-label">Current Password</label>
+                        <input type="password" class="form-control" id="current_password" name="current_password" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="new_password" class="form-label">New Password</label>
+                        <input type="password" class="form-control" id="new_password" name="new_password" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">Confirm New Password</label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Update Password
+                    </button>
+                </form>
+
+                <hr class="my-4">
+
+                <h3 class="h5 text-danger mb-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Danger Zone
+                </h3>
+                <form method="POST" action="{{ url_for('delete_account') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Confirm Password</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-danger" 
+                            onclick="return confirm('Are you sure you want to delete your account? This action cannot be undone.')">
+                        <i class="fas fa-trash me-2"></i>Delete Account
+                    </button>
+                </form>
             </div>
         </div>
     </div>
