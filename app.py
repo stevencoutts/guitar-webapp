@@ -297,6 +297,18 @@ def delete_account():
         flash('An error occurred while deleting your account')
         return redirect(url_for('account'))
 
+@app.route('/song/<int:song_id>', methods=['GET'])
+@login_required
+def view_song(song_id):
+    song = Song.query.get_or_404(song_id)
+    
+    # Ensure the user owns this song
+    if song.user_id != current_user.id:
+        flash('You do not have permission to view this song.')
+        return redirect(url_for('index'))
+    
+    return render_template('view_song.html', song=song)
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()

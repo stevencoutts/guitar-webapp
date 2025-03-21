@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="card-title">{{ song.title }}</h2>
+                    <a href="{{ url_for('edit_song', song_id=song.id) }}" class="btn btn-outline-primary">Edit</a>
+                </div>
+
+                <div class="mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <h5 class="mb-0 me-3">Tempo: {{ song.bpm }} BPM</h5>
+                        <button id="metronomeButton" class="btn btn-primary" onclick="toggleMetronome()">
+                            Start Metronome
+                        </button>
+                    </div>
+                    <p><strong>Time Signature:</strong> {{ song.time_signature }}</p>
+                </div>
+
+                <div class="mb-4">
+                    <h5>Chord Progression</h5>
+                    <pre class="bg-light p-3 rounded">{{ song.chord_progression }}</pre>
+                </div>
+
+                <div class="mb-4">
+                    <h5>Strumming Pattern</h5>
+                    <pre class="bg-light p-3 rounded">{{ song.strumming_pattern }}</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let audioContext = null;
+let metronomeInterval = null;
+let isPlaying = false;
+
+function createAudioContext() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioContext;
+}
+
+function playClick() {
+    const context = createAudioContext();
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(context.destination);
+
+    oscillator.frequency.value = 1000;
+    gainNode.gain.value = 0.1;
+
+    oscillator.start(context.currentTime);
+    oscillator.stop(context.currentTime + 0.1);
+}
+
+function toggleMetronome() {
+    const button = document.getElementById('metronomeButton');
+    if (!isPlaying) {
+        // Start metronome
+        const bpm = {{ song.bpm }};
+        const interval = (60 / bpm) * 1000; // Convert BPM to milliseconds
+        
+        createAudioContext(); // Initialize audio context on user interaction
+        playClick(); // Play first click immediately
+        
+        metronomeInterval = setInterval(playClick, interval);
+        button.textContent = 'Stop Metronome';
+        button.classList.remove('btn-primary');
+        button.classList.add('btn-danger');
+        isPlaying = true;
+    } else {
+        // Stop metronome
+        clearInterval(metronomeInterval);
+        button.textContent = 'Start Metronome';
+        button.classList.remove('btn-danger');
+        button.classList.add('btn-primary');
+        isPlaying = false;
+    }
+}
+
+// Cleanup when leaving the page
+window.addEventListener('beforeunload', function() {
+    if (metronomeInterval) {
+        clearInterval(metronomeInterval);
+    }
+});
+</script>
+{% endblock %} 
