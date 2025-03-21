@@ -31,10 +31,10 @@
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('account') }}">My Account</a>
+                            <span class="nav-link">Welcome, {{ current_user.username }}</span>
                         </li>
                         <li class="nav-item">
-                            <span class="nav-link">Welcome, {{ current_user.username }}</span>
+                            <a class="nav-link" href="{{ url_for('account') }}">My Account</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
