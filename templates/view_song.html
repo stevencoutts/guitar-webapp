@@ -6,36 +6,94 @@
         <div class="card">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-4">
-                    <div>
-                        <h2 class="card-title">{{ song.title }}</h2>
-                        <p class="mb-1">Time Signature: {{ song.time_signature }} | BPM: {{ song.bpm }}</p>
+                    <h2 class="card-title mb-0">{{ song.title }}</h2>
+                    <div class="metronome-container text-end">
+                        <button id="startMetronome" class="btn btn-primary mb-2">Start Metronome</button>
+                        <div class="metronome-dots">
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                        </div>
                     </div>
-                    <div class="text-end">
-                        <a href="{{ url_for('edit_song', song_id=song.id) }}" class="btn btn-outline-primary mb-2">Edit</a>
-                        <button id="metronomeButton" class="btn btn-primary d-block w-100" onclick="toggleMetronome()">
-                            Start Metronome
-                        </button>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h5>Time Signature: {{ song.time_signature }}</h5>
+                        <h5>BPM: {{ song.bpm }}</h5>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Chord Progression:</h5>
+                        <pre class="chord-progression text-start">{{ song.chord_progression }}</pre>
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <h5>Chord Progression</h5>
-                    <pre class="bg-light p-3 rounded">{{ song.chord_progression }}</pre>
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <h5>Strumming Pattern:</h5>
+                        <pre class="strumming-pattern">{{ song.strumming_pattern }}</pre>
+                    </div>
                 </div>
 
-                <div class="mb-4">
-                    <h5>Strumming Pattern</h5>
-                    <pre class="bg-light p-3 rounded">{{ song.strumming_pattern }}</pre>
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('edit_song', song_id=song.id) }}" class="btn btn-primary">Edit Song</a>
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Songs</a>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<style>
+.chord-progression, .strumming-pattern {
+    white-space: pre-wrap;
+    font-family: monospace;
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    margin: 0;
+    text-align: left;
+}
+
+.metronome-dots {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.dot {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background-color: #dee2e6;
+    transition: background-color 0.1s ease;
+}
+
+.dot.active {
+    background-color: #dc3545;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.dot.active {
+    animation: pulse 0.1s ease;
+}
+</style>
+
 <script>
 let audioContext = null;
-let metronomeInterval = null;
+let metronomeInterval;
 let isPlaying = false;
+const bpm = {{ song.bpm }};
+const timeSignature = "{{ song.time_signature }}";
+const [beats, _] = timeSignature.split('/').map(Number);
+let currentBeat = 0;
 
 function createAudioContext() {
     if (!audioContext) {
@@ -59,30 +117,46 @@ function playClick() {
     oscillator.stop(context.currentTime + 0.1);
 }
 
-function toggleMetronome() {
-    const button = document.getElementById('metronomeButton');
+function updateMetronomeDots() {
+    const dots = document.querySelectorAll('.dot');
+    dots.forEach((dot, index) => {
+        if (index === currentBeat) {
+            dot.classList.add('active');
+        } else {
+            dot.classList.remove('active');
+        }
+    });
+    currentBeat = (currentBeat + 1) % beats;
+}
+
+function startMetronome() {
     if (!isPlaying) {
-        // Start metronome
-        const bpm = {{ song.bpm }};
-        const interval = (60 / bpm) * 1000; // Convert BPM to milliseconds
+        isPlaying = true;
+        const interval = (60 / bpm) * 1000;
         
         createAudioContext(); // Initialize audio context on user interaction
         playClick(); // Play first click immediately
         
-        metronomeInterval = setInterval(playClick, interval);
-        button.textContent = 'Stop Metronome';
-        button.classList.remove('btn-primary');
-        button.classList.add('btn-danger');
-        isPlaying = true;
+        metronomeInterval = setInterval(() => {
+            playClick();
+            updateMetronomeDots();
+        }, interval);
+        
+        document.getElementById('startMetronome').textContent = 'Stop Metronome';
     } else {
-        // Stop metronome
-        clearInterval(metronomeInterval);
-        button.textContent = 'Start Metronome';
-        button.classList.remove('btn-danger');
-        button.classList.add('btn-primary');
-        isPlaying = false;
+        stopMetronome();
     }
 }
+
+function stopMetronome() {
+    isPlaying = false;
+    clearInterval(metronomeInterval);
+    document.getElementById('startMetronome').textContent = 'Start Metronome';
+    currentBeat = 0;
+    updateMetronomeDots();
+}
+
+document.getElementById('startMetronome').addEventListener('click', startMetronome);
 
 // Cleanup when leaving the page
 window.addEventListener('beforeunload', function() {
