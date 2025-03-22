@@ -7,4 +7,5 @@ Werkzeug==3.0.1
 python-dotenv==1.0.1
 gunicorn==21.2.0
 SQLAlchemy==2.0.28
-alembic==1.13.1 
+alembic==1.13.1
+humanize==4.10.0 

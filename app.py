@@ -12,6 +12,7 @@ import json
 import io
 import logging
 from logging.handlers import RotatingFileHandler
+import humanize
 
 from io import StringIO, BytesIO
 from werkzeug.utils import secure_filename
@@ -71,6 +72,11 @@ def format_datetime(value):
     if value is None:
         return ""
     return value.strftime('%Y-%m-%d %H:%M')
+
+# Add timeago filter
+@app.template_filter('timeago')
+def timeago_filter(date):
+    return humanize.naturaltime(datetime.utcnow() - date)
 
 # Password validation
 def is_valid_password(password):
