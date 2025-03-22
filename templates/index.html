@@ -1,118 +1,173 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-10">
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2 class="card-title mb-0 text-primary">
-                        <i class="fas fa-music me-2"></i>My Songs
-                    </h2>
-                    <a href="{{ url_for('new_song') }}" class="btn btn-primary">
-                        <i class="fas fa-plus me-2"></i>Add New Song
-                    </a>
-                </div>
-
-                {% if songs %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Title</th>
-                                    <th>Time Signature</th>
-                                    <th>BPM</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for song in songs %}
-                                    <tr>
-                                        <td>
-                                            <a href="{{ url_for('view_song', song_id=song.id) }}" class="text-primary text-decoration-none">
-                                                <i class="fas fa-music me-2"></i>{{ song.title }}
-                                            </a>
-                                        </td>
-                                        <td>
-                                            <i class="fas fa-clock me-2"></i>{{ song.time_signature }}
-                                        </td>
-                                        <td>
-                                            <i class="fas fa-tachometer-alt me-2"></i>{{ song.bpm }}
-                                        </td>
-                                        <td>
-                                            <div class="btn-group">
-                                                <a href="{{ url_for('view_song', song_id=song.id) }}" class="btn btn-sm btn-outline-primary">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                                <a href="{{ url_for('edit_song', song_id=song.id) }}" class="btn btn-sm btn-outline-primary">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
-                                                <form method="POST" action="{{ url_for('delete_song', song_id=song.id) }}" class="d-inline">
-                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger" 
-                                                            onclick="return confirm('Are you sure you want to delete this song?')">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-music fa-3x text-primary mb-3"></i>
-                        <h4 class="text-primary mb-3">No Songs Yet</h4>
-                        <p class="text-muted mb-4">Start by adding your first song!</p>
+<div class="container">
+    {% if current_user.is_authenticated %}
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="songs-container">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="page-title">
+                            <i class="fas fa-music me-2"></i>Your Songs
+                        </h2>
                         <a href="{{ url_for('new_song') }}" class="btn btn-primary">
                             <i class="fas fa-plus me-2"></i>Add New Song
                         </a>
                     </div>
-                {% endif %}
+                    
+                    {% if songs %}
+                        <div class="songs-grid">
+                            {% for song in songs %}
+                                <div class="song-card">
+                                    <div class="song-card-content">
+                                        <div class="song-info">
+                                            <h3 class="song-title">
+                                                <a href="{{ url_for('view_song', song_id=song.id) }}">
+                                                    {{ song.title }}
+                                                </a>
+                                            </h3>
+                                            <p class="song-artist">
+                                                <i class="fas fa-user me-2"></i>{{ song.artist or 'No artist specified' }}
+                                            </p>
+                                            <div class="song-meta">
+                                                <span class="meta-item">
+                                                    <i class="fas fa-clock me-1"></i>{{ song.time_signature }}
+                                                </span>
+                                                <span class="meta-item">
+                                                    <i class="fas fa-tachometer-alt me-1"></i>{{ song.bpm }} BPM
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="song-actions">
+                                            <a href="{{ url_for('edit_song', song_id=song.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <form method="POST" action="{{ url_for('delete_song', song_id=song.id) }}" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this song?')">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <div class="empty-state-content">
+                                <i class="fas fa-music fa-3x mb-3 text-primary"></i>
+                                <h4 class="text-primary mb-3">No Songs Yet</h4>
+                                <p class="text-muted mb-4">Start your musical journey by adding your first song!</p>
+                                <a href="{{ url_for('new_song') }}" class="btn btn-primary">
+                                    <i class="fas fa-plus me-2"></i>Add Your First Song
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
-    </div>
+    {% else %}
+        <div class="welcome-page">
+            <div class="row align-items-center min-vh-75">
+                <div class="col-md-6">
+                    <div class="welcome-content">
+                        <h1 class="display-4 mb-4 text-primary">Welcome to Guitar Practice</h1>
+                        <p class="lead mb-4">Your personal space for tracking songs, practicing chord changes, and improving your guitar skills.</p>
+                        <div class="d-flex gap-3">
+                            <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">
+                                <i class="fas fa-sign-in-alt me-2"></i>Login
+                            </a>
+                            <a href="{{ url_for('register') }}" class="btn btn-outline-primary btn-lg">
+                                <i class="fas fa-user-plus me-2"></i>Register
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="guitar-animation">
+                        <svg viewBox="0 0 400 400" class="guitar-svg">
+                            <!-- Guitar Body -->
+                            <path class="guitar-body" d="M100,200 C100,100 300,100 300,200 C300,300 100,300 100,200" />
+                            <!-- Guitar Neck -->
+                            <rect class="guitar-neck" x="150" y="50" width="40" height="150" />
+                            <!-- Guitar Head -->
+                            <rect class="guitar-head" x="150" y="20" width="40" height="30" />
+                            <!-- Strings -->
+                            <line class="guitar-string" x1="170" y1="50" x2="170" y2="200" />
+                            <line class="guitar-string" x1="180" y1="50" x2="180" y2="200" />
+                            <line class="guitar-string" x1="190" y1="50" x2="190" y2="200" />
+                            <line class="guitar-string" x1="200" y1="50" x2="200" y2="200" />
+                            <line class="guitar-string" x1="210" y1="50" x2="210" y2="200" />
+                            <line class="guitar-string" x1="220" y1="50" x2="220" y2="200" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
 </div>
 
 <style>
+.welcome-page {
+    padding: 4rem 0;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 1rem;
+    margin-top: 2rem;
+}
+
+.min-vh-75 {
+    min-height: 75vh;
+}
+
+.welcome-content {
+    padding: 2rem;
+}
+
 .guitar-animation {
-    width: 200px;
-    height: 200px;
-    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
 }
 
 .guitar-svg {
     width: 100%;
-    height: 100%;
-    animation: float 3s ease-in-out infinite;
+    max-width: 400px;
+    height: auto;
 }
 
 .guitar-body {
-    animation: pulse 2s ease-in-out infinite;
+    fill: var(--primary-color);
+    animation: float 3s ease-in-out infinite;
 }
 
 .guitar-neck {
-    animation: sway 4s ease-in-out infinite;
+    fill: #8B4513;
+    animation: sway 3s ease-in-out infinite;
 }
 
-.guitar-strings {
-    animation: strum 1s ease-in-out infinite;
+.guitar-head {
+    fill: #8B4513;
+    animation: sway 3s ease-in-out infinite;
 }
 
-.guitar-sound-hole {
-    animation: pulse 2s ease-in-out infinite;
+.guitar-string {
+    stroke: #fff;
+    stroke-width: 2;
+    animation: strum 0.5s ease-in-out infinite;
 }
+
+.guitar-string:nth-child(1) { animation-delay: 0.1s; }
+.guitar-string:nth-child(2) { animation-delay: 0.2s; }
+.guitar-string:nth-child(3) { animation-delay: 0.3s; }
+.guitar-string:nth-child(4) { animation-delay: 0.4s; }
+.guitar-string:nth-child(5) { animation-delay: 0.5s; }
+.guitar-string:nth-child(6) { animation-delay: 0.6s; }
 
 @keyframes float {
     0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
-}
-
-@keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
+    50% { transform: translateY(-20px); }
 }
 
 @keyframes sway {
@@ -121,8 +176,120 @@
 }
 
 @keyframes strum {
-    0%, 100% { stroke-dasharray: 30; }
-    50% { stroke-dasharray: 0; }
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(1.1); }
+}
+
+@media (max-width: 768px) {
+    .welcome-page {
+        padding: 2rem 0;
+    }
+    
+    .guitar-animation {
+        margin-top: 2rem;
+    }
+}
+
+.songs-container {
+    background: white;
+    border-radius: 1rem;
+    padding: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.page-title {
+    color: var(--primary-color);
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.songs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.song-card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 0.75rem;
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+.song-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.song-card-content {
+    padding: 1.25rem;
+}
+
+.song-title {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.song-title a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.song-title a:hover {
+    color: var(--primary-color-dark);
+}
+
+.song-artist {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+}
+
+.song-meta {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.meta-item {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.song-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: #f8f9fa;
+    border-radius: 0.75rem;
+}
+
+.empty-state-content {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+    .songs-container {
+        padding: 1rem;
+    }
+    
+    .songs-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .song-card {
+        margin-bottom: 1rem;
+    }
 }
 </style>
 {% endblock %} 
