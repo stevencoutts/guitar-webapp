@@ -75,6 +75,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
+    disabled = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     songs = db.relationship('Song', backref='user', lazy=True)
     practice_records = db.relationship('PracticeRecord', backref='user', lazy=True)
@@ -182,15 +183,23 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+        
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
+            if user.disabled:
+                flash('Your account has been disabled. Please contact an administrator.')
+                return redirect(url_for('login'))
             login_user(user)
             return redirect(url_for('index'))
-        flash('Invalid username or password')
+        else:
+            flash('Invalid username or password')
+            
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -455,6 +464,52 @@ def delete_user(user_id):
     db.session.commit()
     
     flash(f'User {user.username} has been deleted.')
+    return redirect(url_for('admin'))
+
+@app.route('/admin/user/<int:user_id>/change_password', methods=['POST'])
+@login_required
+def change_user_password(user_id):
+    if not current_user.is_admin:
+        flash('You do not have permission to perform this action.')
+        return redirect(url_for('index'))
+    
+    user = db.session.get(User, user_id)
+    if not user:
+        flash('User not found.')
+        return redirect(url_for('admin'))
+    
+    new_password = request.form.get('new_password')
+    if not new_password:
+        flash('New password is required.')
+        return redirect(url_for('admin'))
+    
+    user.set_password(new_password)
+    db.session.commit()
+    
+    flash(f'Password changed for user {user.username}.')
+    return redirect(url_for('admin'))
+
+@app.route('/admin/user/<int:user_id>/toggle_disabled', methods=['POST'])
+@login_required
+def toggle_user_disabled(user_id):
+    if not current_user.is_admin:
+        flash('You do not have permission to perform this action.')
+        return redirect(url_for('index'))
+    
+    user = db.session.get(User, user_id)
+    if not user:
+        flash('User not found.')
+        return redirect(url_for('admin'))
+    
+    if user.id == current_user.id:
+        flash('You cannot disable your own account.')
+        return redirect(url_for('admin'))
+    
+    user.disabled = not user.disabled
+    db.session.commit()
+    
+    status = 'disabled' if user.disabled else 'enabled'
+    flash(f'User {user.username} has been {status}.')
     return redirect(url_for('admin'))
 
 @app.route('/practice/chord-changes', methods=['GET', 'POST'])
