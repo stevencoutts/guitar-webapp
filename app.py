@@ -9,6 +9,7 @@ import re
 from datetime import datetime, timedelta
 from flask_wtf.csrf import CSRFProtect
 import json
+import io
 
 from io import StringIO, BytesIO
 from werkzeug.utils import secure_filename
@@ -75,6 +76,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
+    disabled = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     songs = db.relationship('Song', backref='user', lazy=True)
     practice_records = db.relationship('PracticeRecord', backref='user', lazy=True)
@@ -182,15 +184,23 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+        
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
+            if user.disabled:
+                flash('Your account has been disabled. Please contact an administrator.')
+                return redirect(url_for('login'))
             login_user(user)
             return redirect(url_for('index'))
-        flash('Invalid username or password')
+        else:
+            flash('Invalid username or password')
+            
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -457,6 +467,52 @@ def delete_user(user_id):
     flash(f'User {user.username} has been deleted.')
     return redirect(url_for('admin'))
 
+@app.route('/admin/user/<int:user_id>/change_password', methods=['POST'])
+@login_required
+def change_user_password(user_id):
+    if not current_user.is_admin:
+        flash('You do not have permission to perform this action.')
+        return redirect(url_for('index'))
+    
+    user = db.session.get(User, user_id)
+    if not user:
+        flash('User not found.')
+        return redirect(url_for('admin'))
+    
+    new_password = request.form.get('new_password')
+    if not new_password:
+        flash('New password is required.')
+        return redirect(url_for('admin'))
+    
+    user.set_password(new_password)
+    db.session.commit()
+    
+    flash(f'Password changed for user {user.username}.')
+    return redirect(url_for('admin'))
+
+@app.route('/admin/user/<int:user_id>/toggle_disabled', methods=['POST'])
+@login_required
+def toggle_user_disabled(user_id):
+    if not current_user.is_admin:
+        flash('You do not have permission to perform this action.')
+        return redirect(url_for('index'))
+    
+    user = db.session.get(User, user_id)
+    if not user:
+        flash('User not found.')
+        return redirect(url_for('admin'))
+    
+    if user.id == current_user.id:
+        flash('You cannot disable your own account.')
+        return redirect(url_for('admin'))
+    
+    user.disabled = not user.disabled
+    db.session.commit()
+    
+    status = 'disabled' if user.disabled else 'enabled'
+    flash(f'User {user.username} has been {status}.')
+    return redirect(url_for('admin'))
+
 @app.route('/practice/chord-changes', methods=['GET', 'POST'])
 @login_required
 def chord_changes():
@@ -512,15 +568,25 @@ def backup():
         action = request.form.get('action')
         
         if action == 'backup':
-            # Get all user's data
+            # Get user's data for backup
             songs = Song.query.filter_by(user_id=current_user.id).all()
             practice_records = PracticeRecord.query.filter_by(user_id=current_user.id).all()
-            chord_pairs = ChordPair.query.all()  # Get all predefined chord pairs
             
-            # Create backup data
+            # Get all users (for admin only)
+            users = []
+            if current_user.is_admin:
+                users = User.query.all()
+            
+            # Prepare backup data
             backup_data = {
+                'version': '1.0',
+                'timestamp': datetime.utcnow().isoformat(),
                 'user': {
+                    'id': current_user.id,
                     'username': current_user.username,
+                    'password_hash': current_user.password_hash,
+                    'is_admin': current_user.is_admin,
+                    'disabled': current_user.disabled,
                     'created_at': current_user.created_at.isoformat() if current_user.created_at else None
                 },
                 'songs': [{
@@ -538,94 +604,114 @@ def backup():
                     'chord_pair': record.chord_pair,
                     'score': record.score,
                     'date': record.date.isoformat() if record.date else None
-                } for record in practice_records],
-                'chord_pairs': [{
-                    'first_chord': pair.first_chord,
-                    'second_chord': pair.second_chord,
-                    'difficulty': pair.difficulty,
-                    'description': pair.description,
-                    'created_at': pair.created_at.isoformat() if pair.created_at else None
-                } for pair in chord_pairs]
+                } for record in practice_records]
             }
             
-            # Create response with JSON data
-            output = BytesIO()
-            json_str = json.dumps(backup_data, indent=2)
-            output.write(json_str.encode('utf-8'))
-            output.seek(0)
+            # Add all users data if admin
+            if current_user.is_admin:
+                backup_data['users'] = [{
+                    'id': user.id,
+                    'username': user.username,
+                    'password_hash': user.password_hash,
+                    'is_admin': user.is_admin,
+                    'disabled': user.disabled,
+                    'created_at': user.created_at.isoformat() if user.created_at else None
+                } for user in users]
             
-            # Generate filename with timestamp
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f'guitar_practice_backup_{timestamp}.json'
+            # Create backup file
+            json_str = json.dumps(backup_data, indent=2)
+            backup_file = BytesIO(json_str.encode('utf-8'))
             
             return send_file(
-                output,
+                backup_file,
                 mimetype='application/json',
                 as_attachment=True,
-                download_name=filename
+                download_name=f'guitar_practice_backup_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.json'
             )
             
         elif action == 'restore':
             if 'backup_file' not in request.files:
-                flash('No file uploaded', 'error')
+                flash('No file selected', 'error')
                 return redirect(url_for('backup'))
-                
+            
             file = request.files['backup_file']
             if file.filename == '':
                 flash('No file selected', 'error')
                 return redirect(url_for('backup'))
-                
-            if not file.filename.endswith('.json'):
-                flash('Invalid file type. Please upload a JSON file.', 'error')
+            
+            if file and file.filename.endswith('.json'):
+                try:
+                    backup_data = json.load(file)
+                    
+                    # Validate backup data structure
+                    if not isinstance(backup_data, dict) or 'version' not in backup_data:
+                        flash('Invalid backup file format', 'error')
+                        return redirect(url_for('backup'))
+                    
+                    # Check if trying to restore user data without admin privileges
+                    if 'users' in backup_data and not current_user.is_admin:
+                        flash('You do not have permission to restore user data', 'error')
+                        return redirect(url_for('backup'))
+                    
+                    # Delete existing data
+                    Song.query.filter_by(user_id=current_user.id).delete()
+                    PracticeRecord.query.filter_by(user_id=current_user.id).delete()
+                    
+                    # Restore songs
+                    for song_data in backup_data.get('songs', []):
+                        song = Song(
+                            user_id=current_user.id,
+                            title=song_data.get('title'),
+                            artist=song_data.get('artist'),
+                            time_signature=song_data.get('time_signature'),
+                            bpm=song_data.get('bpm'),
+                            chord_progression=song_data.get('chord_progression'),
+                            strumming_pattern=song_data.get('strumming_pattern'),
+                            notes=song_data.get('notes')
+                        )
+                        db.session.add(song)
+                    
+                    # Restore practice records
+                    for record_data in backup_data.get('practice_records', []):
+                        record = PracticeRecord(
+                            user_id=current_user.id,
+                            chord_pair=record_data.get('chord_pair'),
+                            score=record_data.get('score'),
+                            date=datetime.fromisoformat(record_data.get('date'))
+                        )
+                        db.session.add(record)
+                    
+                    # Restore users if admin
+                    if current_user.is_admin and 'users' in backup_data:
+                        for user_data in backup_data['users']:
+                            user = User.query.get(user_data.get('id'))
+                            if user:
+                                user.username = user_data.get('username')
+                                user.password_hash = user_data.get('password_hash')
+                                user.is_admin = user_data.get('is_admin', False)
+                                user.disabled = user_data.get('disabled', False)
+                            else:
+                                user = User(
+                                    username=user_data.get('username'),
+                                    password_hash=user_data.get('password_hash'),
+                                    is_admin=user_data.get('is_admin', False),
+                                    disabled=user_data.get('disabled', False)
+                                )
+                                db.session.add(user)
+                    
+                    db.session.commit()
+                    flash('Backup restored successfully!', 'success')
+                    return redirect(url_for('index'))
+                    
+                except Exception as e:
+                    db.session.rollback()
+                    flash(f'Error restoring backup: {str(e)}', 'error')
+                    return redirect(url_for('backup'))
+            else:
+                flash('Invalid file format. Please upload a JSON file.', 'error')
                 return redirect(url_for('backup'))
-            
-            try:
-                # Read and parse JSON data
-                backup_data = json.load(file)
-                
-                # Validate backup data structure
-                if not isinstance(backup_data, dict) or 'songs' not in backup_data:
-                    raise ValueError('Invalid backup file format')
-                
-                # Delete existing user data
-                Song.query.filter_by(user_id=current_user.id).delete()
-                PracticeRecord.query.filter_by(user_id=current_user.id).delete()
-                
-                # Restore songs
-                for song_data in backup_data.get('songs', []):
-                    song = Song(
-                        title=song_data['title'],
-                        artist=song_data.get('artist'),
-                        time_signature=song_data['time_signature'],
-                        bpm=song_data['bpm'],
-                        chord_progression=song_data['chord_progression'],
-                        strumming_pattern=song_data['strumming_pattern'],
-                        notes=song_data.get('notes'),
-                        user_id=current_user.id
-                    )
-                    db.session.add(song)
-                
-                # Restore practice records
-                for record_data in backup_data.get('practice_records', []):
-                    record = PracticeRecord(
-                        chord_pair=record_data['chord_pair'],
-                        score=record_data['score'],
-                        user_id=current_user.id
-                    )
-                    db.session.add(record)
-                
-                # Note: We don't restore chord pairs as they are predefined
-                # and shared across all users
-                
-                db.session.commit()
-                flash('Backup restored successfully', 'success')
-                
-            except Exception as e:
-                db.session.rollback()
-                flash(f'Error restoring backup: {str(e)}', 'error')
-                
-            return redirect(url_for('backup'))
-            
+    
+    # Show backup page
     return render_template('backup.html')
 
 if __name__ == '__main__':
