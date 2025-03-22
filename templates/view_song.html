@@ -59,8 +59,17 @@
                 <div class="card-body">
                     <h5 class="card-title mb-3">Chords Used</h5>
                     <div class="chord-list">
-                        {% set unique_chords = song.chord_progression.split()|unique|sort %}
-                        {% for chord in unique_chords %}
+                        {% set chords = [] %}
+                        {% for line in song.chord_progression.split('\n') %}
+                            {% if line.strip() and not line.strip().startswith('#') %}
+                                {% for chord in line.replace('|', '').split() %}
+                                    {% if chord and chord not in chords %}
+                                        {% set _ = chords.append(chord) %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                        {% for chord in chords|sort %}
                             <span class="badge bg-primary me-2 mb-2">{{ chord }}</span>
                         {% endfor %}
                     </div>
@@ -70,7 +79,9 @@
             <div class="card mb-4">
                 <div class="card-body">
                     <h5 class="card-title mb-3">Chord Progression</h5>
-                    <pre class="chord-progression">{{ song.chord_progression }}</pre>
+                    <div class="chord-progression-container">
+                        <pre class="chord-progression">{{ song.chord_progression }}</pre>
+                    </div>
                 </div>
             </div>
 
@@ -127,6 +138,25 @@
         padding: 1rem;
         border-radius: 0.5rem;
         margin: 0;
+    }
+    
+    .chord-progression-container {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    @media (min-width: 768px) {
+        .chord-progression {
+            column-count: 2;
+            column-gap: 2rem;
+            column-fill: balance;
+        }
+    }
+    
+    @media (min-width: 1200px) {
+        .chord-progression {
+            column-count: 3;
+        }
     }
     
     .metronome-display {

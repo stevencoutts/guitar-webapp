@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 from flask_wtf.csrf import CSRFProtect
 import json
 import io
+import logging
+from logging.handlers import RotatingFileHandler
 
 from io import StringIO, BytesIO
 from werkzeug.utils import secure_filename
@@ -18,6 +20,18 @@ from werkzeug.utils import secure_filename
 load_dotenv()
 
 app = Flask(__name__)
+
+# Configure logging
+if not app.debug:
+    # Set up file handler
+    file_handler = RotatingFileHandler('guitar_app.log', maxBytes=10240, backupCount=10)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    ))
+    file_handler.setLevel(logging.INFO)
+    app.logger.addHandler(file_handler)
+    app.logger.setLevel(logging.INFO)
+    app.logger.info('Guitar app startup')
 
 # Security configurations
 if not os.environ.get('SECRET_KEY'):
@@ -572,10 +586,14 @@ def backup():
             songs = Song.query.filter_by(user_id=current_user.id).all()
             practice_records = PracticeRecord.query.filter_by(user_id=current_user.id).all()
             
-            # Get all users (for admin only)
+            # Get all users and their data (for admin only)
             users = []
+            all_songs = []
+            all_practice_records = []
             if current_user.is_admin:
                 users = User.query.all()
+                all_songs = Song.query.all()
+                all_practice_records = PracticeRecord.query.all()
             
             # Prepare backup data
             backup_data = {
@@ -590,6 +608,8 @@ def backup():
                     'created_at': current_user.created_at.isoformat() if current_user.created_at else None
                 },
                 'songs': [{
+                    'id': song.id,
+                    'user_id': song.user_id,
                     'title': song.title,
                     'artist': song.artist,
                     'time_signature': song.time_signature,
@@ -599,12 +619,14 @@ def backup():
                     'notes': song.notes,
                     'created_at': song.created_at.isoformat() if song.created_at else None,
                     'updated_at': song.updated_at.isoformat() if song.updated_at else None
-                } for song in songs],
+                } for song in (all_songs if current_user.is_admin else songs)],
                 'practice_records': [{
+                    'id': record.id,
+                    'user_id': record.user_id,
                     'chord_pair': record.chord_pair,
                     'score': record.score,
                     'date': record.date.isoformat() if record.date else None
-                } for record in practice_records]
+                } for record in (all_practice_records if current_user.is_admin else practice_records)]
             }
             
             # Add all users data if admin
@@ -631,83 +653,141 @@ def backup():
             
         elif action == 'restore':
             if 'backup_file' not in request.files:
+                app.logger.error('No file selected for restore')
                 flash('No file selected', 'error')
                 return redirect(url_for('backup'))
             
             file = request.files['backup_file']
             if file.filename == '':
+                app.logger.error('Empty filename for restore')
                 flash('No file selected', 'error')
                 return redirect(url_for('backup'))
             
             if file and file.filename.endswith('.json'):
                 try:
                     backup_data = json.load(file)
+                    app.logger.info(f"Current user: {current_user.username} (admin: {current_user.is_admin})")
+                    app.logger.info(f"Loaded backup data: {json.dumps(backup_data, indent=2)}")
                     
                     # Validate backup data structure
                     if not isinstance(backup_data, dict) or 'version' not in backup_data:
+                        app.logger.error('Invalid backup file format')
                         flash('Invalid backup file format', 'error')
                         return redirect(url_for('backup'))
                     
                     # Check if trying to restore user data without admin privileges
                     if 'users' in backup_data and not current_user.is_admin:
+                        app.logger.error('Non-admin user attempting to restore user data')
                         flash('You do not have permission to restore user data', 'error')
                         return redirect(url_for('backup'))
                     
                     # Delete existing data
-                    Song.query.filter_by(user_id=current_user.id).delete()
-                    PracticeRecord.query.filter_by(user_id=current_user.id).delete()
+                    if current_user.is_admin:
+                        app.logger.info("Deleting all existing data (admin mode)")
+                        # Admin can restore all data
+                        Song.query.delete()
+                        PracticeRecord.query.delete()
+                        User.query.filter(User.id != current_user.id).delete()
+                    else:
+                        app.logger.info(f"Deleting existing data for user {current_user.id}")
+                        # Regular users can only restore their own data
+                        Song.query.filter_by(user_id=current_user.id).delete()
+                        PracticeRecord.query.filter_by(user_id=current_user.id).delete()
+                    
+                    # Create a mapping of old user IDs to new user IDs
+                    user_id_mapping = {}
+                    if current_user.is_admin and 'users' in backup_data:
+                        app.logger.info(f"Restoring users: {backup_data['users']}")
+                        for user_data in backup_data['users']:
+                            if user_data.get('id') != current_user.id:  # Don't restore current admin user
+                                user = User.query.get(user_data.get('id'))
+                                if user:
+                                    user.username = user_data.get('username')
+                                    user.password_hash = user_data.get('password_hash')
+                                    user.is_admin = user_data.get('is_admin', False)
+                                    user.disabled = user_data.get('disabled', False)
+                                else:
+                                    user = User(
+                                        id=user_data.get('id'),
+                                        username=user_data.get('username'),
+                                        password_hash=user_data.get('password_hash'),
+                                        is_admin=user_data.get('is_admin', False),
+                                        disabled=user_data.get('disabled', False)
+                                    )
+                                    db.session.add(user)
+                                user_id_mapping[user_data.get('id')] = user.id
                     
                     # Restore songs
-                    for song_data in backup_data.get('songs', []):
-                        song = Song(
-                            user_id=current_user.id,
-                            title=song_data.get('title'),
-                            artist=song_data.get('artist'),
-                            time_signature=song_data.get('time_signature'),
-                            bpm=song_data.get('bpm'),
-                            chord_progression=song_data.get('chord_progression'),
-                            strumming_pattern=song_data.get('strumming_pattern'),
-                            notes=song_data.get('notes')
-                        )
-                        db.session.add(song)
+                    songs_to_restore = backup_data.get('songs', [])
+                    app.logger.info(f"Found {len(songs_to_restore)} songs to restore")
+                    for song_data in songs_to_restore:
+                        # For admin, restore all songs. For regular users, only restore their own songs
+                        if current_user.is_admin or song_data.get('user_id') == current_user.id:
+                            # Map the user_id to the new user ID if it exists, or use current user's ID
+                            user_id = song_data.get('user_id')
+                            if user_id in user_id_mapping:
+                                user_id = user_id_mapping[user_id]
+                            else:
+                                user_id = current_user.id  # Use current user's ID if no mapping exists
+                            
+                            try:
+                                # Create new song without specifying ID to let database auto-generate it
+                                song = Song(
+                                    user_id=user_id,
+                                    title=song_data.get('title'),
+                                    artist=song_data.get('artist'),
+                                    time_signature=song_data.get('time_signature'),
+                                    bpm=song_data.get('bpm'),
+                                    chord_progression=song_data.get('chord_progression'),
+                                    strumming_pattern=song_data.get('strumming_pattern'),
+                                    notes=song_data.get('notes')
+                                )
+                                db.session.add(song)
+                            except Exception as e:
+                                app.logger.error(f"Error adding song {song_data.get('title')}: {str(e)}")
+                                raise
                     
                     # Restore practice records
-                    for record_data in backup_data.get('practice_records', []):
-                        record = PracticeRecord(
-                            user_id=current_user.id,
-                            chord_pair=record_data.get('chord_pair'),
-                            score=record_data.get('score'),
-                            date=datetime.fromisoformat(record_data.get('date'))
-                        )
-                        db.session.add(record)
-                    
-                    # Restore users if admin
-                    if current_user.is_admin and 'users' in backup_data:
-                        for user_data in backup_data['users']:
-                            user = User.query.get(user_data.get('id'))
-                            if user:
-                                user.username = user_data.get('username')
-                                user.password_hash = user_data.get('password_hash')
-                                user.is_admin = user_data.get('is_admin', False)
-                                user.disabled = user_data.get('disabled', False)
+                    records_to_restore = backup_data.get('practice_records', [])
+                    app.logger.info(f"Found {len(records_to_restore)} practice records to restore")
+                    for record_data in records_to_restore:
+                        if current_user.is_admin or record_data.get('user_id') == current_user.id:
+                            # Map the user_id to the new user ID if it exists, or use current user's ID
+                            user_id = record_data.get('user_id')
+                            if user_id in user_id_mapping:
+                                user_id = user_id_mapping[user_id]
                             else:
-                                user = User(
-                                    username=user_data.get('username'),
-                                    password_hash=user_data.get('password_hash'),
-                                    is_admin=user_data.get('is_admin', False),
-                                    disabled=user_data.get('disabled', False)
+                                user_id = current_user.id  # Use current user's ID if no mapping exists
+                            
+                            try:
+                                # Create new practice record without specifying ID
+                                record = PracticeRecord(
+                                    user_id=user_id,
+                                    chord_pair=record_data.get('chord_pair'),
+                                    score=record_data.get('score'),
+                                    date=datetime.fromisoformat(record_data.get('date'))
                                 )
-                                db.session.add(user)
+                                db.session.add(record)
+                            except Exception as e:
+                                app.logger.error(f"Error adding practice record {record_data.get('chord_pair')}: {str(e)}")
+                                raise
                     
-                    db.session.commit()
-                    flash('Backup restored successfully!', 'success')
-                    return redirect(url_for('index'))
-                    
+                    try:
+                        db.session.commit()
+                        app.logger.info("Backup restored successfully!")
+                        flash('Backup restored successfully!', 'success')
+                        return redirect(url_for('index'))
+                    except Exception as e:
+                        db.session.rollback()
+                        app.logger.error(f"Error during commit: {str(e)}")
+                        raise
                 except Exception as e:
                     db.session.rollback()
+                    app.logger.error(f"Error restoring backup: {str(e)}")
                     flash(f'Error restoring backup: {str(e)}', 'error')
                     return redirect(url_for('backup'))
             else:
+                app.logger.error('Invalid file format for restore')
                 flash('Invalid file format. Please upload a JSON file.', 'error')
                 return redirect(url_for('backup'))
     
