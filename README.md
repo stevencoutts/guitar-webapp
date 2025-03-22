@@ -23,7 +23,7 @@ A web application for managing guitar practice sessions, songs, and chord progre
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/guitar-webapp.git
+   git clone https://github.com/stevencoutts/guitar-webapp.git
    cd guitar-webapp
    ```
 
