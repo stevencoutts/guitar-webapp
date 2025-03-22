@@ -171,8 +171,8 @@ function startMetronome() {
         const interval = (60 / bpm) * 1000;
         
         createAudioContext(); // Initialize audio context on user interaction
-        playClick(); // Play first click immediately
         
+        // Start with the interval immediately
         metronomeInterval = setInterval(() => {
             playClick();
             updateMetronomeDots();
