@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Guitar Song Manager</title>
+    <title>{% block title %}Guitar Practice App{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -141,13 +141,33 @@
             border-radius: 8px;
             border: 1px solid var(--border-color);
         }
+
+        .chord-pair {
+            transition: all 0.3s ease;
+        }
+
+        .chord-pair:hover {
+            transform: translateX(5px);
+        }
+
+        #timer {
+            font-family: 'Courier New', monospace;
+        }
+
+        .progress {
+            background-color: var(--border-color);
+        }
+
+        .progress-bar {
+            transition: width 1s linear;
+        }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-light">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-guitar me-2"></i>Guitar Song Manager
+                <i class="fas fa-guitar me-2"></i>Guitar Practice
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -167,6 +187,11 @@
                                     <i class="fas fa-plus me-2"></i>Add New Song
                                 </a></li>
                             </ul>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('chord_changes') }}">
+                                <i class="fas fa-clock me-1"></i>Chord Changes
+                            </a>
                         </li>
                         {% if current_user.is_admin %}
                             <li class="nav-item">
@@ -226,5 +251,155 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    let timeLeft = 60;
+    let timerInterval;
+    let isRunning = false;
+    let score = 0;
+    let audioContext = null;
+    let oscillator = null;
+    let gainNode = null;
+
+    function createAudioContext() {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            gainNode = audioContext.createGain();
+            gainNode.connect(audioContext.destination);
+            gainNode.gain.value = 0.1;
+        }
+        return audioContext;
+    }
+
+    function playBeep(frequency, duration) {
+        const context = createAudioContext();
+        oscillator = context.createOscillator();
+        oscillator.connect(gainNode);
+        oscillator.frequency.value = frequency;
+        oscillator.start(context.currentTime);
+        oscillator.stop(context.currentTime + duration);
+    }
+
+    function updateTimer() {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        document.getElementById('timer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        document.getElementById('timer-progress').style.width = `${(timeLeft / 60) * 100}%`;
+    }
+
+    function startCountdown() {
+        let countdown = 4;
+        const countdownInterval = setInterval(() => {
+            if (countdown > 0) {
+                playBeep(440, 0.1);
+                document.getElementById('timer').textContent = countdown;
+                countdown--;
+            } else {
+                clearInterval(countdownInterval);
+                document.getElementById('timer').textContent = '1:00';
+                startTimer();
+            }
+        }, 1000);
+    }
+
+    function startTimer() {
+        if (!isRunning) {
+            isRunning = true;
+            timeLeft = 60;
+            score = 0;
+            document.getElementById('score').textContent = '0';
+            document.getElementById('startTimer').disabled = true;
+            document.getElementById('resetTimer').disabled = true;
+            document.getElementById('addChordPair').disabled = true;
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimer();
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    isRunning = false;
+                    document.getElementById('startTimer').disabled = false;
+                    document.getElementById('resetTimer').disabled = false;
+                    document.getElementById('addChordPair').disabled = false;
+                    playBeep(880, 0.2);
+                    document.getElementById('practiceForm').classList.remove('d-none');
+                }
+            }, 1000);
+        }
+    }
+
+    function resetTimer() {
+        clearInterval(timerInterval);
+        isRunning = false;
+        timeLeft = 60;
+        score = 0;
+        document.getElementById('score').textContent = '0';
+        document.getElementById('timer').textContent = '1:00';
+        document.getElementById('timer-progress').style.width = '100%';
+        document.getElementById('startTimer').disabled = false;
+        document.getElementById('resetTimer').disabled = true;
+        document.getElementById('addChordPair').disabled = false;
+        document.getElementById('practiceForm').classList.add('d-none');
+    }
+
+    function addChordPair() {
+        const chordPairs = document.getElementById('chord-pairs');
+        const newPair = document.createElement('div');
+        newPair.className = 'chord-pair mb-2';
+        newPair.innerHTML = `
+            <div class="input-group">
+                <input type="text" class="form-control chord-input" placeholder="First chord" required>
+                <span class="input-group-text">→</span>
+                <input type="text" class="form-control chord-input" placeholder="Second chord" required>
+                <button type="button" class="btn btn-outline-danger remove-pair">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        chordPairs.appendChild(newPair);
+    }
+
+    function removeChordPair(button) {
+        button.closest('.chord-pair').remove();
+    }
+
+    function incrementScore() {
+        if (isRunning) {
+            score++;
+            document.getElementById('score').textContent = score;
+        }
+    }
+
+    document.getElementById('startTimer').addEventListener('click', startCountdown);
+    document.getElementById('resetTimer').addEventListener('click', resetTimer);
+    document.getElementById('addChordPair').addEventListener('click', addChordPair);
+
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-pair')) {
+            removeChordPair(e.target.closest('.remove-pair'));
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.code === 'Space' && isRunning) {
+            e.preventDefault();
+            incrementScore();
+        }
+    });
+
+    // Initialize the form submission
+    document.getElementById('practiceForm').addEventListener('submit', function(e) {
+        document.getElementById('scoreInput').value = score;
+        
+        const chordPairs = [];
+        document.querySelectorAll('.chord-pair').forEach(pair => {
+            const inputs = pair.querySelectorAll('.chord-input');
+            if (inputs[0].value && inputs[1].value) {
+                chordPairs.push(`${inputs[0].value}→${inputs[1].value}`);
+            }
+        });
+        document.getElementById('chordPairsInput').value = JSON.stringify(chordPairs);
+    });
+    </script>
 </body>
 </html> 

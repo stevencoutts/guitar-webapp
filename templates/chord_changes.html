@@ -1,0 +1,459 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title mb-4 text-primary">
+                    <i class="fas fa-clock me-2"></i>One Minute Chord Changes
+                </h2>
+                
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0 text-primary">Timer</h5>
+                        <span id="timer" class="h3 mb-0 text-primary">1:00</span>
+                    </div>
+                    <div class="progress mb-3" style="height: 10px;">
+                        <div id="timer-progress" class="progress-bar bg-primary" role="progressbar" style="width: 100%"></div>
+                    </div>
+                    <div class="d-flex justify-content-center gap-2">
+                        <button id="startTimer" class="btn btn-primary">
+                            <i class="fas fa-play me-2"></i>Start Practice
+                        </button>
+                        <button id="resetTimer" class="btn btn-outline-primary" disabled>
+                            <i class="fas fa-redo me-2"></i>Reset
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <h5 class="text-primary mb-3">Chord Pairs</h5>
+                    <div id="chord-pairs" class="mb-3">
+                        <div class="chord-pair mb-2">
+                            <div class="input-group">
+                                <input type="text" class="form-control chord-input" placeholder="First chord" required>
+                                <span class="input-group-text">→</span>
+                                <input type="text" class="form-control chord-input" placeholder="Second chord" required>
+                                <button type="button" class="btn btn-outline-danger remove-pair">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary" id="addChordPair">
+                        <i class="fas fa-plus me-2"></i>Chord Pairs
+                    </button>
+                </div>
+
+                <form method="POST" id="practiceForm" class="d-none">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="score" id="scoreInput">
+                    <input type="hidden" name="chord_pairs" id="chordPairsInput">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Practice Session
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-body">
+                <h3 class="card-title mb-4 text-primary">
+                    <i class="fas fa-trophy me-2"></i>Practice Records
+                </h3>
+                
+                {% if records %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Actions</th>
+                                    <th>Chord Pair</th>
+                                    <th>Best Score</th>
+                                    <th>Last Practice</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in records|groupby('chord_pair')|map('first')|list %}
+                                    <tr>
+                                        <td>
+                                            <div class="btn-group">
+                                                <button class="btn btn-sm btn-outline-primary load-chord-pair" data-chord-pair="{{ record }}">
+                                                    <i class="fas fa-edit me-1"></i>Practice
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-success enter-score" data-chord-pair="{{ record }}">
+                                                    <i class="fas fa-plus me-1"></i>Enter Score
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td>{{ record }}</td>
+                                        <td>
+                                            <span class="badge bg-primary">
+                                                {{ best_scores[record] }} changes
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {{ records|selectattr('chord_pair', 'equalto', record)|map(attribute='date')|first|datetime }}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-history fa-3x mb-3"></i>
+                        <p>No practice records yet. Start practicing to track your progress!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Score Entry Modal -->
+<div class="modal fade" id="scoreModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Enter Practice Score</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="scoreEntryForm" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="chord_pair" id="modalChordPair">
+                    <div class="mb-3">
+                        <label for="modalScoreInput" class="form-label">Number of Changes</label>
+                        <input type="number" class="form-control" id="modalScoreInput" name="score" min="0" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveScore">Save Score</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Predefined Chord Pairs Modal -->
+<div class="modal fade" id="chordPairsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Select Chord Pairs</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row" id="predefinedChordPairs">
+                    {% for pair in predefined_pairs %}
+                    <div class="col-md-4 mb-3" data-difficulty="{{ pair.difficulty }}">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">{{ pair.display_name }}</h6>
+                                <p class="card-text small text-muted">{{ pair.description }}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-{{ 'success' if pair.difficulty == 1 else 'warning' if pair.difficulty == 2 else 'danger' }}">
+                                        {{ 'Easy' if pair.difficulty == 1 else 'Medium' if pair.difficulty == 2 else 'Hard' }}
+                                    </span>
+                                    <button class="btn btn-sm btn-outline-primary select-chord-pair" data-pair="{{ pair.display_name }}">
+                                        Select
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.chord-pair {
+    transition: all 0.3s ease;
+}
+
+.chord-pair:hover {
+    transform: translateX(5px);
+}
+
+#timer {
+    font-family: 'Courier New', monospace;
+}
+
+.progress {
+    background-color: var(--border-color);
+}
+
+.progress-bar {
+    transition: width 1s linear;
+}
+
+.table th {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.badge {
+    font-size: 0.9rem;
+    padding: 0.5em 1em;
+}
+
+.btn-group {
+    gap: 0.25rem;
+}
+
+#predefinedChordPairs .card {
+    transition: transform 0.2s ease;
+}
+
+#predefinedChordPairs .card:hover {
+    transform: translateY(-2px);
+}
+</style>
+
+<script>
+let timeLeft = 60;
+let timerInterval;
+let isRunning = false;
+let score = 0;
+let audioContext = null;
+let oscillator = null;
+let gainNode = null;
+let scoreModal = null;
+let chordPairsModal = null;
+
+function createAudioContext() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        gainNode = audioContext.createGain();
+        gainNode.connect(audioContext.destination);
+        gainNode.gain.value = 0.1;
+    }
+    return audioContext;
+}
+
+function playBeep(frequency, duration) {
+    const context = createAudioContext();
+    oscillator = context.createOscillator();
+    oscillator.connect(gainNode);
+    oscillator.frequency.value = frequency;
+    oscillator.start(context.currentTime);
+    oscillator.stop(context.currentTime + duration);
+}
+
+function updateTimer() {
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+    document.getElementById('timer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    document.getElementById('timer-progress').style.width = `${(timeLeft / 60) * 100}%`;
+}
+
+function startCountdown() {
+    let countdown = 4;
+    const countdownInterval = setInterval(() => {
+        if (countdown > 0) {
+            playBeep(440, 0.1);
+            document.getElementById('timer').textContent = countdown;
+            countdown--;
+        } else {
+            clearInterval(countdownInterval);
+            document.getElementById('timer').textContent = '1:00';
+            startTimer();
+        }
+    }, 1000);
+}
+
+function startTimer() {
+    if (!isRunning) {
+        isRunning = true;
+        timeLeft = 60;
+        score = 0;
+        document.getElementById('score').textContent = '0';
+        document.getElementById('startTimer').disabled = true;
+        document.getElementById('resetTimer').disabled = true;
+        document.getElementById('addChordPair').disabled = true;
+        
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            updateTimer();
+            
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                isRunning = false;
+                document.getElementById('startTimer').disabled = false;
+                document.getElementById('resetTimer').disabled = false;
+                document.getElementById('addChordPair').disabled = false;
+                playBeep(880, 0.2);
+                
+                // Get the current chord pair
+                const chordPair = document.querySelector('.chord-pair');
+                if (chordPair) {
+                    const inputs = chordPair.querySelectorAll('.chord-input');
+                    if (inputs[0].value && inputs[1].value) {
+                        const currentChordPair = `${inputs[0].value}→${inputs[1].value}`;
+                        showScoreModal(currentChordPair);
+                    }
+                }
+            }
+        }, 1000);
+    }
+}
+
+function resetTimer() {
+    clearInterval(timerInterval);
+    isRunning = false;
+    timeLeft = 60;
+    score = 0;
+    document.getElementById('score').textContent = '0';
+    document.getElementById('timer').textContent = '1:00';
+    document.getElementById('timer-progress').style.width = '100%';
+    document.getElementById('startTimer').disabled = false;
+    document.getElementById('resetTimer').disabled = true;
+    document.getElementById('addChordPair').disabled = false;
+    document.getElementById('practiceForm').classList.add('d-none');
+}
+
+function addChordPair() {
+    chordPairsModal.show();
+}
+
+function removeChordPair(button) {
+    button.closest('.chord-pair').remove();
+}
+
+function incrementScore() {
+    if (isRunning) {
+        score++;
+        document.getElementById('score').textContent = score;
+    }
+}
+
+function loadChordPair(chordPair) {
+    // Clear existing chord pairs
+    const chordPairs = document.getElementById('chord-pairs');
+    chordPairs.innerHTML = '';
+    
+    // Add the selected chord pair
+    const [firstChord, secondChord] = chordPair.split('→');
+    const newPair = document.createElement('div');
+    newPair.className = 'chord-pair mb-2';
+    newPair.innerHTML = `
+        <div class="input-group">
+            <input type="text" class="form-control chord-input" value="${firstChord}" required>
+            <span class="input-group-text">→</span>
+            <input type="text" class="form-control chord-input" value="${secondChord}" required>
+            <button type="button" class="btn btn-outline-danger remove-pair">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+    chordPairs.appendChild(newPair);
+    
+    // Reset the timer and form
+    resetTimer();
+}
+
+function showScoreModal(chordPair) {
+    document.getElementById('modalChordPair').value = chordPair;
+    document.getElementById('modalScoreInput').value = '';
+    scoreModal.show();
+}
+
+function saveScore() {
+    const form = document.getElementById('scoreEntryForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    const formData = new FormData(form);
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            scoreModal.hide();
+            window.location.reload();
+        } else {
+            throw new Error('Failed to save score');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to save score. Please try again.');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    scoreModal = new bootstrap.Modal(document.getElementById('scoreModal'));
+    chordPairsModal = new bootstrap.Modal(document.getElementById('chordPairsModal'));
+    
+    document.getElementById('startTimer').addEventListener('click', startCountdown);
+    document.getElementById('resetTimer').addEventListener('click', resetTimer);
+    document.getElementById('addChordPair').addEventListener('click', addChordPair);
+    document.getElementById('saveScore').addEventListener('click', saveScore);
+
+    // Add event listeners for selecting predefined chord pairs
+    document.querySelectorAll('.select-chord-pair').forEach(button => {
+        button.addEventListener('click', function() {
+            const chordPair = this.dataset.pair;
+            loadChordPair(chordPair);
+            chordPairsModal.hide();
+        });
+    });
+
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-pair')) {
+            removeChordPair(e.target.closest('.remove-pair'));
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.code === 'Space' && isRunning) {
+            e.preventDefault();
+            incrementScore();
+        }
+    });
+
+    // Add event listeners for the practice buttons
+    document.querySelectorAll('.load-chord-pair').forEach(button => {
+        button.addEventListener('click', function() {
+            const chordPair = this.dataset.chordPair;
+            loadChordPair(chordPair);
+        });
+    });
+
+    // Add event listeners for the enter score buttons
+    document.querySelectorAll('.enter-score').forEach(button => {
+        button.addEventListener('click', function() {
+            const chordPair = this.dataset.chordPair;
+            showScoreModal(chordPair);
+        });
+    });
+
+    // Add event listener for form submission on Enter key
+    document.getElementById('modalScoreInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            saveScore();
+        }
+    });
+
+    // Remove the practice form submission since we're using the score modal
+    document.getElementById('practiceForm').remove();
+});
+</script>
+{% endblock %} 
