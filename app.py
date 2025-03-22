@@ -511,7 +511,7 @@ def backup():
             # Get all user's data
             songs = Song.query.filter_by(user_id=current_user.id).all()
             practice_records = PracticeRecord.query.filter_by(user_id=current_user.id).all()
-            chord_pairs = ChordPair.query.filter_by(user_id=current_user.id).all()
+            chord_pairs = ChordPair.query.all()  # Get all predefined chord pairs
             
             # Create backup data
             backup_data = {
@@ -533,12 +533,13 @@ def backup():
                 'practice_records': [{
                     'chord_pair': record.chord_pair,
                     'score': record.score,
-                    'created_at': record.created_at.isoformat() if record.created_at else None
+                    'date': record.date.isoformat() if record.date else None
                 } for record in practice_records],
                 'chord_pairs': [{
-                    'chord1': pair.chord1,
-                    'chord2': pair.chord2,
+                    'first_chord': pair.first_chord,
+                    'second_chord': pair.second_chord,
                     'difficulty': pair.difficulty,
+                    'description': pair.description,
                     'created_at': pair.created_at.isoformat() if pair.created_at else None
                 } for pair in chord_pairs]
             }
@@ -582,10 +583,9 @@ def backup():
                 if not isinstance(backup_data, dict) or 'songs' not in backup_data:
                     raise ValueError('Invalid backup file format')
                 
-                # Delete existing data
+                # Delete existing user data
                 Song.query.filter_by(user_id=current_user.id).delete()
                 PracticeRecord.query.filter_by(user_id=current_user.id).delete()
-                ChordPair.query.filter_by(user_id=current_user.id).delete()
                 
                 # Restore songs
                 for song_data in backup_data.get('songs', []):
@@ -610,15 +610,8 @@ def backup():
                     )
                     db.session.add(record)
                 
-                # Restore chord pairs
-                for pair_data in backup_data.get('chord_pairs', []):
-                    pair = ChordPair(
-                        chord1=pair_data['chord1'],
-                        chord2=pair_data['chord2'],
-                        difficulty=pair_data['difficulty'],
-                        user_id=current_user.id
-                    )
-                    db.session.add(pair)
+                # Note: We don't restore chord pairs as they are predefined
+                # and shared across all users
                 
                 db.session.commit()
                 flash('Backup restored successfully', 'success')
