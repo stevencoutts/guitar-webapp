@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_migrate import Migrate
@@ -6,10 +6,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_wtf.csrf import CSRFProtect
 import json
-from io import StringIO
+from io import StringIO, BytesIO
 from werkzeug.utils import secure_filename
 
 # Load environment variables from .env file
@@ -73,6 +73,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     songs = db.relationship('Song', backref='user', lazy=True)
     practice_records = db.relationship('PracticeRecord', backref='user', lazy=True)
 
@@ -356,6 +357,10 @@ def delete_account():
 @app.route('/song/<int:song_id>', methods=['GET'])
 @login_required
 def view_song(song_id):
+    # Extend session lifetime when viewing song details
+    session.permanent = True
+    app.permanent_session_lifetime = timedelta(hours=4)  # 4 hours for song viewing
+    
     song = db.session.get(Song, song_id)
     if not song or song.user_id != current_user.id:
         flash('Song not found', 'error')
@@ -507,8 +512,7 @@ def backup():
             backup_data = {
                 'user': {
                     'username': current_user.username,
-                    'email': current_user.email,
-                    'created_at': current_user.created_at.isoformat()
+                    'created_at': current_user.created_at.isoformat() if current_user.created_at else None
                 },
                 'songs': [{
                     'title': song.title,
@@ -518,14 +522,15 @@ def backup():
                     'chord_progression': song.chord_progression,
                     'strumming_pattern': song.strumming_pattern,
                     'notes': song.notes,
-                    'created_at': song.created_at.isoformat(),
-                    'updated_at': song.updated_at.isoformat()
+                    'created_at': song.created_at.isoformat() if song.created_at else None,
+                    'updated_at': song.updated_at.isoformat() if song.updated_at else None
                 } for song in songs]
             }
             
             # Create response with JSON data
-            output = StringIO()
-            json.dump(backup_data, output, indent=2)
+            output = BytesIO()
+            json_str = json.dumps(backup_data, indent=2)
+            output.write(json_str.encode('utf-8'))
             output.seek(0)
             
             # Generate filename with timestamp
@@ -533,7 +538,7 @@ def backup():
             filename = f'guitar_practice_backup_{timestamp}.json'
             
             return send_file(
-                StringIO(output.getvalue()),
+                output,
                 mimetype='application/json',
                 as_attachment=True,
                 download_name=filename
