@@ -71,7 +71,7 @@ python init_db.py
 flask run
 ```
 
-2. Access the application at `http://localhost:5000`
+2. Access the application at `http://localhost:5001`
 
 3. Default admin credentials:
    - Username: `admin`
