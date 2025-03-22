@@ -18,7 +18,12 @@ app = Flask(__name__)
 if not os.environ.get('SECRET_KEY'):
     raise ValueError("No SECRET_KEY set for Flask application")
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///guitar_app.db')
+
+# Ensure the instance folder exists
+os.makedirs('instance', exist_ok=True)
+
+# Configure SQLite database
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///instance/guitar.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
 

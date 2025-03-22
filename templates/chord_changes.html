@@ -256,27 +256,11 @@ function updateTimer() {
     document.getElementById('timer-progress').style.width = `${(timeLeft / 60) * 100}%`;
 }
 
-function startCountdown() {
-    let countdown = 4;
-    const countdownInterval = setInterval(() => {
-        if (countdown > 0) {
-            playBeep(440, 0.1);
-            document.getElementById('timer').textContent = countdown;
-            countdown--;
-        } else {
-            clearInterval(countdownInterval);
-            document.getElementById('timer').textContent = '1:00';
-            startTimer();
-        }
-    }, 1000);
-}
-
 function startTimer() {
     if (!isRunning) {
         isRunning = true;
         timeLeft = 60;
         score = 0;
-        document.getElementById('score').textContent = '0';
         document.getElementById('startTimer').disabled = true;
         document.getElementById('resetTimer').disabled = true;
         document.getElementById('addChordPair').disabled = true;
@@ -307,18 +291,31 @@ function startTimer() {
     }
 }
 
+function startCountdown() {
+    let countdown = 4;
+    const countdownInterval = setInterval(() => {
+        if (countdown > 0) {
+            playBeep(440, 0.1);
+            document.getElementById('timer').textContent = countdown;
+            countdown--;
+        } else {
+            clearInterval(countdownInterval);
+            document.getElementById('timer').textContent = '1:00';
+            startTimer();
+        }
+    }, 1000);
+}
+
 function resetTimer() {
     clearInterval(timerInterval);
     isRunning = false;
     timeLeft = 60;
     score = 0;
-    document.getElementById('score').textContent = '0';
     document.getElementById('timer').textContent = '1:00';
     document.getElementById('timer-progress').style.width = '100%';
     document.getElementById('startTimer').disabled = false;
     document.getElementById('resetTimer').disabled = true;
     document.getElementById('addChordPair').disabled = false;
-    document.getElementById('practiceForm').classList.add('d-none');
 }
 
 function addChordPair() {
@@ -332,7 +329,6 @@ function removeChordPair(button) {
 function incrementScore() {
     if (isRunning) {
         score++;
-        document.getElementById('score').textContent = score;
     }
 }
 
