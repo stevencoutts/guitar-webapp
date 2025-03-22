@@ -1,124 +1,131 @@
-# Guitar Practice Web App
+# Guitar Practice Web Application
 
-A web application for managing guitar songs, practicing chord changes, and tracking progress.
+A web application for managing guitar practice sessions, songs, and chord progressions.
 
 ## Features
 
-- **Song Management**
-  - Add, edit, and delete songs
-  - Store chord progressions
-  - Track practice history
-  - Backup and restore functionality
+- User authentication and authorization
+- Song management (add, edit, delete songs)
+- Chord progression tracking
+- Practice session recording
+- One-minute chord changes practice
+- Metronome functionality
+- Backup and restore functionality
+- Admin panel for user management
 
-- **One-Minute Chord Changes Practice**
-  - Practice predefined chord pairs
-  - Track scores and progress
-  - Visual and audio metronome
-  - Difficulty levels (Easy, Medium, Hard, Very Hard)
+## Prerequisites
 
-- **Backup and Restore**
-  - Export all songs and practice data
-  - Import data from backup files
-  - Automatic backup before deletion
-
-- **User Management**
-  - User registration and login
-  - Password security with requirements
-  - Account deletion with confirmation
-  - Session management
-
-- **Admin Features**
-  - User management
-  - Password reset capability
-  - User disable/enable functionality
-  - Admin status management
+- Python 3.11 or higher
+- Docker and Docker Compose
+- Git
 
 ## Installation
 
 1. Clone the repository:
-```bash
-git clone <repository-url>
-cd guitar-webapp
-```
+   ```bash
+   git clone https://github.com/yourusername/guitar-webapp.git
+   cd guitar-webapp
+   ```
 
 2. Create and activate a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
 3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-4. Create a `.env` file in the project root with the following variables:
-```env
-SECRET_KEY=your-secret-key-here
-DATABASE_URL=sqlite:///instance/guitar.db
-ADMIN_PASSWORD=your-secure-admin-password
-```
+4. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
 
 5. Initialize the database:
+   ```bash
+   flask db upgrade
+   ```
+
+6. Create an admin user:
+   ```bash
+   python make_admin.py
+   ```
+
+## Running with Docker
+
+### Quick Start
+
+1. Build and start the Docker container:
+   ```bash
+   docker-compose up --build
+   ```
+
+2. Access the application at http://localhost:5001
+
+### Using the Update Script
+
+The project includes an update script that automates the process of updating dependencies and rebuilding the Docker image:
+
 ```bash
-python init_db.py
+./update.sh
 ```
 
-## Usage
+This script will:
+1. Stop any running containers
+2. Pull the latest changes from git
+3. Update Python dependencies
+4. Clean up Docker resources
+5. Rebuild the Docker image
+6. Start the application
+7. Show the application logs
 
-1. Start the development server:
-```bash
-flask run
-```
+### Manual Docker Commands
 
-2. Access the application at `http://localhost:5001`
+If you prefer to run Docker commands manually:
 
-3. Default admin credentials:
-   - Username: `admin`
-   - Password: Value set in `ADMIN_PASSWORD` environment variable
+1. Build the image:
+   ```bash
+   docker-compose build
+   ```
 
-4. To make a user an admin from the command line:
-```bash
-python make_admin.py username
-```
+2. Start the application:
+   ```bash
+   docker-compose up -d
+   ```
 
-## Project Structure
+3. View logs:
+   ```bash
+   docker-compose logs -f
+   ```
 
-```
-guitar-webapp/
-├── app.py              # Main application file
-├── init_db.py          # Database initialization
-├── make_admin.py       # Admin user management script
-├── requirements.txt    # Python dependencies
-├── .env               # Environment variables
-├── instance/          # Database and instance files
-├── migrations/        # Database migrations
-├── static/           # Static files (CSS, JS, images)
-└── templates/        # HTML templates
-```
+4. Stop the application:
+   ```bash
+   docker-compose down
+   ```
 
 ## Development
 
-- Uses Flask for the web framework
-- SQLAlchemy for database ORM
-- Flask-Login for user authentication
-- Flask-WTF for form handling and CSRF protection
-- Bootstrap 5 for styling
-- Font Awesome for icons
+1. Run the development server:
+   ```bash
+   flask run
+   ```
 
-## Security Features
+2. Access the application at http://localhost:5000
 
-- Password hashing using Werkzeug
-- CSRF protection on all forms
-- Secure session handling
-- HTTP-only cookies
-- HTTPS-only cookies in production
-- Session timeout after 30 minutes
-- Password requirements:
-  - Minimum 8 characters
-  - Must contain uppercase letters
-  - Must contain lowercase letters
-  - Must contain numbers
+## Database Management
+
+1. Create a new migration:
+   ```bash
+   flask db migrate -m "Migration message"
+   ```
+
+2. Apply migrations:
+   ```bash
+   flask db upgrade
+   ```
 
 ## Contributing
 
@@ -130,6 +137,4 @@ guitar-webapp/
 
 ## License
 
-This project is licensed under The Unlicense - see the LICENSE file for details.
-
-The Unlicense is a template for disclaiming copyright monopoly interest in software you've written; in other words, it is a template for dedicating your software to the public domain. 
+This project is licensed under the MIT License - see the LICENSE file for details. 
