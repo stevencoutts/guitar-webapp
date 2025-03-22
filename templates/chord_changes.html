@@ -21,7 +21,7 @@
                         <button id="startTimer" class="btn btn-primary">
                             <i class="fas fa-play me-2"></i>Start Practice
                         </button>
-                        <button id="resetTimer" class="btn btn-outline-primary" disabled>
+                        <button id="resetTimer" class="btn btn-outline-danger" disabled>
                             <i class="fas fa-redo me-2"></i>Reset
                         </button>
                     </div>
@@ -41,7 +41,7 @@
                             </div>
                         </div>
                     </div>
-                    <button type="button" class="btn btn-outline-primary" id="addChordPair">
+                    <button type="button" class="btn btn-outline-danger" id="addChordPair">
                         <i class="fas fa-plus me-2"></i>Chord Pairs
                     </button>
                 </div>
@@ -79,7 +79,7 @@
                                     <tr>
                                         <td>
                                             <div class="btn-group">
-                                                <button class="btn btn-sm btn-outline-primary load-chord-pair" data-chord-pair="{{ record }}">
+                                                <button class="btn btn-sm btn-outline-danger load-chord-pair" data-chord-pair="{{ record }}">
                                                     <i class="fas fa-edit me-1"></i>Practice
                                                 </button>
                                                 <button class="btn btn-sm btn-outline-success enter-score" data-chord-pair="{{ record }}">
@@ -155,10 +155,10 @@
                                 <h6 class="card-title">{{ pair.display_name }}</h6>
                                 <p class="card-text small text-muted">{{ pair.description }}</p>
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <span class="badge bg-{{ 'success' if pair.difficulty == 1 else 'warning' if pair.difficulty == 2 else 'danger' }}">
+                                    <span class="badge bg-danger">
                                         {{ 'Easy' if pair.difficulty == 1 else 'Medium' if pair.difficulty == 2 else 'Hard' }}
                                     </span>
-                                    <button class="btn btn-sm btn-outline-primary select-chord-pair" data-pair="{{ pair.display_name }}">
+                                    <button class="btn btn-sm btn-outline-danger select-chord-pair" data-pair="{{ pair.display_name }}">
                                         Select
                                     </button>
                                 </div>
