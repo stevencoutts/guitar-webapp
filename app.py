@@ -13,6 +13,7 @@ import io
 import logging
 from logging.handlers import RotatingFileHandler
 import humanize
+from version import VERSION
 
 from io import StringIO, BytesIO
 from werkzeug.utils import secure_filename
@@ -801,6 +802,11 @@ def backup():
     
     # Show backup page
     return render_template('backup.html')
+
+# Make version available to all templates
+@app.context_processor
+def inject_version():
+    return dict(version=VERSION)
 
 if __name__ == '__main__':
     with app.app_context():
