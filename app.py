@@ -368,7 +368,11 @@ def view_song(song_id):
     if not song or song.user_id != current_user.id:
         flash('Song not found', 'error')
         return redirect(url_for('index'))
-    return render_template('view_song.html', song=song)
+    
+    # Get all predefined chord pairs
+    predefined_pairs = ChordPair.query.all()
+    
+    return render_template('view_song.html', song=song, predefined_pairs=predefined_pairs)
 
 @app.route('/admin')
 @login_required

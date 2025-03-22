@@ -1,50 +1,118 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start mb-4">
-                    <div>
-                        <h2 class="card-title mb-1 text-primary">{{ song.title }}</h2>
-                        <h5 class="text-muted mb-0">{{ song.artist or 'No artist specified' }}</h5>
-                    </div>
-                    <div class="metronome-container text-end">
-                        <button id="startMetronome" class="btn btn-primary mb-2">Start Metronome</button>
-                        <div class="metronome-dots">
-                            <div class="dot"></div>
-                            <div class="dot"></div>
-                            <div class="dot"></div>
-                            <div class="dot"></div>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h1 class="card-title mb-1">{{ song.title }}</h1>
+                            {% if song.artist %}
+                                <p class="text-muted mb-0">{{ song.artist }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-link text-muted p-0" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('edit_song', song_id=song.id) }}">
+                                        <i class="fas fa-edit me-2"></i>Edit
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="POST" action="{{ url_for('delete_song', song_id=song.id) }}" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="dropdown-item text-danger" 
+                                                onclick="return confirm('Are you sure you want to delete this song?')">
+                                            <i class="fas fa-trash me-2"></i>Delete
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
                         </div>
                     </div>
                 </div>
-                
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <h5 class="text-primary">Time Signature: {{ song.time_signature }}</h5>
-                        <h5 class="text-primary">BPM: {{ song.bpm }}</h5>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Song Details</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Time Signature:</strong> {{ song.time_signature }}</p>
+                            <p><strong>BPM:</strong> {{ song.bpm }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Created:</strong> {{ song.created_at|datetime }}</p>
+                            <p><strong>Last Updated:</strong> {{ song.updated_at|datetime }}</p>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="row mb-4">
-                    <div class="col-md-12">
-                        <h5 class="text-primary">Chord Progression:</h5>
-                        <pre class="chord-progression text-start">{{ song.chord_progression }}</pre>
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Chords Used</h5>
+                    <div class="chord-list">
+                        {% set unique_chords = song.chord_progression.split()|unique|sort %}
+                        {% for chord in unique_chords %}
+                            <span class="badge bg-primary me-2 mb-2">{{ chord }}</span>
+                        {% endfor %}
                     </div>
                 </div>
+            </div>
 
-                <div class="row mb-4">
-                    <div class="col-md-12">
-                        <h5 class="text-primary">Strumming Pattern:</h5>
-                        <pre class="strumming-pattern">{{ song.strumming_pattern }}</pre>
-                    </div>
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Chord Progression</h5>
+                    <pre class="chord-progression">{{ song.chord_progression }}</pre>
                 </div>
+            </div>
 
-                <div class="d-flex justify-content-between">
-                    <a href="{{ url_for('edit_song', song_id=song.id) }}" class="btn btn-primary">Edit Song</a>
-                    <a href="{{ url_for('index') }}" class="btn btn-outline-primary">Back to Songs</a>
+            {% if song.strumming_pattern %}
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Strumming Pattern</h5>
+                    <pre class="strumming-pattern">{{ song.strumming_pattern }}</pre>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if song.notes %}
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Notes</h5>
+                    <pre class="notes">{{ song.notes }}</pre>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Practice Tools</h5>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" onclick="startMetronome()">
+                            <i class="fas fa-clock me-2"></i>Start Metronome
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="stopMetronome()">
+                            <i class="fas fa-stop me-2"></i>Stop Metronome
+                        </button>
+                    </div>
+                    <div class="metronome-display mt-3 text-center">
+                        <div class="dots-container">
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -52,155 +120,145 @@
 </div>
 
 <style>
-.chord-progression, .strumming-pattern {
-    white-space: pre-wrap;
-    font-family: monospace;
-    background-color: #f8f9fa;
-    padding: 1rem;
-    border-radius: 0.25rem;
-    margin: 0;
-    text-align: left;
-    border: 1px solid #e9ecef;
-}
-
-.metronome-dots {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-}
-
-.dot {
-    width: 15px;
-    height: 15px;
-    border-radius: 50%;
-    background-color: #e9ecef;
-    transition: background-color 0.1s ease;
-}
-
-.dot.active {
-    background-color: #0d6efd;
-}
-
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.2); }
-    100% { transform: scale(1); }
-}
-
-.dot.active {
-    animation: pulse 0.1s ease;
-}
-
-.card {
-    border-color: #0d6efd;
-    box-shadow: 0 0.125rem 0.25rem rgba(13, 110, 253, 0.075);
-}
-
-.btn-primary {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-}
-
-.btn-primary:hover {
-    background-color: #0b5ed7;
-    border-color: #0a58ca;
-}
-
-.btn-outline-primary {
-    color: #0d6efd;
-    border-color: #0d6efd;
-}
-
-.btn-outline-primary:hover {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-}
-
-.text-primary {
-    color: #0d6efd !important;
-}
+    .chord-progression, .strumming-pattern, .notes {
+        white-space: pre-wrap;
+        font-family: monospace;
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin: 0;
+    }
+    
+    .metronome-display {
+        display: none;
+    }
+    
+    .dots-container {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+    }
+    
+    .dot {
+        width: 20px;
+        height: 20px;
+        background-color: #dee2e6;
+        border-radius: 50%;
+        transition: background-color 0.1s;
+    }
+    
+    .dot.active {
+        background-color: #0d6efd;
+    }
+    
+    .chord-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .badge {
+        font-size: 1rem;
+        padding: 0.5rem 1rem;
+    }
 </style>
 
 <script>
-let audioContext = null;
 let metronomeInterval;
+let audioContext;
 let isPlaying = false;
-const bpm = {{ song.bpm }};
-const timeSignature = "{{ song.time_signature }}";
-const [beats, _] = timeSignature.split('/').map(Number);
-let currentBeat = 0;
 
-function createAudioContext() {
+function createClick() {
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
-    return audioContext;
-}
-
-function playClick() {
-    const context = createAudioContext();
-    const oscillator = context.createOscillator();
-    const gainNode = context.createGain();
-
+    
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
     oscillator.connect(gainNode);
-    gainNode.connect(context.destination);
-
-    oscillator.frequency.value = 1000;
-    gainNode.gain.value = 0.1;
-
-    oscillator.start(context.currentTime);
-    oscillator.stop(context.currentTime + 0.1);
-}
-
-function updateMetronomeDots() {
-    const dots = document.querySelectorAll('.dot');
-    dots.forEach((dot, index) => {
-        if (index === currentBeat) {
-            dot.classList.add('active');
-        } else {
-            dot.classList.remove('active');
-        }
-    });
-    currentBeat = (currentBeat + 1) % beats;
+    gainNode.connect(audioContext.destination);
+    
+    // Create a more click-like sound
+    oscillator.type = 'square';
+    oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
+    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+    
+    // Quick attack and decay for a click sound
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05);
+    
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.05); // Shorter duration for a click
 }
 
 function startMetronome() {
-    if (!isPlaying) {
-        isPlaying = true;
-        const interval = (60 / bpm) * 1000;
+    if (isPlaying) return;
+    
+    // Show metronome display
+    document.querySelector('.metronome-display').style.display = 'block';
+    
+    // Get BPM and time signature from the song data
+    const songBpm = {{ song.bpm }};
+    const timeSignature = "{{ song.time_signature }}".split('/');
+    const beatsPerBar = parseInt(timeSignature[0]);
+    
+    // Calculate interval in milliseconds
+    const interval = (60 / songBpm) * 1000;
+    
+    // Start the metronome
+    isPlaying = true;
+    let beat = 0;
+    
+    // Update dots before playing first beat
+    updateDots(beat);
+    
+    // Play first beat immediately
+    createClick();
+    
+    // Increment beat before starting interval
+    beat = (beat + 1) % beatsPerBar;
+    
+    metronomeInterval = setInterval(() => {
+        // Update visual dots first
+        updateDots(beat);
         
-        createAudioContext(); // Initialize audio context on user interaction        
-        // Play first click immediately and update dots
-        playClick();
-        updateMetronomeDots();
+        // Play sound
+        createClick();
         
-        // Start the interval for subsequent clicks
-        metronomeInterval = setInterval(() => {
-            updateMetronomeDots();
-            playClick();
-        }, interval);
-        
-        document.getElementById('startMetronome').textContent = 'Stop Metronome';
-    } else {
-        stopMetronome();
-    }
+        // Increment beat
+        beat = (beat + 1) % beatsPerBar;
+    }, interval);
+}
+
+function updateDots(activeBeat) {
+    const dots = document.querySelectorAll('.dot');
+    dots.forEach((dot, index) => {
+        dot.classList.remove('active');
+        if (index === activeBeat) {
+            dot.classList.add('active');
+        }
+    });
 }
 
 function stopMetronome() {
-    isPlaying = false;
+    if (!isPlaying) return;
+    
     clearInterval(metronomeInterval);
-    document.getElementById('startMetronome').textContent = 'Start Metronome';
-    currentBeat = 0;
-    updateMetronomeDots();
+    isPlaying = false;
+    
+    // Hide metronome display
+    document.querySelector('.metronome-display').style.display = 'none';
+    
+    // Remove active state from dots
+    document.querySelectorAll('.dot').forEach(dot => {
+        dot.classList.remove('active');
+    });
 }
 
-document.getElementById('startMetronome').addEventListener('click', startMetronome);
-
-// Cleanup when leaving the page
-window.addEventListener('beforeunload', function() {
-    if (metronomeInterval) {
-        clearInterval(metronomeInterval);
+// Clean up audio context when leaving the page
+window.addEventListener('beforeunload', () => {
+    if (audioContext) {
+        audioContext.close();
     }
 });
 </script>
