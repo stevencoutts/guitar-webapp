@@ -130,4 +130,6 @@ guitar-webapp/
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under The Unlicense - see the LICENSE file for details.
+
+The Unlicense is a template for disclaiming copyright monopoly interest in software you've written; in other words, it is a template for dedicating your software to the public domain. 
