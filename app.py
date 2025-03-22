@@ -9,6 +9,7 @@ import re
 from datetime import datetime, timedelta
 from flask_wtf.csrf import CSRFProtect
 import json
+
 from io import StringIO, BytesIO
 from werkzeug.utils import secure_filename
 
@@ -43,6 +44,7 @@ else:
 # Initialize extensions
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+csrf = CSRFProtect(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -276,6 +278,7 @@ def edit_song(song_id):
     
     if request.method == 'POST':
         song.title = request.form.get('title')
+        song.artist = request.form.get('artist')
         song.time_signature = request.form.get('time_signature')
         song.bpm = int(request.form.get('bpm'))
         song.chord_progression = request.form.get('chord_progression')

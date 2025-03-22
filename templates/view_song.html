@@ -6,7 +6,10 @@
         <div class="card">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-4">
-                    <h2 class="card-title mb-0 text-primary">{{ song.title }}</h2>
+                    <div>
+                        <h2 class="card-title mb-1 text-primary">{{ song.title }}</h2>
+                        <h5 class="text-muted mb-0">{{ song.artist or 'No artist specified' }}</h5>
+                    </div>
                     <div class="metronome-container text-end">
                         <button id="startMetronome" class="btn btn-primary mb-2">Start Metronome</button>
                         <div class="metronome-dots">
@@ -167,12 +170,12 @@ function startMetronome() {
         isPlaying = true;
         const interval = (60 / bpm) * 1000;
         
-        createAudioContext(); // Initialize audio context on user interaction
-        
-        // Update dots first, then play sound
-        updateMetronomeDots();
+        createAudioContext(); // Initialize audio context on user interaction        
+        // Play first click immediately and update dots
         playClick();
+        updateMetronomeDots();
         
+        // Start the interval for subsequent clicks
         metronomeInterval = setInterval(() => {
             updateMetronomeDots();
             playClick();

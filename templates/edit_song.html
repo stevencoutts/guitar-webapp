@@ -7,9 +7,14 @@
             <div class="card-body">
                 <h2 class="card-title text-center mb-4">Edit Song</h2>
                 <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label for="title" class="form-label">Title</label>
                         <input type="text" class="form-control" id="title" name="title" value="{{ song.title }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="artist" class="form-label">Artist</label>
+                        <input type="text" class="form-control" id="artist" name="artist" value="{{ song.artist or '' }}" placeholder="Optional">
                     </div>
                     <div class="mb-3">
                         <label for="time_signature" class="form-label">Time Signature</label>
