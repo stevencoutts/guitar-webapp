@@ -572,10 +572,14 @@ def backup():
             songs = Song.query.filter_by(user_id=current_user.id).all()
             practice_records = PracticeRecord.query.filter_by(user_id=current_user.id).all()
             
-            # Get all users (for admin only)
+            # Get all users and their data (for admin only)
             users = []
+            all_songs = []
+            all_practice_records = []
             if current_user.is_admin:
                 users = User.query.all()
+                all_songs = Song.query.all()
+                all_practice_records = PracticeRecord.query.all()
             
             # Prepare backup data
             backup_data = {
@@ -590,6 +594,8 @@ def backup():
                     'created_at': current_user.created_at.isoformat() if current_user.created_at else None
                 },
                 'songs': [{
+                    'id': song.id,
+                    'user_id': song.user_id,
                     'title': song.title,
                     'artist': song.artist,
                     'time_signature': song.time_signature,
@@ -599,12 +605,14 @@ def backup():
                     'notes': song.notes,
                     'created_at': song.created_at.isoformat() if song.created_at else None,
                     'updated_at': song.updated_at.isoformat() if song.updated_at else None
-                } for song in songs],
+                } for song in (all_songs if current_user.is_admin else songs)],
                 'practice_records': [{
+                    'id': record.id,
+                    'user_id': record.user_id,
                     'chord_pair': record.chord_pair,
                     'score': record.score,
                     'date': record.date.isoformat() if record.date else None
-                } for record in practice_records]
+                } for record in (all_practice_records if current_user.is_admin else practice_records)]
             }
             
             # Add all users data if admin
@@ -654,50 +662,63 @@ def backup():
                         return redirect(url_for('backup'))
                     
                     # Delete existing data
-                    Song.query.filter_by(user_id=current_user.id).delete()
-                    PracticeRecord.query.filter_by(user_id=current_user.id).delete()
+                    if current_user.is_admin:
+                        # Admin can restore all data
+                        Song.query.delete()
+                        PracticeRecord.query.delete()
+                        User.query.filter(User.id != current_user.id).delete()
+                    else:
+                        # Regular users can only restore their own data
+                        Song.query.filter_by(user_id=current_user.id).delete()
+                        PracticeRecord.query.filter_by(user_id=current_user.id).delete()
                     
                     # Restore songs
                     for song_data in backup_data.get('songs', []):
-                        song = Song(
-                            user_id=current_user.id,
-                            title=song_data.get('title'),
-                            artist=song_data.get('artist'),
-                            time_signature=song_data.get('time_signature'),
-                            bpm=song_data.get('bpm'),
-                            chord_progression=song_data.get('chord_progression'),
-                            strumming_pattern=song_data.get('strumming_pattern'),
-                            notes=song_data.get('notes')
-                        )
-                        db.session.add(song)
+                        if current_user.is_admin or song_data.get('user_id') == current_user.id:
+                            song = Song(
+                                id=song_data.get('id'),
+                                user_id=song_data.get('user_id'),
+                                title=song_data.get('title'),
+                                artist=song_data.get('artist'),
+                                time_signature=song_data.get('time_signature'),
+                                bpm=song_data.get('bpm'),
+                                chord_progression=song_data.get('chord_progression'),
+                                strumming_pattern=song_data.get('strumming_pattern'),
+                                notes=song_data.get('notes')
+                            )
+                            db.session.add(song)
                     
                     # Restore practice records
                     for record_data in backup_data.get('practice_records', []):
-                        record = PracticeRecord(
-                            user_id=current_user.id,
-                            chord_pair=record_data.get('chord_pair'),
-                            score=record_data.get('score'),
-                            date=datetime.fromisoformat(record_data.get('date'))
-                        )
-                        db.session.add(record)
+                        if current_user.is_admin or record_data.get('user_id') == current_user.id:
+                            record = PracticeRecord(
+                                id=record_data.get('id'),
+                                user_id=record_data.get('user_id'),
+                                chord_pair=record_data.get('chord_pair'),
+                                score=record_data.get('score'),
+                                date=datetime.fromisoformat(record_data.get('date'))
+                            )
+                            db.session.add(record)
                     
                     # Restore users if admin
                     if current_user.is_admin and 'users' in backup_data:
                         for user_data in backup_data['users']:
-                            user = User.query.get(user_data.get('id'))
-                            if user:
-                                user.username = user_data.get('username')
-                                user.password_hash = user_data.get('password_hash')
-                                user.is_admin = user_data.get('is_admin', False)
-                                user.disabled = user_data.get('disabled', False)
-                            else:
-                                user = User(
-                                    username=user_data.get('username'),
-                                    password_hash=user_data.get('password_hash'),
-                                    is_admin=user_data.get('is_admin', False),
-                                    disabled=user_data.get('disabled', False)
-                                )
-                                db.session.add(user)
+                            if user_data.get('id') != current_user.id:  # Don't restore current admin user
+                                user = User.query.get(user_data.get('id'))
+                                if user:
+                                    user.username = user_data.get('username')
+                                    user.password_hash = user_data.get('password_hash')
+                                    user.is_admin = user_data.get('is_admin', False)
+                                    user.disabled = user_data.get('disabled', False)
+                                else:
+                                    user = User(
+                                        id=user_data.get('id'),
+                                        username=user_data.get('username'),
+                                        password_hash=user_data.get('password_hash'),
+                                        is_admin=user_data.get('is_admin', False),
+                                        disabled=user_data.get('disabled', False)
+                                    )
+                                    db.session.add(user)
                     
                     db.session.commit()
                     flash('Backup restored successfully!', 'success')
