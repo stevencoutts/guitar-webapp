@@ -172,7 +172,11 @@ function startMetronome() {
         
         createAudioContext(); // Initialize audio context on user interaction
         
-        // Start with the interval immediately
+        // Play first click immediately and update dots
+        playClick();
+        updateMetronomeDots();
+        
+        // Start the interval for subsequent clicks
         metronomeInterval = setInterval(() => {
             playClick();
             updateMetronomeDots();
