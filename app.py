@@ -8,6 +8,7 @@ import os
 import re
 from datetime import datetime
 from flask_wtf.csrf import CSRFProtect
+import json
 
 # Load environment variables from .env file
 load_dotenv()
@@ -40,6 +41,13 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 csrf = CSRFProtect(app)
 
+# Add datetime filter
+@app.template_filter('datetime')
+def format_datetime(value):
+    if value is None:
+        return ""
+    return value.strftime('%Y-%m-%d %H:%M')
+
 # Password validation
 def is_valid_password(password):
     if len(password) < 8:
@@ -59,6 +67,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(120), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
     songs = db.relationship('Song', backref='user', lazy=True)
+    practice_records = db.relationship('PracticeRecord', backref='user', lazy=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -69,11 +78,34 @@ class User(UserMixin, db.Model):
 class Song(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
-    time_signature = db.Column(db.String(10), nullable=False)
-    bpm = db.Column(db.Integer, nullable=False, default=120)  # Default BPM of 120
+    artist = db.Column(db.String(100))
+    time_signature = db.Column(db.String(10), nullable=False)  # Format: "4/4"
+    bpm = db.Column(db.Integer, nullable=False)  # Beats per minute
     chord_progression = db.Column(db.Text, nullable=False)
-    strumming_pattern = db.Column(db.Text, nullable=False)
+    strumming_pattern = db.Column(db.Text)
+    notes = db.Column(db.Text)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class PracticeRecord(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    chord_pair = db.Column(db.String(50), nullable=False)  # Format: "C→G"
+    score = db.Column(db.Integer, nullable=False)
+    date = db.Column(db.DateTime, default=datetime.utcnow)
+
+class ChordPair(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    first_chord = db.Column(db.String(10), nullable=False)
+    second_chord = db.Column(db.String(10), nullable=False)
+    difficulty = db.Column(db.Integer, default=1)  # 1: Easy, 2: Medium, 3: Hard
+    description = db.Column(db.String(200))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @property
+    def display_name(self):
+        return f"{self.first_chord}→{self.second_chord}"
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -88,6 +120,47 @@ def create_default_admin():
             admin.set_password('Password1')
             db.session.add(admin)
             db.session.commit()
+
+def create_default_chord_pairs():
+    common_pairs = [
+        # Easy chord pairs
+        {"first": "C", "second": "G", "difficulty": 1, "description": "Common in folk and pop music"},
+        {"first": "C", "second": "Am", "difficulty": 1, "description": "Basic minor transition"},
+        {"first": "G", "second": "Em", "difficulty": 1, "description": "Natural minor progression"},
+        {"first": "Am", "second": "F", "difficulty": 1, "description": "Common minor to major transition"},
+        {"first": "C", "second": "F", "difficulty": 1, "description": "Basic major chord movement"},
+        
+        # Medium difficulty pairs
+        {"first": "C", "second": "Dm", "difficulty": 2, "description": "Major to minor transition"},
+        {"first": "G", "second": "D", "difficulty": 2, "description": "Common in country music"},
+        {"first": "Em", "second": "C", "difficulty": 2, "description": "Minor to major resolution"},
+        {"first": "Am", "second": "Em", "difficulty": 2, "description": "Minor chord progression"},
+        {"first": "F", "second": "G", "difficulty": 2, "description": "Common in pop music"},
+        
+        # Harder chord pairs
+        {"first": "C", "second": "E", "difficulty": 3, "description": "Major third movement"},
+        {"first": "G", "second": "Bm", "difficulty": 3, "description": "Major to minor third"},
+        {"first": "Am", "second": "Dm", "difficulty": 3, "description": "Minor progression"},
+        {"first": "F", "second": "Dm", "difficulty": 3, "description": "Major to minor transition"},
+        {"first": "C", "second": "G7", "difficulty": 3, "description": "Dominant seventh resolution"}
+    ]
+    
+    for pair in common_pairs:
+        existing = ChordPair.query.filter_by(
+            first_chord=pair["first"],
+            second_chord=pair["second"]
+        ).first()
+        
+        if not existing:
+            new_pair = ChordPair(
+                first_chord=pair["first"],
+                second_chord=pair["second"],
+                difficulty=pair["difficulty"],
+                description=pair["description"]
+            )
+            db.session.add(new_pair)
+    
+    db.session.commit()
 
 # Routes
 @app.route('/')
@@ -369,19 +442,53 @@ def delete_user(user_id):
 @login_required
 def chord_changes():
     if request.method == 'POST':
-        # Handle the practice session submission
-        score = request.form.get('score', type=int)
-        chord_pairs = request.form.get('chord_pairs')
-        date = datetime.now()
-        
-        # Here you could save the practice session to the database if needed
-        flash('Practice session completed!', 'success')
-        return redirect(url_for('chord_changes'))
-        
-    return render_template('chord_changes.html')
+        score = request.form.get('score')
+        if score:
+            # Handle manual score entry
+            chord_pair = request.form.get('chord_pair')
+            if chord_pair:
+                practice_record = PracticeRecord(
+                    user_id=current_user.id,
+                    chord_pair=chord_pair,
+                    score=int(score),
+                    date=datetime.utcnow()
+                )
+                db.session.add(practice_record)
+                db.session.commit()
+                flash('Practice record saved successfully!', 'success')
+                return redirect(url_for('chord_changes'))
+            
+            # Handle timer-based practice submission
+            chord_pairs = json.loads(request.form.get('chord_pairs', '[]'))
+            for pair in chord_pairs:
+                practice_record = PracticeRecord(
+                    user_id=current_user.id,
+                    chord_pair=pair,
+                    score=int(score),
+                    date=datetime.utcnow()
+                )
+                db.session.add(practice_record)
+            db.session.commit()
+            flash('Practice session saved successfully!', 'success')
+            return redirect(url_for('chord_changes'))
+
+    # Get practice records for the current user
+    records = PracticeRecord.query.filter_by(user_id=current_user.id).order_by(PracticeRecord.date.desc()).all()
+    
+    # Get best scores for each chord pair
+    best_scores = {}
+    for record in records:
+        if record.chord_pair not in best_scores or record.score > best_scores[record.chord_pair]:
+            best_scores[record.chord_pair] = record.score
+
+    # Get predefined chord pairs
+    predefined_pairs = ChordPair.query.order_by(ChordPair.difficulty).all()
+
+    return render_template('chord_changes.html', records=records, best_scores=best_scores, predefined_pairs=predefined_pairs)
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         create_default_admin()
+        create_default_chord_pairs()
     app.run(debug=True, port=5001)  # Enable debug mode for development 
