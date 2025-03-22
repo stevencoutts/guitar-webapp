@@ -1,5 +1,6 @@
 from app import app, db, User, Song, PracticeRecord, ChordPair
 from datetime import datetime
+import os
 
 def init_db():
     with app.app_context():
@@ -38,7 +39,7 @@ def init_db():
         
         # Create a default admin user
         admin = User(username='admin', is_admin=True)
-        admin.set_password('admin123')  # Change this password in production!
+        admin.set_password(os.environ.get('ADMIN_PASSWORD', 'admin123'))  # Use environment variable with fallback
         db.session.add(admin)
         
         # Commit all changes

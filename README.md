@@ -1,51 +1,43 @@
 # Guitar Practice Web App
 
-A Flask-based web application for guitarists to manage their songs, practice chord changes, and track their progress.
+A web application for managing guitar songs, practicing chord changes, and tracking progress.
 
 ## Features
 
-### Song Management
-- Add, edit, and delete songs
-- Store chord progressions, strumming patterns, and notes
-- Track BPM and time signatures
-- Artist attribution for songs
-- Beautiful card-based song list view
-- Metronome feature for practice
+- **Song Management**
+  - Add, edit, and delete songs
+  - Store chord progressions
+  - Track practice history
+  - Backup and restore functionality
 
-### One-Minute Chord Changes Practice
-- Practice changing between chord pairs
-- Track your scores and progress
-- Predefined chord pairs with difficulty levels
-- Customizable practice sessions
-- Visual feedback during practice
-- Score tracking and history
+- **One-Minute Chord Changes Practice**
+  - Practice predefined chord pairs
+  - Track scores and progress
+  - Visual and audio metronome
+  - Difficulty levels (Easy, Medium, Hard, Very Hard)
 
-### Backup and Restore
-- Export all your data to JSON
-- Import data from previous backups
-- Includes songs, practice records, and settings
-- Timestamped backup files
-- Secure data handling
+- **Backup and Restore**
+  - Export all songs and practice data
+  - Import data from backup files
+  - Automatic backup before deletion
 
-### User Management
-- User registration and login
-- Password security with hashing
-- Admin user functionality
-- Session management
-- Responsive design for all devices
+- **User Management**
+  - User registration and login
+  - Password security with requirements
+  - Account deletion with confirmation
+  - Session management
 
-### Admin Features
-- User management interface
-- View all users and their data
-- Promote users to admin status
-- Delete user accounts
-- CLI tool for admin management
+- **Admin Features**
+  - User management
+  - Password reset capability
+  - User disable/enable functionality
+  - Admin status management
 
 ## Installation
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/guitar-webapp.git
+git clone <repository-url>
 cd guitar-webapp
 ```
 
@@ -60,11 +52,11 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Set up environment variables:
-Create a `.env` file in the project root with:
-```
-SECRET_KEY=your-secret-key
+4. Create a `.env` file in the project root with the following variables:
+```env
+SECRET_KEY=your-secret-key-here
 DATABASE_URL=sqlite:///instance/guitar.db
+ADMIN_PASSWORD=your-secure-admin-password
 ```
 
 5. Initialize the database:
@@ -76,18 +68,16 @@ python init_db.py
 
 1. Start the development server:
 ```bash
-python app.py
+flask run
 ```
 
-2. Open your browser and navigate to `http://localhost:5000`
+2. Access the application at `http://localhost:5000`
 
-3. Register a new account or log in
+3. Default admin credentials:
+   - Username: `admin`
+   - Password: Value set in `ADMIN_PASSWORD` environment variable
 
-4. Start adding your songs and practicing!
-
-### Making a User Admin
-
-To make a user an admin from the command line:
+4. To make a user an admin from the command line:
 ```bash
 python make_admin.py username
 ```
@@ -98,32 +88,37 @@ python make_admin.py username
 guitar-webapp/
 ├── app.py              # Main application file
 ├── init_db.py          # Database initialization
-├── make_admin.py       # Admin user management
+├── make_admin.py       # Admin user management script
 ├── requirements.txt    # Python dependencies
-├── static/            # Static files (CSS, JS)
-├── templates/         # HTML templates
-└── instance/          # Database and instance files
+├── .env               # Environment variables
+├── instance/          # Database and instance files
+├── migrations/        # Database migrations
+├── static/           # Static files (CSS, JS, images)
+└── templates/        # HTML templates
 ```
 
 ## Development
 
-### Adding New Features
-1. Create a new branch for your feature
-2. Make your changes
-3. Test thoroughly
-4. Submit a pull request
-
-### Database Migrations
-The application uses SQLAlchemy for database management. The database schema is automatically created when you run `init_db.py`.
+- Uses Flask for the web framework
+- SQLAlchemy for database ORM
+- Flask-Login for user authentication
+- Flask-WTF for form handling and CSRF protection
+- Bootstrap 5 for styling
+- Font Awesome for icons
 
 ## Security Features
 
-- Password hashing with Werkzeug
-- CSRF protection
+- Password hashing using Werkzeug
+- CSRF protection on all forms
 - Secure session handling
-- Input validation
-- SQL injection prevention
-- XSS protection
+- HTTP-only cookies
+- HTTPS-only cookies in production
+- Session timeout after 30 minutes
+- Password requirements:
+  - Minimum 8 characters
+  - Must contain uppercase letters
+  - Must contain lowercase letters
+  - Must contain numbers
 
 ## Contributing
 
