@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title text-center mb-4">Backup & Restore</h2>
+                
+                <!-- Backup Section -->
+                <div class="mb-5">
+                    <h4 class="text-primary mb-3">
+                        <i class="fas fa-download me-2"></i>Backup Your Data
+                    </h4>
+                    <p class="text-muted mb-3">
+                        Export all your songs and practice data to a JSON file. This file can be used to restore your data later.
+                    </p>
+                    <form method="POST" action="{{ url_for('backup') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" name="action" value="backup" class="btn btn-primary">
+                            <i class="fas fa-download me-2"></i>Download Backup
+                        </button>
+                    </form>
+                </div>
+
+                <hr class="my-4">
+
+                <!-- Restore Section -->
+                <div>
+                    <h4 class="text-primary mb-3">
+                        <i class="fas fa-upload me-2"></i>Restore Your Data
+                    </h4>
+                    <p class="text-muted mb-3">
+                        Import your previously backed up data. This will replace all your current data.
+                    </p>
+                    <form method="POST" action="{{ url_for('backup') }}" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label for="backup_file" class="form-label">Select Backup File</label>
+                            <input type="file" class="form-control" id="backup_file" name="backup_file" accept=".json" required>
+                            <div class="form-text">Only JSON files are accepted.</div>
+                        </div>
+                        <button type="submit" name="action" value="restore" class="btn btn-warning" onclick="return confirm('This will replace all your current data. Are you sure you want to continue?')">
+                            <i class="fas fa-upload me-2"></i>Restore from Backup
+                        </button>
+                    </form>
+                </div>
+
+                {% if messages %}
+                    <div class="mt-4">
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.type }} alert-dismissible fade show" role="alert">
+                                {{ message.text }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
