@@ -437,34 +437,36 @@ def toggle_admin(user_id):
 @login_required
 def create_user():
     if not current_user.is_admin:
-        flash('You do not have permission to perform this action.')
-        return redirect(url_for('index'))
+        flash('You do not have permission to create users.', 'danger')
+        return redirect(url_for('admin'))
     
     username = request.form.get('username')
     password = request.form.get('password')
-    is_admin = request.form.get('is_admin') == 'on'
+    is_admin = 'is_admin' in request.form
     
     if not username or not password:
-        flash('Username and password are required.')
-        return redirect(url_for('admin'))
-    
-    if User.query.filter_by(username=username).first():
-        flash('Username already exists.')
+        flash('Username and password are required.', 'danger')
         return redirect(url_for('admin'))
     
     if not is_valid_password(password):
-        flash('Password must be at least 8 characters long and contain uppercase, lowercase, and numbers.')
+        flash('Password must be at least 8 characters long and contain uppercase, lowercase, and numbers.', 'danger')
         return redirect(url_for('admin'))
     
-    user = User(
+    if User.query.filter_by(username=username).first():
+        flash('Username already exists.', 'danger')
+        return redirect(url_for('admin'))
+    
+    new_user = User(
         username=username,
         password_hash=generate_password_hash(password),
-        is_admin=is_admin
+        is_admin=is_admin,
+        created_at=datetime.utcnow()
     )
-    db.session.add(user)
+    
+    db.session.add(new_user)
     db.session.commit()
     
-    flash(f'User {username} has been created successfully.')
+    flash('User created successfully.', 'success')
     return redirect(url_for('admin'))
 
 @app.route('/admin/user/<int:user_id>/delete', methods=['POST'])
