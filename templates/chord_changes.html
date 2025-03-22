@@ -256,6 +256,39 @@ function updateTimer() {
     document.getElementById('timer-progress').style.width = `${(timeLeft / 60) * 100}%`;
 }
 
+function validateChordPair() {
+    const chordPair = document.querySelector('.chord-pair');
+    if (!chordPair) return false;
+    
+    const inputs = chordPair.querySelectorAll('.chord-input');
+    return inputs[0].value.trim() && inputs[1].value.trim();
+}
+
+function updateStartButtonState() {
+    const startButton = document.getElementById('startTimer');
+    startButton.disabled = !validateChordPair();
+}
+
+function startCountdown() {
+    if (!validateChordPair()) {
+        alert('Please select or enter a chord pair before starting practice');
+        return;
+    }
+    
+    let countdown = 4;
+    const countdownInterval = setInterval(() => {
+        if (countdown > 0) {
+            playBeep(440, 0.1);
+            document.getElementById('timer').textContent = countdown;
+            countdown--;
+        } else {
+            clearInterval(countdownInterval);
+            document.getElementById('timer').textContent = '1:00';
+            startTimer();
+        }
+    }, 1000);
+}
+
 function startTimer() {
     if (!isRunning) {
         isRunning = true;
@@ -291,21 +324,6 @@ function startTimer() {
     }
 }
 
-function startCountdown() {
-    let countdown = 4;
-    const countdownInterval = setInterval(() => {
-        if (countdown > 0) {
-            playBeep(440, 0.1);
-            document.getElementById('timer').textContent = countdown;
-            countdown--;
-        } else {
-            clearInterval(countdownInterval);
-            document.getElementById('timer').textContent = '1:00';
-            startTimer();
-        }
-    }, 1000);
-}
-
 function resetTimer() {
     clearInterval(timerInterval);
     isRunning = false;
@@ -324,6 +342,7 @@ function addChordPair() {
 
 function removeChordPair(button) {
     button.closest('.chord-pair').remove();
+    updateStartButtonState();
 }
 
 function incrementScore() {
@@ -355,6 +374,7 @@ function loadChordPair(chordPair) {
     
     // Reset the timer and form
     resetTimer();
+    updateStartButtonState();
 }
 
 function showScoreModal(chordPair) {
@@ -397,10 +417,20 @@ document.addEventListener('DOMContentLoaded', function() {
     scoreModal = new bootstrap.Modal(document.getElementById('scoreModal'));
     chordPairsModal = new bootstrap.Modal(document.getElementById('chordPairsModal'));
     
+    // Initialize start button state
+    updateStartButtonState();
+    
     document.getElementById('startTimer').addEventListener('click', startCountdown);
     document.getElementById('resetTimer').addEventListener('click', resetTimer);
     document.getElementById('addChordPair').addEventListener('click', addChordPair);
     document.getElementById('saveScore').addEventListener('click', saveScore);
+
+    // Add event listeners for chord input changes
+    document.addEventListener('input', function(e) {
+        if (e.target.classList.contains('chord-input')) {
+            updateStartButtonState();
+        }
+    });
 
     // Add event listeners for selecting predefined chord pairs
     document.querySelectorAll('.select-chord-pair').forEach(button => {
