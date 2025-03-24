@@ -62,8 +62,8 @@
                         {% set chords = [] %}
                         {% for line in song.chord_progression.split('\n') %}
                             {% if line.strip() and not line.strip().startswith('#') %}
-                                {% for chord in line.replace('|', '').split() %}
-                                    {% if chord and chord not in chords and not chord.endswith('x2') and not chord.endswith('x3') and not chord.endswith('x4') and not chord == '...' %}
+                                {% for chord in line.replace('|', '').replace(':', '').replace('….', '').replace('...', '').split() %}
+                                    {% if chord and chord not in chords and not chord.endswith('x2') and not chord.endswith('x3') and not chord.endswith('x4') and not chord.strip('.') == '' %}
                                         {% set _ = chords.append(chord) %}
                                     {% endif %}
                                 {% endfor %}
