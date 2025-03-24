@@ -345,9 +345,20 @@ function finishPractice() {
         }
     });
     
-    document.getElementById('scoreInput').value = score;
-    document.getElementById('chordPairsInput').value = JSON.stringify(chordPairs);
-    document.getElementById('practiceForm').classList.remove('d-none');
+    // If there's only one chord pair, use the score modal
+    if (chordPairs.length === 1) {
+        // Set the chord pair in the modal
+        document.getElementById('modalChordPair').value = chordPairs[0];
+        document.getElementById('modalScoreInput').value = score;
+        
+        // Show the score modal
+        scoreModal.show();
+    } else {
+        // For multiple chord pairs, use the practice form
+        document.getElementById('scoreInput').value = score;
+        document.getElementById('chordPairsInput').value = JSON.stringify(chordPairs);
+        document.getElementById('practiceForm').classList.remove('d-none');
+    }
 }
 
 function incrementScore() {
