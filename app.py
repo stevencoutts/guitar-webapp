@@ -118,7 +118,7 @@ class Song(db.Model):
     artist = db.Column(db.String(100))
     time_signature = db.Column(db.String(10), nullable=False)  # Format: "4/4"
     bpm = db.Column(db.Integer, nullable=False)  # Beats per minute
-    capo = db.Column(db.String(10), default='None')  # Capo position
+    capo = db.Column(db.String(10), default='None', nullable=False)  # Capo position
     chord_progression = db.Column(db.Text, nullable=False)
     strumming_pattern = db.Column(db.Text)
     notes = db.Column(db.Text)

@@ -30,4 +30,4 @@ ENV FLASK_DEBUG=1
 EXPOSE 5001
 
 # Run the application with Flask development server
-CMD ["python", "app.py"] 
+CMD ["python3", "app.py"] 
