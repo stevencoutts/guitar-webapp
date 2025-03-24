@@ -1,23 +1,26 @@
-# Guitar Practice Web Application
+# Guitar Practice Web App
 
-A web application for managing guitar practice sessions, songs, and chord progressions.
+A web application for guitarists to track their practice sessions, manage songs, and improve chord transitions.
 
 ## Features
 
-- User authentication and authorization
-- Song management (add, edit, delete songs)
-- Chord progression tracking
-- Practice session recording
-- One-minute chord changes practice
-- Metronome functionality
-- Backup and restore functionality
-- Admin panel for user management
+- **Song Management**
+  - Add, edit, and delete songs
+  - Store chord progressions, strumming patterns, and notes
+  - Track BPM and time signatures
+  - Capo position tracking
 
-## Prerequisites
+- **Practice Tools**
+  - One-minute chord change practice
+  - Predefined chord pairs with difficulty levels
+  - Practice session tracking
+  - Progress monitoring
 
-- Python 3.11 or higher
-- Docker and Docker Compose
-- Git
+- **User Features**
+  - User authentication
+  - Personal song library
+  - Practice history
+  - Backup and restore functionality
 
 ## Installation
 
@@ -39,9 +42,10 @@ A web application for managing guitar practice sessions, songs, and chord progre
    ```
 
 4. Set up environment variables:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
+   Create a `.env` file in the project root with:
+   ```
+   SECRET_KEY=your-secret-key-here
+   DATABASE_URL=sqlite:///instance/guitar.db
    ```
 
 5. Initialize the database:
@@ -49,92 +53,34 @@ A web application for managing guitar practice sessions, songs, and chord progre
    flask db upgrade
    ```
 
-6. Create an admin user:
-   ```bash
-   python make_admin.py
-   ```
-
-## Running with Docker
-
-### Quick Start
-
-1. Build and start the Docker container:
-   ```bash
-   docker-compose up --build
-   ```
-
-2. Access the application at http://localhost:5001
-
-### Using the Update Script
-
-The project includes an update script that automates the process of updating dependencies and rebuilding the Docker image:
-
-```bash
-./update.sh
-```
-
-This script will:
-1. Stop any running containers
-2. Pull the latest changes from git
-3. Update Python dependencies
-4. Clean up Docker resources
-5. Rebuild the Docker image
-6. Start the application
-7. Show the application logs
-
-### Manual Docker Commands
-
-If you prefer to run Docker commands manually:
-
-1. Build the image:
-   ```bash
-   docker-compose build
-   ```
-
-2. Start the application:
-   ```bash
-   docker-compose up -d
-   ```
-
-3. View logs:
-   ```bash
-   docker-compose logs -f
-   ```
-
-4. Stop the application:
-   ```bash
-   docker-compose down
-   ```
-
-## Development
-
-1. Run the development server:
+6. Run the application:
    ```bash
    flask run
    ```
 
-2. Access the application at http://localhost:5000
+## Usage
 
-## Database Management
+1. Register a new account or log in
+2. Add songs to your library
+3. Use the chord changes practice tool to improve your transitions
+4. Track your progress over time
+5. Backup your data when needed
 
-1. Create a new migration:
-   ```bash
-   flask db migrate -m "Migration message"
-   ```
+## Development
 
-2. Apply migrations:
-   ```bash
-   flask db upgrade
-   ```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+- Built with Flask
+- Uses SQLite database
+- Bootstrap 5 for styling
+- Font Awesome icons
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is released under The Unlicense. See the [LICENSE](LICENSE) file for details.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Support
+
+If you encounter any issues or have questions, please open an issue on the GitHub repository. 
