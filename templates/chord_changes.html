@@ -87,7 +87,12 @@
                                                 </button>
                                             </div>
                                         </td>
-                                        <td>{{ record }}</td>
+                                        <td>
+                                            <a href="{{ url_for('chord_pair_history', chord_pair=record) }}" 
+                                               class="badge bg-primary me-2 mb-2">
+                                                {{ record }}
+                                            </a>
+                                        </td>
                                         <td>
                                             <span class="badge bg-primary">
                                                 {{ best_scores[record] }} changes

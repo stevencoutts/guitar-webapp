@@ -803,6 +803,19 @@ def backup():
     # Show backup page
     return render_template('backup.html')
 
+@app.route('/chord_pair_history/<chord_pair>')
+@login_required
+def chord_pair_history(chord_pair):
+    # Get all practice records for this chord pair, ordered by date
+    records = PracticeRecord.query.filter_by(
+        user_id=current_user.id,
+        chord_pair=chord_pair
+    ).order_by(PracticeRecord.date.desc()).all()
+    
+    return render_template('chord_pair_history.html', 
+                         chord_pair=chord_pair,
+                         records=records)
+
 # Make version available to all templates
 @app.context_processor
 def inject_version():
