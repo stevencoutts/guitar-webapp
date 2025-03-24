@@ -321,18 +321,21 @@ def edit_song(song_id):
     """Handle editing existing songs"""
     song = db.session.get(Song, song_id)
     if not song or song.user_id != current_user.id:
-        flash('Song not found', 'error')
+        flash('Song not found or access denied')
         return redirect(url_for('index'))
     
     if request.method == 'POST':
         song.title = request.form.get('title')
         song.artist = request.form.get('artist')
         song.time_signature = request.form.get('time_signature')
-        song.bpm = int(request.form.get('bpm'))
+        song.bpm = request.form.get('bpm')
+        song.capo = request.form.get('capo', 'None')  # Get capo value, default to 'None'
         song.chord_progression = request.form.get('chord_progression')
         song.strumming_pattern = request.form.get('strumming_pattern')
+        song.notes = request.form.get('notes')
         db.session.commit()
-        return redirect(url_for('index'))
+        flash('Song updated successfully!')
+        return redirect(url_for('view_song', song_id=song.id))
     return render_template('edit_song.html', song=song)
 
 @app.route('/song/<int:song_id>/delete', methods=['POST'])
