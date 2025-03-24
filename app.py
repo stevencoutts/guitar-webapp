@@ -118,6 +118,7 @@ class Song(db.Model):
     artist = db.Column(db.String(100))
     time_signature = db.Column(db.String(10), nullable=False)  # Format: "4/4"
     bpm = db.Column(db.Integer, nullable=False)  # Beats per minute
+    capo = db.Column(db.String(10), default='None')  # Capo position
     chord_progression = db.Column(db.Text, nullable=False)
     strumming_pattern = db.Column(db.Text)
     notes = db.Column(db.Text)
@@ -270,13 +271,15 @@ def new_song():
     """Handle adding new songs"""
     if request.method == 'POST':
         title = request.form.get('title')
+        artist = request.form.get('artist')
         time_signature = request.form.get('time_signature')
         bpm = request.form.get('bpm')
+        capo = request.form.get('capo', 'None')  # Default to 'None' if not specified
         chord_progression = request.form.get('chord_progression')
         strumming_pattern = request.form.get('strumming_pattern')
         
         if not all([title, time_signature, bpm, chord_progression, strumming_pattern]):
-            flash('All fields are required')
+            flash('All required fields must be filled out')
             return redirect(url_for('new_song'))
             
         # Basic input validation
@@ -299,8 +302,10 @@ def new_song():
         
         song = Song(
             title=title,
+            artist=artist,
             time_signature=time_signature,
             bpm=bpm,
+            capo=capo,
             chord_progression=chord_progression,
             strumming_pattern=strumming_pattern,
             user_id=current_user.id
@@ -771,6 +776,7 @@ def backup():
                                     artist=song_data.get('artist'),
                                     time_signature=song_data.get('time_signature'),
                                     bpm=song_data.get('bpm'),
+                                    capo=song_data.get('capo', 'None'),
                                     chord_progression=song_data.get('chord_progression'),
                                     strumming_pattern=song_data.get('strumming_pattern'),
                                     notes=song_data.get('notes')
