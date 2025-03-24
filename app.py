@@ -277,6 +277,7 @@ def new_song():
         capo = request.form.get('capo', 'None')  # Default to 'None' if not specified
         chord_progression = request.form.get('chord_progression')
         strumming_pattern = request.form.get('strumming_pattern')
+        notes = request.form.get('notes', '')  # Get notes with empty string as default
         
         if not all([title, time_signature, bpm, chord_progression, strumming_pattern]):
             flash('All required fields must be filled out')
@@ -300,6 +301,9 @@ def new_song():
             flash('BPM must be a valid number')
             return redirect(url_for('new_song'))
         
+        # Log the capo value for debugging
+        app.logger.info(f"Creating song with capo: {capo}")
+        
         song = Song(
             title=title,
             artist=artist,
@@ -308,10 +312,12 @@ def new_song():
             capo=capo,
             chord_progression=chord_progression,
             strumming_pattern=strumming_pattern,
+            notes=notes,
             user_id=current_user.id
         )
         db.session.add(song)
         db.session.commit()
+        flash('Song added successfully!')
         return redirect(url_for('index'))
     return render_template('new_song.html')
 
