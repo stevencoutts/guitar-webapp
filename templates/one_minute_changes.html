@@ -1,0 +1,27 @@
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Chord Pairs</h5>
+                    <div class="chord-pairs">
+                        {% for pair in chord_pairs %}
+                        <div class="chord-pair">
+                            <div class="chord-pair-content">
+                                <span class="chord">{{ pair.chord1 }}</span>
+                                <span class="arrow">→</span>
+                                <span class="chord">{{ pair.chord2 }}</span>
+                            </div>
+                            <form method="POST" action="{{ url_for('delete_chord_pair', pair_id=pair.id) }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this chord pair?')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Practice Session</h5>
+                    // ... existing code ... 
