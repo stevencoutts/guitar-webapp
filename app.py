@@ -13,6 +13,7 @@ import io
 import logging
 from logging.handlers import RotatingFileHandler
 import humanize
+from version import VERSION
 
 from io import StringIO, BytesIO
 from werkzeug.utils import secure_filename
@@ -92,6 +93,7 @@ def is_valid_password(password):
 
 # Models
 class User(UserMixin, db.Model):
+    """User model for storing user information and authentication"""
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
@@ -102,12 +104,15 @@ class User(UserMixin, db.Model):
     practice_records = db.relationship('PracticeRecord', backref='user', lazy=True)
 
     def set_password(self, password):
+        """Hash and set user password"""
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
+        """Verify user password"""
         return check_password_hash(self.password_hash, password)
 
 class Song(db.Model):
+    """Song model for storing song information and chord progressions"""
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     artist = db.Column(db.String(100))
@@ -121,9 +126,10 @@ class Song(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class PracticeRecord(db.Model):
+    """Practice record model for tracking practice sessions"""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    chord_pair = db.Column(db.String(50), nullable=False)  # Format: "C→G"
+    chord_pair = db.Column(db.String(50), nullable=False)
     score = db.Column(db.Integer, nullable=False)
     date = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -141,6 +147,7 @@ class ChordPair(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
+    """Load user by ID for Flask-Login"""
     return db.session.get(User, int(user_id))
 
 def create_default_admin():
@@ -197,6 +204,7 @@ def create_default_chord_pairs():
 # Routes
 @app.route('/')
 def index():
+    """Display the main dashboard"""
     if current_user.is_authenticated:
         songs = Song.query.filter_by(user_id=current_user.id).all()
         return render_template('index.html', songs=songs)
@@ -204,6 +212,7 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    """Handle user login"""
     if current_user.is_authenticated:
         return redirect(url_for('index'))
         
@@ -225,6 +234,7 @@ def login():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    """Handle user registration"""
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -250,12 +260,14 @@ def register():
 @app.route('/logout')
 @login_required
 def logout():
+    """Handle user logout"""
     logout_user()
     return redirect(url_for('index'))
 
 @app.route('/song/new', methods=['GET', 'POST'])
 @login_required
 def new_song():
+    """Handle adding new songs"""
     if request.method == 'POST':
         title = request.form.get('title')
         time_signature = request.form.get('time_signature')
@@ -301,6 +313,7 @@ def new_song():
 @app.route('/song/<int:song_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_song(song_id):
+    """Handle editing existing songs"""
     song = db.session.get(Song, song_id)
     if not song or song.user_id != current_user.id:
         flash('Song not found', 'error')
@@ -320,6 +333,7 @@ def edit_song(song_id):
 @app.route('/song/<int:song_id>/delete', methods=['POST'])
 @login_required
 def delete_song(song_id):
+    """Handle deleting songs"""
     song = db.session.get(Song, song_id)
     if not song or song.user_id != current_user.id:
         flash('Song not found', 'error')
@@ -332,6 +346,7 @@ def delete_song(song_id):
 @app.route('/account', methods=['GET', 'POST'])
 @login_required
 def account():
+    """Handle user account management"""
     if request.method == 'POST':
         current_password = request.form.get('current_password')
         new_password = request.form.get('new_password')
@@ -363,6 +378,7 @@ def account():
 @app.route('/account/delete', methods=['POST'])
 @login_required
 def delete_account():
+    """Handle user account deletion"""
     password = request.form.get('password')
     
     if not password:
@@ -390,6 +406,7 @@ def delete_account():
 @app.route('/song/<int:song_id>', methods=['GET'])
 @login_required
 def view_song(song_id):
+    """Display detailed view of a song"""
     # Extend session lifetime when viewing song details
     session.permanent = True
     app.permanent_session_lifetime = timedelta(hours=4)  # 4 hours for song viewing
@@ -407,6 +424,7 @@ def view_song(song_id):
 @app.route('/admin')
 @login_required
 def admin():
+    """Admin dashboard for managing users and system settings"""
     if not current_user.is_admin:
         flash('You do not have permission to access the admin page.')
         return redirect(url_for('index'))
@@ -417,6 +435,7 @@ def admin():
 @app.route('/admin/user/<int:user_id>/toggle_admin', methods=['POST'])
 @login_required
 def toggle_admin(user_id):
+    """Handle toggling admin status for users"""
     if not current_user.is_admin:
         flash('You do not have permission to perform this action.')
         return redirect(url_for('index'))
@@ -436,6 +455,7 @@ def toggle_admin(user_id):
 @app.route('/admin/user/create', methods=['POST'])
 @login_required
 def create_user():
+    """Handle creating new users"""
     if not current_user.is_admin:
         flash('You do not have permission to create users.', 'danger')
         return redirect(url_for('admin'))
@@ -472,6 +492,7 @@ def create_user():
 @app.route('/admin/user/<int:user_id>/delete', methods=['POST'])
 @login_required
 def delete_user(user_id):
+    """Handle deleting a user"""
     if not current_user.is_admin:
         flash('You do not have permission to perform this action.')
         return redirect(url_for('index'))
@@ -492,6 +513,7 @@ def delete_user(user_id):
 @app.route('/admin/user/<int:user_id>/change_password', methods=['POST'])
 @login_required
 def change_user_password(user_id):
+    """Handle changing a user's password"""
     if not current_user.is_admin:
         flash('You do not have permission to perform this action.')
         return redirect(url_for('index'))
@@ -515,6 +537,7 @@ def change_user_password(user_id):
 @app.route('/admin/user/<int:user_id>/toggle_disabled', methods=['POST'])
 @login_required
 def toggle_user_disabled(user_id):
+    """Handle toggling a user's disabled status"""
     if not current_user.is_admin:
         flash('You do not have permission to perform this action.')
         return redirect(url_for('index'))
@@ -538,6 +561,7 @@ def toggle_user_disabled(user_id):
 @app.route('/practice/chord-changes', methods=['GET', 'POST'])
 @login_required
 def chord_changes():
+    """Handle chord changes practice interface"""
     if request.method == 'POST':
         score = request.form.get('score')
         if score:
@@ -586,6 +610,7 @@ def chord_changes():
 @app.route('/backup', methods=['GET', 'POST'])
 @login_required
 def backup():
+    """Handle backup and restore functionality"""
     if request.method == 'POST':
         action = request.form.get('action')
         
@@ -801,6 +826,26 @@ def backup():
     
     # Show backup page
     return render_template('backup.html')
+
+@app.route('/chord_pair_history/<chord_pair>')
+@login_required
+def chord_pair_history(chord_pair):
+    """Display practice history for a specific chord pair"""
+    # Get all practice records for this chord pair, ordered by date
+    records = PracticeRecord.query.filter_by(
+        user_id=current_user.id,
+        chord_pair=chord_pair
+    ).order_by(PracticeRecord.date.desc()).all()
+    
+    return render_template('chord_pair_history.html', 
+                         chord_pair=chord_pair,
+                         records=records)
+
+# Make version available to all templates
+@app.context_processor
+def inject_version():
+    """Inject version number into all templates"""
+    return dict(version=VERSION)
 
 if __name__ == '__main__':
     with app.app_context():
