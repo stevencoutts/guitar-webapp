@@ -1,37 +1,86 @@
 {% extends "base.html" %}
 
+{% block title %}Add New Song - Guitar Practice{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
+<div class="row">
+    <div class="col-md-8 offset-md-2">
         <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-plus-circle me-2"></i>Add New Song
+                </h4>
+            </div>
             <div class="card-body">
-                <h2 class="card-title text-center mb-4">Add New Song</h2>
                 <form method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
-                        <label for="title" class="form-label">Title</label>
+                        <label for="title" class="form-label">Title *</label>
                         <input type="text" class="form-control" id="title" name="title" required>
                     </div>
+                    
                     <div class="mb-3">
-                        <label for="time_signature" class="form-label">Time Signature</label>
-                        <input type="text" class="form-control" id="time_signature" name="time_signature" required>
-                        <small class="form-text text-muted">Format: 4/4, 3/4, etc.</small>
+                        <label for="artist" class="form-label">Artist</label>
+                        <input type="text" class="form-control" id="artist" name="artist">
                     </div>
+                    
                     <div class="mb-3">
-                        <label for="bpm" class="form-label">BPM</label>
-                        <input type="number" class="form-control" id="bpm" name="bpm" min="20" max="300" required>
+                        <label for="time_signature" class="form-label">Time Signature *</label>
+                        <input type="text" class="form-control" id="time_signature" name="time_signature" 
+                               placeholder="e.g., 4/4" required>
                     </div>
+                    
                     <div class="mb-3">
-                        <label for="chord_progression" class="form-label">Chord Progression</label>
-                        <textarea class="form-control" id="chord_progression" name="chord_progression" rows="3" required></textarea>
+                        <label for="bpm" class="form-label">BPM *</label>
+                        <input type="number" class="form-control" id="bpm" name="bpm" 
+                               min="20" max="300" required>
                     </div>
+                    
                     <div class="mb-3">
-                        <label for="strumming_pattern" class="form-label">Strumming Pattern</label>
-                        <textarea class="form-control" id="strumming_pattern" name="strumming_pattern" rows="3" required></textarea>
+                        <label for="capo" class="form-label">Capo Position</label>
+                        <select class="form-select" id="capo" name="capo">
+                            <option value="None">None</option>
+                            <option value="1">1st fret</option>
+                            <option value="2">2nd fret</option>
+                            <option value="3">3rd fret</option>
+                            <option value="4">4th fret</option>
+                            <option value="5">5th fret</option>
+                            <option value="6">6th fret</option>
+                            <option value="7">7th fret</option>
+                            <option value="8">8th fret</option>
+                            <option value="9">9th fret</option>
+                            <option value="10">10th fret</option>
+                            <option value="11">11th fret</option>
+                            <option value="12">12th fret</option>
+                        </select>
                     </div>
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-primary">Add Song</button>
+                    
+                    <div class="mb-3">
+                        <label for="chord_progression" class="form-label">Chord Progression *</label>
+                        <textarea class="form-control" id="chord_progression" name="chord_progression" 
+                                  rows="2" style="font-size: 0.9rem; line-height: 1.2;" required></textarea>
+                        <div class="form-text">Enter chords separated by spaces or new lines</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="strumming_pattern" class="form-label">Strumming Pattern *</label>
+                        <textarea class="form-control" id="strumming_pattern" name="strumming_pattern" 
+                                  rows="2" style="font-size: 0.9rem; line-height: 1.2;" required></textarea>
+                        <div class="form-text">Enter strumming pattern using D (down) and U (up)</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="4"></textarea>
+                        <div class="form-text">Any additional notes or instructions</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Save Song
+                        </button>
+                        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
                     </div>
                 </form>
             </div>
