@@ -10,3 +10,15 @@
                                 <td>{{ song.bpm }}</td>
                                 <td>{{ song.capo }}</td>
                                 <td> 
+<div class="card-body">
+    <h5 class="card-title">{{ song.title }}</h5>
+    <p class="card-text">
+        <small class="text-muted">Artist: {{ song.artist }}</small><br>
+        <small class="text-muted">Time: {{ song.time_signature }} | BPM: {{ song.bpm }} | Capo: {{ song.capo }}</small>
+    </p>
+    <div class="btn-group">
+        <a href="{{ url_for('view_song', song_id=song.id) }}" class="btn btn-sm btn-primary">View</a>
+        <a href="{{ url_for('edit_song', song_id=song.id) }}" class="btn btn-sm btn-secondary">Edit</a>
+        <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete({{ song.id }})">Delete</button>
+    </div>
+</div> 
