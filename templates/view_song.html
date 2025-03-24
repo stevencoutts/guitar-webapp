@@ -42,16 +42,15 @@
             <div class="card mb-4">
                 <div class="card-body">
                     <h5 class="card-title mb-3">Song Details</h5>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <p><strong>Time Signature:</strong> {{ song.time_signature }}</p>
-                            <p><strong>BPM:</strong> {{ song.bpm }}</p>
-                            <p><strong>Capo:</strong> {{ song.capo }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p><strong>Created:</strong> {{ song.created_at|datetime }}</p>
-                            <p><strong>Last Updated:</strong> {{ song.updated_at|datetime }}</p>
-                        </div>
+                    <div class="song-details">
+                        <p><strong>Artist:</strong> {{ song.artist }}</p>
+                        <p><strong>Time Signature:</strong> {{ song.time_signature }}</p>
+                        <p><strong>BPM:</strong> {{ song.bpm }}</p>
+                        <p><strong>Capo:</strong> {{ song.capo }}</p>
+                        <p><strong>Strumming Pattern:</strong> {{ song.strumming_pattern }}</p>
+                        {% if song.notes %}
+                        <p><strong>Notes:</strong> {{ song.notes }}</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -64,7 +63,7 @@
                         {% for line in song.chord_progression.split('\n') %}
                             {% if line.strip() and not line.strip().startswith('#') %}
                                 {% for chord in line.replace('|', '').split() %}
-                                    {% if chord and chord not in chords %}
+                                    {% if chord and chord not in chords and not chord.endswith('x2') and not chord.endswith('x3') and not chord.endswith('x4') and not chord == '...' %}
                                         {% set _ = chords.append(chord) %}
                                     {% endif %}
                                 {% endfor %}
@@ -150,11 +149,33 @@
         padding: 1rem;
         border-radius: 0.5rem;
         margin: 0;
+        font-size: 1.1rem;
+        line-height: 1.5;
     }
 
     .chord-progression-container {
-        max-height: 400px;
+        max-height: 800px;
         overflow-y: auto;
+        padding-right: 0.5rem;
+    }
+    
+    /* Custom scrollbar for chord progression */
+    .chord-progression-container::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .chord-progression-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .chord-progression-container::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+    
+    .chord-progression-container::-webkit-scrollbar-thumb:hover {
+        background: #555;
     }
     
     @media (min-width: 768px) {
