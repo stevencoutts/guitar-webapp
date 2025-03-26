@@ -8,4 +8,7 @@ python-dotenv==1.0.1
 gunicorn==21.2.0
 SQLAlchemy==2.0.28
 alembic==1.13.1
-humanize==4.10.0 
+humanize==4.10.0
+beautifulsoup4==4.12.3
+requests==2.31.0
+Pillow==10.2.0 

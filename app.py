@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, session
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, session, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_migrate import Migrate
@@ -17,6 +17,8 @@ from version import VERSION
 
 from io import StringIO, BytesIO
 from werkzeug.utils import secure_filename
+import requests
+from bs4 import BeautifulSoup
 
 # Load environment variables from .env file
 load_dotenv()
@@ -855,6 +857,82 @@ def chord_pair_history(chord_pair):
     return render_template('chord_pair_history.html', 
                          chord_pair=chord_pair,
                          records=records)
+
+@app.route('/chord/<chord_name>')
+def get_chord_diagram(chord_name):
+    """Generate a basic chord diagram"""
+    # Basic chord shapes (fret positions for each string in EADGBE order)
+    chord_shapes = {
+        'C': [(0, 'x'), (1, 1), (0, 0), (2, 2), (3, 3), (0, 'x')],  # x32010
+        'G': [(3, 3), (2, 0), (0, 0), (0, 0), (0, 0), (3, 3)],  # 320003
+        'D': [(2, 'x'), (2, 'x'), (0, 0), (2, 2), (3, 3), (2, 2)],  # xx0232
+        'A': [(0, 'x'), (0, 0), (2, 2), (2, 2), (2, 2), (0, 0)],  # x02220
+        'E': [(0, 0), (2, 2), (2, 2), (1, 1), (0, 0), (0, 0)],  # 022100
+        'Am': [(0, 'x'), (0, 0), (2, 2), (2, 2), (1, 1), (0, 0)],  # x02210
+        'Em': [(0, 0), (2, 2), (2, 2), (0, 0), (0, 0), (0, 0)],  # 022000
+        'F': [(1, 1), (3, 3), (3, 3), (2, 2), (1, 1), (1, 1)],  # 133211
+        'Dm': [(0, 'x'), (0, 'x'), (0, 0), (2, 2), (3, 3), (1, 1)],  # xx0231
+        'G7': [(3, 3), (2, 2), (0, 0), (0, 0), (0, 0), (1, 1)],  # 320001
+        'C7': [(0, 'x'), (3, 3), (2, 2), (3, 3), (1, 1), (0, 0)],  # x32310
+        'A7': [(0, 'x'), (0, 0), (2, 2), (0, 0), (2, 2), (0, 0)],  # x02020
+        'E7': [(0, 0), (2, 2), (0, 0), (1, 1), (0, 0), (0, 0)],  # 020100
+        'B7': [(2, 2), (1, 1), (2, 2), (0, 0), (2, 2), (0, 'x')],  # 212020
+        'Bm': [(2, 2), (2, 2), (4, 4), (4, 4), (3, 3), (2, 2)],  # 224432
+        'Fmaj7': [(1, 1), (3, 3), (2, 2), (0, 0), (1, 1), (1, 1)],  # 133211
+        'Cadd9': [(0, 'x'), (3, 3), (2, 2), (0, 0), (3, 3), (0, 'x')],  # x32030
+    }
+    
+    # SVG dimensions
+    width = 150
+    height = 200
+    fret_height = 30
+    string_spacing = 20
+    left_margin = 25
+    top_margin = 20
+    
+    # Start SVG content
+    svg = f'''
+    <svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">
+        <style>
+            .fret {{ stroke: #666; stroke-width: 1; }}
+            .string {{ stroke: #666; stroke-width: 1; }}
+            .dot {{ fill: #000; }}
+            .open {{ fill: none; stroke: #000; stroke-width: 1; }}
+            .x {{ font-family: Arial; font-size: 14px; }}
+            .chord-name {{ font-family: Arial; font-size: 16px; }}
+        </style>
+    '''
+    
+    # Draw frets
+    for i in range(5):
+        y = top_margin + i * fret_height
+        svg += f'<line x1="{left_margin}" y1="{y}" x2="{left_margin + 5 * string_spacing}" y2="{y}" class="fret"/>'
+    
+    # Draw strings
+    for i in range(6):
+        x = left_margin + i * string_spacing  # Draw from low E to high E
+        svg += f'<line x1="{x}" y1="{top_margin}" x2="{x}" y2="{top_margin + 4 * fret_height}" class="string"/>'
+    
+    # Draw dots for the chord if we know it
+    if chord_name in chord_shapes:
+        for string_idx, (fret, symbol) in enumerate(chord_shapes[chord_name]):
+            x = left_margin + string_idx * string_spacing  # Draw from low E to high E
+            if symbol == 'x':
+                # X mark for muted string
+                svg += f'<text x="{x}" y="{top_margin - 5}" text-anchor="middle" class="x">×</text>'
+            elif fret == 0:
+                # Open string
+                svg += f'<circle cx="{x}" cy="{top_margin - 10}" r="4" class="open"/>'
+            else:
+                # Fretted note
+                y = top_margin + (fret - 0.5) * fret_height
+                svg += f'<circle cx="{x}" cy="{y}" r="6" class="dot"/>'
+    
+    # Close SVG
+    svg += '</svg>'
+    
+    # Return SVG as response
+    return Response(svg, mimetype='image/svg+xml')
 
 # Make version available to all templates
 @app.context_processor
