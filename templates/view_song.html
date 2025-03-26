@@ -69,9 +69,22 @@
                                 {% endfor %}
                             {% endif %}
                         {% endfor %}
-                        {% for chord in chords|sort %}
-                            <span class="badge bg-primary me-2 mb-2">{{ chord }}</span>
-                        {% endfor %}
+                        <div class="row">
+                            {% for chord in chords|sort %}
+                                <div class="col-md-4 col-sm-6 mb-3">
+                                    <div class="chord-card">
+                                        <div class="chord-name">{{ chord }}</div>
+                                        <div class="chord-diagram-container">
+                                            <object data="{{ url_for('get_chord_diagram', chord_name=chord) }}" 
+                                                    type="image/svg+xml" 
+                                                    class="chord-diagram">
+                                                {{ chord }} diagram
+                                            </object>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -241,6 +254,59 @@
             width: 15px;
             height: 15px;
             margin: 0 3px;
+        }
+    }
+
+    /* Chord Diagram Styles */
+    .chord-card {
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+        transition: transform 0.2s ease;
+        position: relative;
+    }
+    
+    .chord-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .chord-name {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--primary-color);
+    }
+    
+    .chord-diagram-container {
+        position: relative;
+        min-height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .chord-diagram {
+        width: 150px;
+        height: 200px;
+    }
+    
+    @media (max-width: 768px) {
+        .chord-card {
+            padding: 0.75rem;
+        }
+        
+        .chord-name {
+            font-size: 1.1rem;
+        }
+        
+        .chord-diagram-container {
+            min-height: 180px;
+        }
+        
+        .chord-diagram {
+            width: 120px;
+            height: 160px;
         }
     }
 </style>
