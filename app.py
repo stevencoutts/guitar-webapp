@@ -862,6 +862,18 @@ def chord_pair_history(chord_pair):
 def get_chord_diagram(chord_name):
     """Generate a basic chord diagram"""
     # Basic chord shapes (fret positions for each string in EADGBE order)
+    # Each chord is defined as a list of tuples, one for each string from low E to high E
+    # Each tuple contains (fret_number, symbol) where:
+    # - fret_number: 0 for open string, 1-12 for fretted notes
+    # - symbol: 'x' for muted string, or the finger number (1-4) for fretted notes
+    # Example: 'C' chord [(0, 'x'), (1, 1), (0, 0), (2, 2), (3, 3), (0, 'x')]
+    # means: x32010 (from low E to high E)
+    # - Low E: muted (x)
+    # - A: 3rd fret, finger 1
+    # - D: 2nd fret, finger 0 (open)
+    # - G: 0th fret, finger 2
+    # - B: 1st fret, finger 3
+    # - High E: muted (x)
     chord_shapes = {
         'C': [(0, 'x'), (1, 1), (0, 0), (2, 2), (3, 3), (0, 'x')],  # x32010
         'G': [(3, 3), (2, 0), (0, 0), (0, 0), (0, 0), (3, 3)],  # 320003
