@@ -1045,10 +1045,6 @@ def delete_chord_shape(chord_id):
         flash('You do not have permission to access this page.')
         return redirect(url_for('index'))
     chord = ChordShape.query.get_or_404(chord_id)
-    form = request.form
-    if 'csrf_token' not in form or form['csrf_token'] != csrf.generate_csrf():
-        flash('CSRF token validation failed', 'error')
-        return redirect(url_for('admin_chords'))
     db.session.delete(chord)
     db.session.commit()
     flash('Chord shape deleted successfully!')
