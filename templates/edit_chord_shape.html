@@ -10,7 +10,7 @@
     <div class="mb-3">
         <label for="shape" class="form-label">Shape (JSON)</label>
         <textarea class="form-control" id="shape" name="shape" rows="4" required>{{ chord.shape if chord else '' }}</textarea>
-        <div class="form-text">Example: <code>[[0, 'x'], [3, 1], [2, 1], [0, 0], [1, 1], [0, 0]]</code></div>
+        <div class="form-text">Example: <code>[[0, "x"], [3, 1], [2, 1], [0, 0], [1, 1], [0, 0]]</code> <br>Use double quotes for strings.</div>
     </div>
     <button type="submit" class="btn btn-success">{{ 'Update' if chord else 'Add' }}</button>
     <a href="{{ url_for('admin_chords') }}" class="btn btn-secondary">Cancel</a>
