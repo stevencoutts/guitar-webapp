@@ -960,6 +960,9 @@ def get_chord_diagram(chord_name):
             else:
                 y = top_margin + (fret - 0.5) * fret_height
                 svg += f'<circle cx="{x}" cy="{y}" r="6" class="dot"/>'
+                # Draw finger number if symbol is a number
+                if isinstance(symbol, int) or (isinstance(symbol, str) and str(symbol).isdigit()):
+                    svg += f'<text x="{x}" y="{y + 4}" text-anchor="middle" font-size="10" fill="#fff">{symbol}</text>'
     svg += '</svg>'
     return Response(svg, mimetype='image/svg+xml')
 
