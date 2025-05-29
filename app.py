@@ -148,6 +148,18 @@ class ChordPair(db.Model):
     def display_name(self):
         return f"{self.first_chord}→{self.second_chord}"
 
+class ChordShape(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(20), unique=True, nullable=False)
+    shape = db.Column(db.Text, nullable=False)  # JSON string representing the shape
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def get_shape(self):
+        try:
+            return json.loads(self.shape)
+        except Exception:
+            return None
+
 @login_manager.user_loader
 def load_user(user_id):
     """Load user by ID for Flask-Login"""
@@ -861,39 +873,32 @@ def chord_pair_history(chord_pair):
 @app.route('/chord/<chord_name>')
 def get_chord_diagram(chord_name):
     """Generate a basic chord diagram"""
-    # Basic chord shapes (fret positions for each string in EADGBE order)
-    # Each chord is defined as a list of tuples, one for each string from low E to high E
-    # Each tuple contains (fret_number, symbol) where:
-    # - fret_number: 0 for open string, 1-12 for fretted notes
-    # - symbol: 'x' for muted string, or the finger number (1-4) for fretted notes
-    # Example: 'C' chord [(0, 'x'), (1, 1), (0, 0), (2, 2), (3, 3), (0, 'x')]
-    # means: x32010 (from low E to high E)
-    # - Low E: muted (x)
-    # - A: 3rd fret, finger 1
-    # - D: 2nd fret, finger 0 (open)
-    # - G: 0th fret, finger 2
-    # - B: 1st fret, finger 3
-    # - High E: muted (x)
-    chord_shapes = {
-        'C': [(0, 'x'), (3, 1), (2, 1), (0, 0), (1, 1), (0, 0)],  # x32010
-        'G': [(3, 3), (2, 0), (0, 0), (0, 0), (0, 0), (3, 3)],  # 320003
-        'D': [(2, 'x'), (2, 'x'), (0, 0), (2, 2), (3, 3), (2, 2)],  # xx0232
-        'A': [(0, 'x'), (0, 0), (2, 2), (2, 2), (2, 2), (0, 0)],  # x02220
-        'E': [(0, 0), (2, 2), (2, 2), (1, 1), (0, 0), (0, 0)],  # 022100
-        'Am': [(0, 'x'), (0, 0), (2, 2), (2, 2), (1, 1), (0, 0)],  # x02210
-        'Em': [(0, 0), (2, 2), (2, 2), (0, 0), (0, 0), (0, 0)],  # 022000
-        'F': [(1, 1), (3, 3), (3, 3), (2, 2), (1, 1), (1, 1)],  # 133211
-        'Dm': [(0, 'x'), (0, 'x'), (0, 0), (2, 2), (3, 3), (1, 1)],  # xx0231
-        'G7': [(3, 3), (2, 2), (0, 0), (0, 0), (0, 0), (1, 1)],  # 320001
-        'C7': [(0, 'x'), (3, 3), (2, 2), (3, 3), (1, 1), (0, 0)],  # x32310
-        'A7': [(0, 'x'), (0, 0), (2, 2), (0, 0), (2, 2), (0, 0)],  # x02020
-        'E7': [(0, 0), (2, 2), (0, 0), (1, 1), (0, 0), (0, 0)],  # 020100
-        'B7': [(2, 2), (1, 1), (2, 2), (0, 0), (2, 2), (0, 'x')],  # 212020
-        'Bm': [(2, 2), (2, 2), (4, 4), (4, 4), (3, 3), (2, 2)],  # 224432
-        'Fmaj7': [(0, 'x'), (0, 'x'), (3, 3), (2, 2), (1, 1), (0, 0)],  # 133211
-        'Cadd9': [(0, 'x'), (3, 3), (2, 2), (0, 0), (3, 3), (3, 3)],  # x32030
-    }
-    
+    # Try to get from DB first
+    db_shape = get_chord_shape_by_name(chord_name)
+    if db_shape:
+        chord_shape = db_shape
+    else:
+        # fallback to hardcoded
+        chord_shapes = {
+            'C': [(0, 'x'), (3, 1), (2, 1), (0, 0), (1, 1), (0, 0)],  # x32010
+            'G': [(3, 3), (2, 0), (0, 0), (0, 0), (0, 0), (3, 3)],  # 320003
+            'D': [(2, 'x'), (2, 'x'), (0, 0), (2, 2), (3, 3), (2, 2)],  # xx0232
+            'A': [(0, 'x'), (0, 0), (2, 2), (2, 2), (2, 2), (0, 0)],  # x02220
+            'E': [(0, 0), (2, 2), (2, 2), (1, 1), (0, 0), (0, 0)],  # 022100
+            'Am': [(0, 'x'), (0, 0), (2, 2), (2, 2), (1, 1), (0, 0)],  # x02210
+            'Em': [(0, 0), (2, 2), (2, 2), (0, 0), (0, 0), (0, 0)],  # 022000
+            'F': [(1, 1), (3, 3), (3, 3), (2, 2), (1, 1), (1, 1)],  # 133211
+            'Dm': [(0, 'x'), (0, 'x'), (0, 0), (2, 2), (3, 3), (1, 1)],  # xx0231
+            'G7': [(3, 3), (2, 2), (0, 0), (0, 0), (0, 0), (1, 1)],  # 320001
+            'C7': [(0, 'x'), (3, 3), (2, 2), (3, 3), (1, 1), (0, 0)],  # x32310
+            'A7': [(0, 'x'), (0, 0), (2, 2), (0, 0), (2, 2), (0, 0)],  # x02020
+            'E7': [(0, 0), (2, 2), (0, 0), (1, 1), (0, 0), (0, 0)],  # 020100
+            'B7': [(2, 2), (1, 1), (2, 2), (0, 0), (2, 2), (0, 'x')],  # 212020
+            'Bm': [(2, 2), (2, 2), (4, 4), (4, 4), (3, 3), (2, 2)],  # 224432
+            'Fmaj7': [(0, 'x'), (0, 'x'), (3, 3), (2, 2), (1, 1), (0, 0)],  # 133211
+            'Cadd9': [(0, 'x'), (3, 3), (2, 2), (0, 0), (3, 3), (3, 3)],  # x32030
+        }
+        chord_shape = chord_shapes.get(chord_name)
     # SVG dimensions
     width = 150
     height = 200
@@ -901,8 +906,6 @@ def get_chord_diagram(chord_name):
     string_spacing = 20
     left_margin = 25
     top_margin = 20
-    
-    # Start SVG content
     svg = f'''
     <svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">
         <style>
@@ -914,36 +917,26 @@ def get_chord_diagram(chord_name):
             .chord-name {{ font-family: Arial; font-size: 16px; }}
         </style>
     '''
-    
     # Draw frets
     for i in range(5):
         y = top_margin + i * fret_height
         svg += f'<line x1="{left_margin}" y1="{y}" x2="{left_margin + 5 * string_spacing}" y2="{y}" class="fret"/>'
-    
     # Draw strings
     for i in range(6):
         x = left_margin + i * string_spacing  # Draw from low E to high E
         svg += f'<line x1="{x}" y1="{top_margin}" x2="{x}" y2="{top_margin + 4 * fret_height}" class="string"/>'
-    
     # Draw dots for the chord if we know it
-    if chord_name in chord_shapes:
-        for string_idx, (fret, symbol) in enumerate(chord_shapes[chord_name]):
+    if chord_shape:
+        for string_idx, (fret, symbol) in enumerate(chord_shape):
             x = left_margin + string_idx * string_spacing  # Draw from low E to high E
             if symbol == 'x':
-                # X mark for muted string
                 svg += f'<text x="{x}" y="{top_margin - 5}" text-anchor="middle" class="x">×</text>'
             elif fret == 0:
-                # Open string
                 svg += f'<circle cx="{x}" cy="{top_margin - 10}" r="4" class="open"/>'
             else:
-                # Fretted note
                 y = top_margin + (fret - 0.5) * fret_height
                 svg += f'<circle cx="{x}" cy="{y}" r="6" class="dot"/>'
-    
-    # Close SVG
     svg += '</svg>'
-    
-    # Return SVG as response
     return Response(svg, mimetype='image/svg+xml')
 
 # Make version available to all templates
@@ -951,6 +944,91 @@ def get_chord_diagram(chord_name):
 def inject_version():
     """Inject version number into all templates"""
     return dict(version=VERSION)
+
+# Utility to get chord shape by name
+def get_chord_shape_by_name(name):
+    chord = ChordShape.query.filter_by(name=name).first()
+    if chord:
+        return chord.get_shape()
+    return None
+
+@app.route('/admin/chords')
+@login_required
+def admin_chords():
+    if not current_user.is_admin:
+        flash('You do not have permission to access this page.')
+        return redirect(url_for('index'))
+    chords = ChordShape.query.order_by(ChordShape.name).all()
+    return render_template('admin_chords.html', chords=chords)
+
+@app.route('/admin/chords/new', methods=['GET', 'POST'])
+@login_required
+def new_chord_shape():
+    if not current_user.is_admin:
+        flash('You do not have permission to access this page.')
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        name = request.form.get('name')
+        shape = request.form.get('shape')
+        if not name or not shape:
+            flash('Name and shape are required.')
+            return redirect(url_for('new_chord_shape'))
+        if ChordShape.query.filter_by(name=name).first():
+            flash('Chord name already exists.')
+            return redirect(url_for('new_chord_shape'))
+        try:
+            # Validate shape is valid JSON
+            json_shape = json.loads(shape)
+            chord = ChordShape(name=name, shape=json.dumps(json_shape))
+            db.session.add(chord)
+            db.session.commit()
+            flash('Chord shape added successfully!')
+            return redirect(url_for('admin_chords'))
+        except Exception as e:
+            flash(f'Invalid shape format: {e}')
+            return redirect(url_for('new_chord_shape'))
+    return render_template('edit_chord_shape.html', chord=None)
+
+@app.route('/admin/chords/<int:chord_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_chord_shape(chord_id):
+    if not current_user.is_admin:
+        flash('You do not have permission to access this page.')
+        return redirect(url_for('index'))
+    chord = ChordShape.query.get_or_404(chord_id)
+    if request.method == 'POST':
+        name = request.form.get('name')
+        shape = request.form.get('shape')
+        if not name or not shape:
+            flash('Name and shape are required.')
+            return redirect(url_for('edit_chord_shape', chord_id=chord_id))
+        try:
+            json_shape = json.loads(shape)
+            chord.name = name
+            chord.shape = json.dumps(json_shape)
+            db.session.commit()
+            flash('Chord shape updated successfully!')
+            return redirect(url_for('admin_chords'))
+        except Exception as e:
+            flash(f'Invalid shape format: {e}')
+            return redirect(url_for('edit_chord_shape', chord_id=chord_id))
+    return render_template('edit_chord_shape.html', chord=chord)
+
+@app.route('/admin/chords/<int:chord_id>/delete', methods=['POST'])
+@login_required
+def delete_chord_shape(chord_id):
+    if not current_user.is_admin:
+        flash('You do not have permission to access this page.')
+        return redirect(url_for('index'))
+    chord = ChordShape.query.get_or_404(chord_id)
+    form = request.form
+    if 'csrf_token' not in form or form['csrf_token'] != csrf.generate_csrf():
+        flash('CSRF token validation failed', 'error')
+        return redirect(url_for('admin_chords'))
+    db.session.delete(chord)
+    db.session.commit()
+    flash('Chord shape deleted successfully!')
+    return redirect(url_for('admin_chords'))
 
 if __name__ == '__main__':
     with app.app_context():

@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>{{ 'Edit' if chord else 'Add' }} Chord Shape</h2>
+<form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="mb-3">
+        <label for="name" class="form-label">Chord Name</label>
+        <input type="text" class="form-control" id="name" name="name" value="{{ chord.name if chord else '' }}" required>
+    </div>
+    <div class="mb-3">
+        <label for="shape" class="form-label">Shape (JSON)</label>
+        <textarea class="form-control" id="shape" name="shape" rows="4" required>{{ chord.shape if chord else '' }}</textarea>
+        <div class="form-text">Example: <code>[[0, 'x'], [3, 1], [2, 1], [0, 0], [1, 1], [0, 0]]</code></div>
+    </div>
+    <button type="submit" class="btn btn-success">{{ 'Update' if chord else 'Add' }}</button>
+    <a href="{{ url_for('admin_chords') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %} 
