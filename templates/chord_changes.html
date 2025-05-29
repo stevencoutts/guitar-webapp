@@ -8,7 +8,6 @@
                 <h2 class="card-title mb-4 text-primary">
                     <i class="fas fa-clock me-2"></i>One Minute Chord Changes
                 </h2>
-                
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="mb-0 text-primary">Timer</h5>
@@ -26,7 +25,12 @@
                         </button>
                     </div>
                 </div>
-
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Selected Chord Fingerings</h5>
+                        <div id="selected-chord-diagrams" class="row"></div>
+                    </div>
+                </div>
                 <div class="mb-4">
                     <h5 class="text-primary mb-3">Chord Pairs</h5>
                     <div id="chord-pairs" class="mb-3">
@@ -42,7 +46,6 @@
                         </div>
                     </div>
                 </div>
-
                 <form method="POST" id="practiceForm" class="d-none">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="score" id="scoreInput">
@@ -53,8 +56,7 @@
                 </form>
             </div>
         </div>
-
-        <div class="card mt-4">
+        <div class="card">
             <div class="card-body">
                 <h3 class="card-title mb-4 text-primary">
                     <i class="fas fa-trophy me-2"></i>Practice Records
@@ -439,6 +441,43 @@ function saveScore() {
     form.submit();
 }
 
+function getUniqueChordsFromPairs() {
+    const chords = new Set();
+    document.querySelectorAll('.chord-pair').forEach(pair => {
+        const inputs = pair.querySelectorAll('.chord-input');
+        if (inputs[0].value) chords.add(inputs[0].value.trim());
+        if (inputs[1].value) chords.add(inputs[1].value.trim());
+    });
+    return Array.from(chords).filter(c => c);
+}
+
+function updateChordDiagrams() {
+    const chords = getUniqueChordsFromPairs();
+    const container = document.getElementById('selected-chord-diagrams');
+    container.innerHTML = '';
+    chords.forEach(chord => {
+        const col = document.createElement('div');
+        col.className = 'col-md-4 col-sm-6 mb-3';
+        col.innerHTML = `
+            <div class="chord-card">
+                <div class="chord-name">${chord}</div>
+                <div class="chord-diagram-container">
+                    <object data="/chord/${encodeURIComponent(chord)}" type="image/svg+xml" class="chord-diagram">${chord} diagram</object>
+                </div>
+            </div>
+        `;
+        container.appendChild(col);
+    });
+}
+
+// Hook up diagram updates to input changes and pair loading
+function addChordInputListeners() {
+    document.querySelectorAll('.chord-input').forEach(input => {
+        input.removeEventListener('input', updateChordDiagrams);
+        input.addEventListener('input', updateChordDiagrams);
+    });
+}
+
 // Event Listeners
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize modals
@@ -504,6 +543,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial check of start button state
     updateStartButtonState();
+
+    updateChordDiagrams();
+    addChordInputListeners();
+
+    // Update diagrams when chord pairs change
+    document.getElementById('chord-pairs').addEventListener('input', function() {
+        updateChordDiagrams();
+        addChordInputListeners();
+    });
+
+    // Also update diagrams when a pair is loaded
+    document.querySelectorAll('.load-chord-pair, .select-chord-pair').forEach(button => {
+        button.addEventListener('click', function() {
+            setTimeout(() => {
+                updateChordDiagrams();
+                addChordInputListeners();
+            }, 100);
+        });
+    });
 });
 </script>
 {% endblock %} 
