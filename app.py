@@ -758,11 +758,26 @@ def backup():
                         Song.query.delete()
                         PracticeRecord.query.delete()
                         User.query.filter(User.id != current_user.id).delete()
+                        ChordShape.query.delete()
                     else:
                         app.logger.info(f"Deleting existing data for user {current_user.id}")
                         # Regular users can only restore their own data
                         Song.query.filter_by(user_id=current_user.id).delete()
                         PracticeRecord.query.filter_by(user_id=current_user.id).delete()
+                        # Do not delete chord shapes for non-admins
+                    
+                    # Restore chord shapes (admin only or if present)
+                    if 'chord_shapes' in backup_data:
+                        if current_user.is_admin:
+                            for cs_data in backup_data['chord_shapes']:
+                                chord = ChordShape(
+                                    id=cs_data.get('id'),
+                                    name=cs_data.get('name'),
+                                    shape=cs_data.get('shape'),
+                                    created_at=datetime.fromisoformat(cs_data['created_at']) if cs_data.get('created_at') else None
+                                )
+                                db.session.add(chord)
+                        # For non-admins, skip restoring chord shapes
                     
                     # Create a mapping of old user IDs to new user IDs
                     user_id_mapping = {}
@@ -1030,10 +1045,6 @@ def delete_chord_shape(chord_id):
         flash('You do not have permission to access this page.')
         return redirect(url_for('index'))
     chord = ChordShape.query.get_or_404(chord_id)
-    form = request.form
-    if 'csrf_token' not in form or form['csrf_token'] != csrf.generate_csrf():
-        flash('CSRF token validation failed', 'error')
-        return redirect(url_for('admin_chords'))
     db.session.delete(chord)
     db.session.commit()
     flash('Chord shape deleted successfully!')
