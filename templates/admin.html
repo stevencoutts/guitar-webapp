@@ -258,4 +258,8 @@ function openNewUserModal() {
     modalInstance.show();
 }
 </script>
+
+{% if current_user.is_admin %}
+    <a href="{{ url_for('admin_chords') }}" class="btn btn-info mb-2">Manage Chord Shapes</a>
+{% endif %}
 {% endblock %} 

@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Chord Shapes</h2>
+<a href="{{ url_for('new_chord_shape') }}" class="btn btn-primary mb-3">Add New Chord Shape</a>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Shape (JSON)</th>
+            <th>Created At</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for chord in chords %}
+        <tr>
+            <td>{{ chord.name }}</td>
+            <td><pre style="font-size: 0.9em;">{{ chord.shape }}</pre></td>
+            <td>{{ chord.created_at.strftime('%Y-%m-%d %H:%M') if chord.created_at else '' }}</td>
+            <td>
+                <a href="{{ url_for('edit_chord_shape', chord_id=chord.id) }}" class="btn btn-sm btn-warning">Edit</a>
+                <form action="{{ url_for('delete_chord_shape', chord_id=chord.id) }}" method="post" style="display:inline;" onsubmit="return confirm('Delete this chord shape?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %} 
