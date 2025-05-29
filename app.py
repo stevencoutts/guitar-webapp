@@ -656,6 +656,9 @@ def backup():
                 all_songs = Song.query.all()
                 all_practice_records = PracticeRecord.query.all()
             
+            # Get all chord shapes
+            chord_shapes = ChordShape.query.all()
+            
             # Prepare backup data
             backup_data = {
                 'version': '1.0',
@@ -687,7 +690,13 @@ def backup():
                     'chord_pair': record.chord_pair,
                     'score': record.score,
                     'date': record.date.isoformat() if record.date else None
-                } for record in (all_practice_records if current_user.is_admin else practice_records)]
+                } for record in (all_practice_records if current_user.is_admin else practice_records)],
+                'chord_shapes': [{
+                    'id': cs.id,
+                    'name': cs.name,
+                    'shape': cs.shape,
+                    'created_at': cs.created_at.isoformat() if cs.created_at else None
+                } for cs in chord_shapes]
             }
             
             # Add all users data if admin
