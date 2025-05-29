@@ -28,7 +28,7 @@
                 <div class="card mb-4">
                     <div class="card-body">
                         <h5 class="card-title mb-3">Selected Chord Fingerings</h5>
-                        <div id="selected-chord-diagrams" class="row"></div>
+                        <div id="selected-chord-diagrams" class="row justify-content-center text-center"></div>
                     </div>
                 </div>
                 <div class="mb-4">
@@ -220,6 +220,14 @@
 
 #predefinedChordPairs .card:hover {
     transform: translateY(-2px);
+}
+
+#selected-chord-diagrams {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 1rem;
 }
 </style>
 
