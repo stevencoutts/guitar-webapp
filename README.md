@@ -117,21 +117,40 @@ The application is built with:
 
 ## Docker Development
 
-For development with Docker:
+For development with Docker, use **docker-compose** for easier management and volume mounting:
 
-1. Build the development image:
+1. Build and start the development container:
 ```bash
-docker build -t guitar-webapp-dev -f Dockerfile.dev .
+docker-compose up --build -d
 ```
 
-2. Run the development container:
+2. Access the application at `http://localhost:5001`
+
+- The `docker-compose.yml` mounts the `./instance` directory for persistent data.
+- Code changes require a container restart to take effect (unless you mount the whole app directory and use a live-reload tool).
+
+### Rebuilding the Docker Image After a Git Pull
+
+If you pull new changes from git (e.g., `git pull`), you should rebuild the Docker image to ensure all dependencies and code are up to date:
+
 ```bash
-docker run -d -p 5001:5001 -v $(pwd):/app guitar-webapp-dev
+docker-compose down
+# Optionally clean up unused Docker resources:
+docker system prune -f
+# Rebuild and start the container:
+docker-compose up --build -d
 ```
 
-3. Access the application at `http://localhost:5001`
+Or use the provided scripts for convenience:
 
-The development container includes hot-reloading for code changes.
+- **update.sh**: Pulls latest code, rebuilds the image, and restarts the app.
+  ```bash
+  ./update.sh
+  ```
+- **restart.sh**: Rebuilds and restarts the container (without pulling from git).
+  ```bash
+  ./restart.sh
+  ```
 
 ## Contributing
 
