@@ -1428,4 +1428,4 @@ if __name__ == '__main__':
         db.create_all()
         create_default_admin()
         create_default_chord_pairs()
-    app.run(host='0.0.0.0', port=5001, debug=True) 
+    app.run(host='0.0.0.0', port=5001, debug=False) 
