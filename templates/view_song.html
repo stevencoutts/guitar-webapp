@@ -59,32 +59,41 @@
                 <div class="card-body">
                     <h5 class="card-title mb-3">Chords Used</h5>
                     <div class="chord-list">
-                        {% set chords = [] %}
-                        {% for line in song.chord_progression.split('\n') %}
-                            {% if line.strip() and not line.strip().startswith('#') %}
-                                {% for chord in line.replace('|', '').replace(':', '').replace('….', '').replace('...', '').split() %}
-                                    {% if chord and chord not in chords and not chord.endswith('x2') and not chord.endswith('x3') and not chord.endswith('x4') and not chord.strip('.') == '' %}
-                                        {% set _ = chords.append(chord) %}
-                                    {% endif %}
-                                {% endfor %}
-                            {% endif %}
-                        {% endfor %}
+                        {% if chord_shapes_dict %}
                         <div class="row">
-                            {% for chord in chords|sort %}
+                            {% for chord_name, shapes in chord_shapes_dict.items() %}
                                 <div class="col-md-4 col-sm-6 mb-3">
-                                    <div class="chord-card">
-                                        <div class="chord-name">{{ chord }}</div>
+                                    <div class="chord-card" data-chord-name="{{ chord_name }}">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <div class="chord-name">{{ chord_name }}</div>
+                                            {% if shapes|length > 1 %}
+                                                <div class="dropdown">
+                                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenuButton_{{ loop.index }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        {{ shapes[0].variant if shapes[0].variant is not none else 'Default' }}
+                                                    </button>
+                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton_{{ loop.index }}">
+                                                        {% for shape in shapes %}
+                                                            <li><a class="dropdown-item" href="#" data-variant="{{ shape.variant if shape.variant is not none else '' }}">{{ shape.variant if shape.variant is not none else 'Default' }}</a></li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                </div>
+                                            {% endif %}
+                                        </div>
                                         <div class="chord-diagram-container">
-                                            <object data="{{ url_for('get_chord_diagram', chord_name=chord) }}" 
+                                            <object data="{{ url_for('get_chord_diagram', chord_name=chord_name) }}" 
                                                     type="image/svg+xml" 
                                                     class="chord-diagram">
-                                                {{ chord }} diagram
+                                                {{ chord_name }} diagram
                                             </object>
                                         </div>
                                     </div>
                                 </div>
                             {% endfor %}
                         </div>
+                        {% else %}
+                        <p>No chord shapes found in the database for the chords in this song.</p>
+                        <p>You can add chord shapes in the <a href="{{ url_for('admin_chords') }}">Admin Chord Shapes</a> section.</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -259,55 +268,33 @@
 
     /* Chord Diagram Styles */
     .chord-card {
-        background-color: #f8f9fa;
-        border-radius: 0.5rem;
-        padding: 1rem;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 15px;
         text-align: center;
-        transition: transform 0.2s ease;
-        position: relative;
-    }
-    
-    .chord-card:hover {
-        transform: translateY(-2px);
+        background-color: #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     
     .chord-name {
-        font-size: 1.2rem;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-        color: var(--primary-color);
+        font-size: 1.2em;
+        font-weight: bold;
+        margin-bottom: 10px;
     }
     
     .chord-diagram-container {
-        position: relative;
-        min-height: 200px;
+        width: 100%;
+        height: 150px; /* Adjust height as needed */
         display: flex;
-        align-items: center;
         justify-content: center;
+        align-items: center;
     }
     
     .chord-diagram {
-        width: 150px;
-        height: 200px;
-    }
-    
-    @media (max-width: 768px) {
-        .chord-card {
-            padding: 0.75rem;
-        }
-        
-        .chord-name {
-            font-size: 1.1rem;
-        }
-        
-        .chord-diagram-container {
-            min-height: 180px;
-        }
-        
-        .chord-diagram {
-            width: 120px;
-            height: 160px;
-        }
+        max-width: 100%;
+        max-height: 100%;
+        height: auto;
+        width: auto;
     }
 </style>
 
@@ -408,6 +395,132 @@ window.addEventListener('beforeunload', () => {
     if (audioContext) {
         audioContext.close();
     }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Function to update chord diagram
+    function updateChordDiagram(chordName, variant, container) {
+        let url = `{{ url_for('get_chord_diagram', chord_name='_CHORD_NAME_') }}`;
+        url = url.replace('_CHORD_NAME_', encodeURIComponent(chordName));
+
+        // Add variant to URL if it exists and is not empty string
+        if (variant && variant !== 'Default' && variant !== '') {
+            // Use URLSearchParams for cleaner URL construction
+            const urlParams = new URLSearchParams();
+            urlParams.append('variant', variant);
+            url += '?' + urlParams.toString();
+        }
+
+        const objectElement = container.querySelector('.chord-diagram');
+        if (objectElement) {
+            objectElement.data = url;
+        } else {
+            // If object element doesn't exist, create it
+            const newObjectElement = document.createElement('object');
+            newObjectElement.setAttribute('data', url);
+            newObjectElement.setAttribute('type', 'image/svg+xml');
+            newObjectElement.classList.add('chord-diagram');
+            newObjectElement.textContent = `${chordName} diagram`; // Fallback text
+            container.innerHTML = ''; // Clear container
+            container.appendChild(newObjectElement);
+        }
+    }
+
+    // Function to save selected variant to the backend
+    function saveSelectedVariant(songId, chordName, variant) {
+        const saveUrl = `{{ url_for('save_selected_variant', song_id=song.id) }}`;
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+        // Convert None/empty variant to empty string for saving consistency
+        const variantToSave = variant === 'Default' || variant === null ? '' : variant;
+
+        fetch(saveUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                chord_name: chordName,
+                variant: variantToSave
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Variant saved:', data.message);
+                // Optionally show a small success message to the user
+            } else {
+                console.error('Error saving variant:', data.message);
+                // Optionally show an error message
+            }
+        })
+        .catch(error => {
+            console.error('Fetch error saving variant:', error);
+            // Optionally show a network error message
+        });
+    }
+
+    // Add event listeners to dropdown items
+    document.querySelectorAll('.chord-card .dropdown-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const chordCard = this.closest('.chord-card');
+            const chordName = chordCard.dataset.chordName;
+            const variant = this.dataset.variant; // Use data-variant attribute (will be empty string for default)
+
+            // Update the dropdown button text
+            const dropdownButton = chordCard.querySelector('.dropdown-toggle');
+            if (dropdownButton) {
+                // Set button text to the text content of the selected dropdown item
+                dropdownButton.textContent = this.textContent;
+            }
+
+            // Update the chord diagram
+            const diagramContainer = chordCard.querySelector('.chord-diagram-container');
+            if (diagramContainer) {
+                updateChordDiagram(chordName, variant, diagramContainer);
+            }
+
+            // Save the selected variant
+            saveSelectedVariant({{ song.id }}, chordName, variant);
+        });
+    });
+
+    // Initial load: load saved variants or the first variant (default)
+    const selectedVariants = {{ selected_variants | tojson }}; // Get saved variants passed from backend
+
+    document.querySelectorAll('.chord-card').forEach(card => {
+        const chordName = card.dataset.chordName;
+        const savedVariant = selectedVariants[chordName];
+
+        // Find the corresponding dropdown item
+        let targetItem = null;
+        if (savedVariant !== undefined) {
+             // Look for a dropdown item with a data-variant matching the saved variant (or empty string for default)
+             targetItem = card.querySelector(`.dropdown-item[data-variant="${savedVariant}"]`);
+        }
+
+        // If a saved variant was found and matches a dropdown item, simulate a click on it
+        // Otherwise, ensure the default (first) item is loaded (which is handled by the initial loop already)
+        if (targetItem) {
+            // Simulate a click on the target item to update diagram, button text, and save (though saving again is redundant here)
+            targetItem.click();
+        } else {
+             // If no saved variant or saved variant doesn't exist as an option, ensure the first variant is displayed.
+             // The initial loop that sets up event listeners also loads the first variant, so no extra action needed here
+        }
+         // Ensure the dropdown button text is correct on load if no saved variant or saved variant not found
+         if (!targetItem) {
+             const firstDropdownItem = card.querySelector('.dropdown-menu .dropdown-item:first-child');
+             if (firstDropdownItem) {
+                  const dropdownButton = card.querySelector('.dropdown-toggle');
+                  if (dropdownButton) {
+                       dropdownButton.textContent = firstDropdownItem.textContent;
+                  }
+             }
+         }
+    });
 });
 </script>
 {% endblock %} 

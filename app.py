@@ -127,6 +127,7 @@ class Song(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    selected_variants = db.Column(db.Text, default='{}', nullable=False) # Stores JSON string of selected variants {chord_name: variant_name}
 
 class PracticeRecord(db.Model):
     """Practice record model for tracking practice sessions"""
@@ -150,10 +151,13 @@ class ChordPair(db.Model):
 
 class ChordShape(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(20), unique=True, nullable=False)
-    shape = db.Column(db.Text, nullable=False)  # JSON string representing the shape
+    name = db.Column(db.String(20), nullable=False)
+    variant = db.Column(db.String(50), nullable=True) # e.g. 'open', 'E shape barre'
+    shape = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     start_fret = db.Column(db.Integer, default=0, nullable=False)  # 0 = nut
+
+    __table_args__ = (db.UniqueConstraint('name', 'variant', name='_chordshape_name_variant_uc'),)
 
     def get_shape(self):
         try:
@@ -438,17 +442,95 @@ def view_song(song_id):
     """Display detailed view of a song"""
     # Extend session lifetime when viewing song details
     session.permanent = True
-    app.permanent_session_lifetime = timedelta(hours=4)  # 4 hours for song viewing
-    
+    app.permanent_session_lifetime = timedelta(hours=4)
+
     song = db.session.get(Song, song_id)
     if not song or song.user_id != current_user.id:
         flash('Song not found', 'error')
         return redirect(url_for('index'))
-    
-    # Get all predefined chord pairs
+
+    # Get all predefined chord pairs (still needed for practice records section)
     predefined_pairs = ChordPair.query.all()
-    
-    return render_template('view_song.html', song=song, predefined_pairs=predefined_pairs)
+
+    # Extract unique chord names from the song progression
+    unique_chords = set()
+    if song.chord_progression:
+        # Regex to find potential chords (words that might be chords)
+        # This regex looks for: Start of word, Root note (A-G), optional flat/sharp, followed by zero or more letters, numbers, or symbols commonly found in chord names (+, -, #, /, (, )).
+        # Attempting a more permissive regex for common chord name characters
+        chords_in_progression = re.findall(r'\b[A-G][b#]?[A-Za-z0-9#+\-/()]*\b', song.chord_progression)
+        for chord in chords_in_progression:
+            chord_name = chord.strip()
+            if chord_name:
+                unique_chords.add(chord_name)
+
+    # Initialize chord_shapes_dict with all unique chords found in the progression
+    # The values will be lists of available database shapes, potentially augmented with hardcoded defaults
+    chord_shapes_dict = {chord_name: [] for chord_name in unique_chords}
+
+    all_shapes_from_db = []
+    if unique_chords:
+        # Get all shapes that match any of the unique chord names FROM THE DATABASE
+        all_shapes_from_db = ChordShape.query.filter(ChordShape.name.in_(unique_chords)).order_by(ChordShape.name, ChordShape.variant).all()
+        # Organize database shapes by chord name in the dictionary
+        for shape in all_shapes_from_db:
+            if shape.name in chord_shapes_dict:
+                chord_shapes_dict[shape.name].append(shape)
+
+    # Define hardcoded shapes locally for augmentation logic
+    hardcoded_shapes_data = {
+        'C': {'shape': [(0, 'x'), (3, 3), (2, 2), (0, 0), (1, 1), (0, 0)], 'start_fret': 0, 'variant': None},
+        'G': {'shape': [(3, 1), (2, 2), (0, 0), (0, 0), (0, 0), (3, 3)], 'start_fret': 0, 'variant': None},
+        'D': {'shape': [(2, 'x'), (2, 'x'), (0, 0), (2, 2), (3, 1), (2, 3)], 'start_fret': 0, 'variant': None},
+        'A': {'shape': [(0, 'x'), (0, 0), (2, 2), (2, 3), (2, 2), (0, 0)], 'start_fret': 0, 'variant': None},
+        'E': {'shape': [(0, 0), (2, 2), (2, 2), (1, 1), (0, 0), (0, 0)], 'start_fret': 0, 'variant': None},
+        'Am': {'shape': [(0, 'x'), (0, 0), (2, 2), (2, 2), (1, 1), (0, 0)], 'start_fret': 0, 'variant': None},
+        'Em': {'shape': [(0, 0), (2, 2), (2, 3), (0, 0), (0, 0), (0, 0)], 'start_fret': 0, 'variant': None},
+        'F': {'shape': [(1, 1), (3, 4), (3, 3), (2, 2), (1, 1), (1, 1)], 'start_fret': 0, 'variant': None},
+        'Dm': {'shape': [(0, 'x'), (0, 'x'), (0, 0), (2, 2), (3, 3), (1, 1)], 'start_fret': 0, 'variant': None},
+        'G7': {'shape': [(3, 3), (2, 2), (0, 0), (0, 0), (0, 0), (1, 1)], 'start_fret': 0, 'variant': None},
+        'C7': {'shape': [(0, 'x'), (3, 3), (2, 2), (3, 3), (1, 1), (0, 0)], 'start_fret': 0, 'variant': None},
+        'A7': {'shape': [(0, 'x'), (0, 0), (2, 2), (0, 0), (2, 2), (0, 0)], 'start_fret': 0, 'variant': None},
+        'E7': {'shape': [(0, 0), (2, 2), (0, 0), (1, 1), (0, 0), (0, 0)], 'start_fret': 0, 'variant': None},
+        'B7': {'shape': [(2, 2), (1, 1), (2, 2), (0, 0), (2, 2), (0, 'x')], 'start_fret': 0, 'variant': None},
+        'Bm': {'shape': [(2, 2), (2, 2), (4, 4), (4, 4), (3, 3), (2, 2)], 'start_fret': 0, 'variant': None},
+        'Fmaj7': {'shape': [(0, 'x'), (0, 'x'), (3, 3), (2, 2), (1, 1), (0, 0)], 'start_fret': 0, 'variant': None},
+        'Cadd9': {'shape': [(0, 'x'), (3, 2), (2, 1), (0, 0), (3, 3), (3, 4)], 'start_fret': 0, 'variant': None},
+    }
+
+    # For each unique chord, check if a hardcoded default exists and add it if no database default exists
+    for chord_name in unique_chords:
+        hardcoded_shape = hardcoded_shapes_data.get(chord_name)
+        if hardcoded_shape:
+            # Check if a database shape with variant=None or variant='' already exists for this chord name
+            db_default_exists = any(
+                shape.variant is None or shape.variant == '' for shape in chord_shapes_dict.get(chord_name, [])
+            )
+            # If no database default exists, add the hardcoded shape as a default option
+            if not db_default_exists:
+                # Represent hardcoded shape similar to a DB object for template consistency
+                class HardcodedShapeDummy:
+                    def __init__(self, name, shape, start_fret, variant):
+                        self.name = name
+                        self.shape = json.dumps(shape)
+                        self.start_fret = start_fret
+                        self.variant = variant
+
+                    def get_shape(self):
+                        return json.loads(self.shape)
+
+                dummy_shape = HardcodedShapeDummy(chord_name, hardcoded_shape['shape'], hardcoded_shape['start_fret'], hardcoded_shape['variant'])
+                chord_shapes_dict[chord_name].append(dummy_shape)
+
+    # Sort the shapes for each chord name to ensure consistent dropdown order (e.g., default first)
+    for chord_name in chord_shapes_dict:
+        chord_shapes_dict[chord_name].sort(key=lambda shape: (shape.variant is not None, shape.variant if shape.variant is not None else '')) # Sorts None/'' first
+
+    return render_template('view_song.html', 
+                           song=song, 
+                           predefined_pairs=predefined_pairs, 
+                           chord_shapes_dict=chord_shapes_dict,
+                           selected_variants=json.loads(song.selected_variants or '{}'))
 
 @app.route('/admin')
 @login_required
@@ -586,6 +668,46 @@ def toggle_user_disabled(user_id):
     status = 'disabled' if user.disabled else 'enabled'
     flash(f'User {user.username} has been {status}.')
     return redirect(url_for('admin'))
+
+@app.route('/song/<int:song_id>/save_variant', methods=['POST'])
+@login_required
+def save_selected_variant(song_id):
+    """Save the selected variant for a chord in a song"""
+    song = db.session.get(Song, song_id)
+    if not song or song.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Song not found or access denied'}), 404
+
+    data = request.get_json()
+    chord_name = data.get('chord_name')
+    variant = data.get('variant') # The selected variant name (string) or None for default
+
+    if not chord_name:
+        return jsonify({'success': False, 'message': 'Chord name is required'}), 400
+
+    try:
+        # Load existing selected variants
+        # Handle cases where selected_variants might be None or invalid JSON initially
+        selected_variants = json.loads(song.selected_variants or '{}')
+    except json.JSONDecodeError:
+        # If still invalid after handling None, log error and start fresh
+        app.logger.error(f"Invalid JSON in selected_variants for song {song_id}: {song.selected_variants}")
+        selected_variants = {}
+
+    # Update the selected variant for the given chord name
+    # Store None/default variant as empty string in JSON for consistency
+    selected_variants[chord_name] = variant if variant is not None else ''
+
+    # Save the updated JSON back to the database
+    try:
+        song.selected_variants = json.dumps(selected_variants)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Variant saved successfully'})
+    except Exception as e:
+        db.session.rollback()
+        # Ensure logger is available
+        if app.logger:
+            app.logger.error(f"Error saving selected variant for song {song_id}, chord {chord_name}: {e}")
+        return jsonify({'success': False, 'message': f'Error saving variant: {e}'}), 500
 
 @app.route('/practice/chord-changes', methods=['GET', 'POST'])
 @login_required
@@ -736,48 +858,37 @@ def backup():
             
         elif action == 'restore':
             if 'backup_file' not in request.files:
-                app.logger.error('No file selected for restore')
                 flash('No file selected', 'error')
                 return redirect(url_for('backup'))
             
             file = request.files['backup_file']
             if file.filename == '':
-                app.logger.error('Empty filename for restore')
                 flash('No file selected', 'error')
                 return redirect(url_for('backup'))
             
             if file and file.filename.endswith('.json'):
                 try:
                     backup_data = json.load(file)
-                    app.logger.info(f"Current user: {current_user.username} (admin: {current_user.is_admin})")
-                    app.logger.info(f"Loaded backup data: {json.dumps(backup_data, indent=2)}")
                     
                     # Validate backup data structure
                     if not isinstance(backup_data, dict) or 'version' not in backup_data:
-                        app.logger.error('Invalid backup file format')
                         flash('Invalid backup file format', 'error')
                         return redirect(url_for('backup'))
                     
                     # Check if trying to restore user data without admin privileges
                     if 'users' in backup_data and not current_user.is_admin:
-                        app.logger.error('Non-admin user attempting to restore user data')
                         flash('You do not have permission to restore user data', 'error')
                         return redirect(url_for('backup'))
                     
                     # Delete existing data
                     if current_user.is_admin:
-                        app.logger.info("Deleting all existing data (admin mode)")
-                        # Admin can restore all data
                         Song.query.delete()
                         PracticeRecord.query.delete()
                         User.query.filter(User.id != current_user.id).delete()
                         ChordShape.query.delete()
                     else:
-                        app.logger.info(f"Deleting existing data for user {current_user.id}")
-                        # Regular users can only restore their own data
                         Song.query.filter_by(user_id=current_user.id).delete()
                         PracticeRecord.query.filter_by(user_id=current_user.id).delete()
-                        # Do not delete chord shapes for non-admins
                     
                     # Restore chord shapes (admin only or if present)
                     if 'chord_shapes' in backup_data:
@@ -790,12 +901,10 @@ def backup():
                                     created_at=datetime.fromisoformat(cs_data['created_at']) if cs_data.get('created_at') else None
                                 )
                                 db.session.add(chord)
-                        # For non-admins, skip restoring chord shapes
                     
                     # Create a mapping of old user IDs to new user IDs
                     user_id_mapping = {}
                     if current_user.is_admin and 'users' in backup_data:
-                        app.logger.info(f"Restoring users: {backup_data['users']}")
                         for user_data in backup_data['users']:
                             if user_data.get('id') != current_user.id:  # Don't restore current admin user
                                 user = User.query.get(user_data.get('id'))
@@ -817,7 +926,6 @@ def backup():
                     
                     # Restore songs
                     songs_to_restore = backup_data.get('songs', [])
-                    app.logger.info(f"Found {len(songs_to_restore)} songs to restore")
                     for song_data in songs_to_restore:
                         # For admin, restore all songs. For regular users, only restore their own songs
                         if current_user.is_admin or song_data.get('user_id') == current_user.id:
@@ -843,12 +951,10 @@ def backup():
                                 )
                                 db.session.add(song)
                             except Exception as e:
-                                app.logger.error(f"Error adding song {song_data.get('title')}: {str(e)}")
                                 raise
                     
                     # Restore practice records
                     records_to_restore = backup_data.get('practice_records', [])
-                    app.logger.info(f"Found {len(records_to_restore)} practice records to restore")
                     for record_data in records_to_restore:
                         if current_user.is_admin or record_data.get('user_id') == current_user.id:
                             # Map the user_id to the new user ID if it exists, or use current user's ID
@@ -868,26 +974,21 @@ def backup():
                                 )
                                 db.session.add(record)
                             except Exception as e:
-                                app.logger.error(f"Error adding practice record {record_data.get('chord_pair')}: {str(e)}")
                                 raise
                     
                     try:
                         db.session.commit()
-                        app.logger.info("Backup restored successfully!")
                         flash('Backup restored successfully!', 'success')
                         return redirect(url_for('index'))
                     except Exception as e:
                         db.session.rollback()
-                        app.logger.error(f"Error during commit: {str(e)}")
                         raise
                 except Exception as e:
                     db.session.rollback()
-                    app.logger.error(f"Error restoring backup: {str(e)}")
                     flash(f'Error restoring backup: {str(e)}', 'error')
                     return redirect(url_for('backup'))
             else:
-                app.logger.error('Invalid file format for restore')
-                flash('Invalid file format. Please upload a JSON file.', 'error')
+                flash('Invalid file format for restore', 'error')
                 return redirect(url_for('backup'))
     
     # Show backup page
@@ -910,39 +1011,28 @@ def chord_pair_history(chord_pair):
 @app.route('/chord/<chord_name>')
 def get_chord_diagram(chord_name):
     """Generate a basic chord diagram"""
-    db_shape = get_chord_shape_by_name(chord_name)
-    if db_shape:
-        chord_shape = db_shape['shape']
-        start_fret = db_shape['start_fret'] if db_shape['start_fret'] is not None else 0
-    else:
-        # fallback to hardcoded
-        chord_shapes = {
-            'C': [(0, 'x'), (3, 3), (2, 2), (0, 0), (1, 1), (0, 0)],  # x32010
-            'G': [(3, 1), (2, 2), (0, 0), (0, 0), (0, 0), (3, 3)],  # 320003
-            'D': [(2, 'x'), (2, 'x'), (0, 0), (2, 2), (3, 1), (2, 3)],  # xx0232
-            'A': [(0, 'x'), (0, 0), (2, 2), (2, 2), (2, 2), (0, 0)],  # x02220
-            'E': [(0, 0), (2, 2), (2, 2), (1, 1), (0, 0), (0, 0)],  # 022100
-            'Am': [(0, 'x'), (0, 0), (2, 2), (2, 2), (1, 1), (0, 0)],  # x02210
-            'Em': [(0, 0), (2, 2), (2, 2), (0, 0), (0, 0), (0, 0)],  # 022000
-            'F': [(1, 1), (3, 4), (3, 3), (2, 2), (1, 1), (1, 1)],  # 133211
-            'Dm': [(0, 'x'), (0, 'x'), (0, 0), (2, 2), (3, 3), (1, 1)],  # xx0231
-            'G7': [(3, 3), (2, 2), (0, 0), (0, 0), (0, 0), (1, 1)],  # 320001
-            'C7': [(0, 'x'), (3, 3), (2, 2), (3, 3), (1, 1), (0, 0)],  # x32310
-            'A7': [(0, 'x'), (0, 0), (2, 2), (0, 0), (2, 2), (0, 0)],  # x02020
-            'E7': [(0, 0), (2, 2), (0, 0), (1, 1), (0, 0), (0, 0)],  # 020100
-            'B7': [(2, 2), (1, 1), (2, 2), (0, 0), (2, 2), (0, 'x')],  # 212020
-            'Bm': [(2, 2), (2, 2), (4, 4), (4, 4), (3, 3), (2, 2)],  # 224432
-            'Fmaj7': [(0, 'x'), (0, 'x'), (3, 3), (2, 2), (1, 1), (0, 0)],  # 133211
-            'Cadd9': [(0, 'x'), (3, 2), (2, 1), (0, 0), (3, 3), (3, 4)],  # x32030
-        }
-        chord_shape = chord_shapes.get(chord_name)
-        start_fret = 0
+    # Get variant from request arguments, default to None if not present or empty
+    variant = request.args.get('variant')
+    if variant == '':
+        variant = None
+
+    # Use the refined utility function to get the shape (either from DB or hardcoded)
+    shape_data = get_chord_shape(chord_name, variant=variant)
+
+    # If no shape data is found, return an empty SVG or an error indicator
+    if not shape_data:
+        return Response('<svg width="150" height="200"><text x="10" y="20" font-size="12">Shape not found</text></svg>', mimetype='image/svg+xml')
+
+    chord_shape = shape_data['shape']
+    start_fret = shape_data['start_fret'] if shape_data['start_fret'] is not None else 0
+    # variant = shape_data['variant'] # We don't need variant for drawing, but it's available
+
     # SVG dimensions
-    width = 150
+    width = 180
     height = 200
     fret_height = 30
     string_spacing = 20
-    left_margin = 35
+    left_margin = 30
     top_margin = 20
     svg = f'''
     <svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">
@@ -990,12 +1080,54 @@ def inject_version():
     """Inject version number into all templates"""
     return dict(version=VERSION)
 
-# Utility to get chord shape by name
-def get_chord_shape_by_name(name):
-    chord = ChordShape.query.filter_by(name=name).first()
-    if chord:
-        return {'shape': chord.get_shape(), 'start_fret': chord.start_fret}
-    return None
+# Utility to get chord shape by name and optional variant
+def get_chord_shape(name, variant=None):
+    # First, try to find a shape in the database matching name and specified variant (if provided)
+    db_chord = None
+    if variant is not None and variant != '':
+        db_chord = ChordShape.query.filter_by(name=name, variant=variant).first()
+        if db_chord:
+            return {'shape': db_chord.get_shape(), 'start_fret': db_chord.start_fret, 'variant': db_chord.variant}
+
+    # If no specific variant was requested, or not found, try to find the default (variant=None) in DB
+    # This handles cases where the variant was explicitly saved as None
+    if variant is None or variant == '':
+        db_chord_none_variant = ChordShape.query.filter_by(name=name, variant=None).first()
+        if db_chord_none_variant:
+            return {'shape': db_chord_none_variant.get_shape(), 'start_fret': db_chord_none_variant.start_fret, 'variant': db_chord_none_variant.variant}
+
+    # If variant=None not found, also try to find shape with variant='' (empty string) in DB
+    # This handles cases where the blank variant field in the form was saved as an empty string
+    db_chord_empty_variant = ChordShape.query.filter_by(name=name, variant='').first()
+    if db_chord_empty_variant:
+        return {'shape': db_chord_empty_variant.get_shape(), 'start_fret': db_chord_empty_variant.start_fret, 'variant': db_chord_empty_variant.variant}
+
+    # If still not found in database (either specific variant, None, or empty string), fallback to hardcoded shapes
+    hardcoded_shapes = {
+        'C': [(0, 'x'), (3, 3), (2, 2), (0, 0), (1, 1), (0, 0)],  # x32010
+        'G': [(3, 1), (2, 2), (0, 0), (0, 0), (0, 0), (3, 3)],  # 320003
+        'D': [(2, 'x'), (2, 'x'), (0, 0), (2, 2), (3, 1), (2, 3)],  # xx0232
+        'A': [(0, 'x'), (0, 0), (2, 2), (2, 3), (2, 2), (0, 0)],  # x02220
+        'E': [(0, 0), (2, 2), (2, 2), (1, 1), (0, 0), (0, 0)],  # 022100
+        'Am': [(0, 'x'), (0, 0), (2, 2), (2, 2), (1, 1), (0, 0)],  # x02210
+        'Em': [(0, 0), (2, 2), (2, 3), (0, 0), (0, 0), (0, 0)],  # 022000
+        'F': [(1, 1), (3, 4), (3, 3), (2, 2), (1, 1), (1, 1)],  # 133211
+        'Dm': [(0, 'x'), (0, 'x'), (0, 0), (2, 2), (3, 3), (1, 1)],  # xx0231
+        'G7': [(3, 3), (2, 2), (0, 0), (0, 0), (0, 0), (1, 1)],  # 320001
+        'C7': [(0, 'x'), (3, 3), (2, 2), (3, 3), (1, 1), (0, 0)],  # x32310
+        'A7': [(0, 'x'), (0, 0), (2, 2), (0, 0), (2, 2), (0, 0)],  # x02020
+        'E7': [(0, 0), (2, 2), (0, 0), (1, 1), (0, 0), (0, 0)],  # 020100
+        'B7': [(2, 2), (1, 1), (2, 2), (0, 0), (2, 2), (0, 'x')],  # 212020
+        'Bm': [(2, 2), (2, 2), (4, 4), (4, 4), (3, 3), (2, 2)],  # 224432
+        'Fmaj7': [(0, 'x'), (0, 'x'), (3, 3), (2, 2), (1, 1), (0, 0)],  # 133211
+        'Cadd9': [(0, 'x'), (3, 2), (2, 1), (0, 0), (3, 3), (3, 4)],  # x32030
+    }
+
+    hardcoded_shape = hardcoded_shapes.get(name)
+    if hardcoded_shape:
+        return {'shape': hardcoded_shape, 'start_fret': 0, 'variant': None}
+
+    return None # No shape found at all
 
 @app.route('/admin/chords')
 @login_required
@@ -1014,18 +1146,28 @@ def new_chord_shape():
         return redirect(url_for('index'))
     if request.method == 'POST':
         name = request.form.get('name')
+        variant = request.form.get('variant', '').strip() # Get variant, default to empty string if not provided
+        # Set variant to None if it's an empty string
+        if not variant:
+            variant = None
+
         shape = request.form.get('shape')
-        start_fret = int(request.form.get('start_fret', 1))
+        start_fret = int(request.form.get('start_fret', 0))
+
         if not name or not shape:
             flash('Name and shape are required.')
             return redirect(url_for('new_chord_shape'))
-        if ChordShape.query.filter_by(name=name).first():
-            flash('Chord name already exists.')
+
+        # Check for uniqueness of name and variant combination
+        existing_chord = ChordShape.query.filter_by(name=name, variant=variant).first()
+        if existing_chord:
+            flash(f"Chord shape with name \"{name}\" and variant \"{variant if variant else ''}\" already exists.")
             return redirect(url_for('new_chord_shape'))
+
         try:
             # Validate shape is valid JSON
             json_shape = json.loads(shape)
-            chord = ChordShape(name=name, shape=json.dumps(json_shape), start_fret=start_fret)
+            chord = ChordShape(name=name, variant=variant, shape=json.dumps(json_shape), start_fret=start_fret)
             db.session.add(chord)
             db.session.commit()
             flash('Chord shape added successfully!')
@@ -1044,14 +1186,28 @@ def edit_chord_shape(chord_id):
     chord = ChordShape.query.get_or_404(chord_id)
     if request.method == 'POST':
         name = request.form.get('name')
+        variant = request.form.get('variant', '').strip() # Get variant, default to empty string if not provided
+        # Set variant to None if it's an empty string
+        if not variant:
+            variant = None
+
         shape = request.form.get('shape')
-        start_fret = int(request.form.get('start_fret', 1))
+        start_fret = int(request.form.get('start_fret', 0))
+
         if not name or not shape:
             flash('Name and shape are required.')
             return redirect(url_for('edit_chord_shape', chord_id=chord_id))
+
+        # Check for uniqueness of name and variant combination, excluding the current chord being edited
+        existing_chord = ChordShape.query.filter(ChordShape.name == name, ChordShape.variant == variant, ChordShape.id != chord.id).first()
+        if existing_chord:
+            flash(f"Chord shape with name \"{name}\" and variant \"{variant if variant else ''}\" already exists.")
+            return redirect(url_for('edit_chord_shape', chord_id=chord_id))
+
         try:
             json_shape = json.loads(shape)
             chord.name = name
+            chord.variant = variant # Update the variant
             chord.shape = json.dumps(json_shape)
             chord.start_fret = start_fret
             db.session.commit()

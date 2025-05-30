@@ -8,9 +8,14 @@
         <input type="text" class="form-control" id="name" name="name" value="{{ chord.name if chord else '' }}" required>
     </div>
     <div class="mb-3">
-        <label for="shape" class="form-label">Shape (JSON)</label>
-        <textarea class="form-control" id="shape" name="shape" rows="4" required>{{ chord.shape if chord else '' }}</textarea>
-        <div class="form-text">Example: <code>[[0, "x"], [3, 1], [2, 2], [0, 0], [1, 1], [0, 0]]</code> <br>Use double quotes for strings.</div>
+        <label for="variant" class="form-label">Variant (Optional)</label>
+        <input type="text" class="form-control" id="variant" name="variant" value="{{ chord.variant if chord else '' }}">
+        <div class="form-text">e.g. 'open', 'E shape barre', 'Jazz Voicing'. Leave blank for the primary shape.</div>
+    </div>
+    <div class="mb-3">
+        <label for="shape" class="form-label">Shape (JSON format)</label>
+        <textarea class="form-control" id="shape" name="shape" rows="5" required>{{ chord.shape if chord else '' }}</textarea>
+        <small class="form-text text-muted">Enter the shape as a JSON array of fret/finger arrays (or 'x' for muted). E.g., `[[3, 1], [2, 2], [0, 0], [0, 0], [3, 3], [3, 4]]` or `[[0, "x"], [3, 3], [2, 2], [0, 0], [1, 1], [0, 0]]`. Use square brackets `[]` for the main list and inner elements. Use double quotes `"` for "x".</small>
     </div>
     <div class="mb-3">
         <label for="start_fret" class="form-label">Starting Fret</label>

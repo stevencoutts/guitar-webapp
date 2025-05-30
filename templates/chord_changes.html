@@ -98,32 +98,32 @@
                             </thead>
                             <tbody>
                                 {% for record in records %}
-                                <tr>
-                                    <td>
-                                        <div class="btn-group">
+                                    <tr>
+                                        <td>
+                                            <div class="btn-group">
                                             <button class="btn btn-sm btn-outline-danger load-chord-pair" data-chord-pair="{{ record.chord_pair }}">
-                                                <i class="fas fa-edit me-1"></i>Practise
-                                            </button>
+                                                    <i class="fas fa-edit me-1"></i>Practise
+                                                </button>
                                             <button class="btn btn-sm btn-outline-success enter-score" data-chord-pair="{{ record.chord_pair }}">
-                                                <i class="fas fa-plus me-1"></i>Enter Score
-                                            </button>
-                                        </div>
-                                    </td>
-                                    <td>
+                                                    <i class="fas fa-plus me-1"></i>Enter Score
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td>
                                         <a href="{{ url_for('chord_pair_history', chord_pair=record.chord_pair) }}" 
-                                           class="badge bg-primary me-2 mb-2">
+                                               class="badge bg-primary me-2 mb-2">
                                             {{ record.chord_pair }}
-                                        </a>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-primary">
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary">
                                             {{ best_scores[record.chord_pair] }} changes
-                                        </span>
-                                    </td>
-                                    <td>
+                                            </span>
+                                        </td>
+                                        <td>
                                         {{ record.date|datetime }}
-                                    </td>
-                                </tr>
+                                        </td>
+                                    </tr>
                                 {% endfor %}
                             </tbody>
                         </table>

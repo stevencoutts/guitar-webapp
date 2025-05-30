@@ -6,7 +6,9 @@
     <thead>
         <tr>
             <th>Name</th>
+            <th>Variant</th>
             <th>Shape (JSON)</th>
+            <th>Starting Fret</th>
             <th>Created At</th>
             <th>Actions</th>
         </tr>
@@ -15,7 +17,9 @@
         {% for chord in chords %}
         <tr>
             <td>{{ chord.name }}</td>
+            <td>{{ chord.variant if chord.variant is not none else '' }}</td>
             <td><pre style="font-size: 0.9em;">{{ chord.shape }}</pre></td>
+            <td>{{ chord.start_fret }}</td>
             <td>{{ chord.created_at.strftime('%Y-%m-%d %H:%M') if chord.created_at else '' }}</td>
             <td>
                 <a href="{{ url_for('edit_chord_shape', chord_id=chord.id) }}" class="btn btn-sm btn-warning">Edit</a>
