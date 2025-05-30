@@ -59,28 +59,40 @@
                 <div class="card-body">
                     <h5 class="card-title mb-3">Chords Used</h5>
                     <div class="chord-list">
-                        {% if chord_shapes_dict %}
+                        {% if ordered_unique_chords %}
                         <div class="row">
-                            {% for chord_name, shapes in chord_shapes_dict.items() %}
+                            {% for chord_name in ordered_unique_chords %}
+                                {% set shapes = chord_shapes_dict.get(chord_name, []) %}
+                                {% if shapes %}
                                 <div class="col-md-4 col-sm-6 mb-3">
                                     <div class="chord-card" data-chord-name="{{ chord_name }}">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
                                             <div class="chord-name">{{ chord_name }}</div>
                                             {% if shapes|length > 1 %}
                                                 <div class="dropdown">
+                                                    {% set current_variant = selected_variants.get(chord_name, '') %}
+                                                    {# Get the initial shape determined in the backend #}
+                                                    {% set initial_shape = initial_shapes_dict.get(chord_name) %}
+                                                    {# Set display variant and diagram URL based on the initial shape #}
+                                                    {% set selected_variant_display = initial_shape.variant if initial_shape and initial_shape.variant is not none and initial_shape.variant != '' else 'Default' %}
+
                                                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenuButton_{{ loop.index }}" data-bs-toggle="dropdown" aria-expanded="false">
-                                                        {{ shapes[0].variant if shapes[0].variant is not none else 'Default' }}
+                                                        {{ selected_variant_display }}
                                                     </button>
                                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton_{{ loop.index }}">
                                                         {% for shape in shapes %}
-                                                            <li><a class="dropdown-item" href="#" data-variant="{{ shape.variant if shape.variant is not none else '' }}">{{ shape.variant if shape.variant is not none else 'Default' }}</a></li>
+                                                            {% set variant_value = shape.variant if shape.variant is not none else '' %}
+                                                            {% set variant_display = shape.variant if shape.variant is not none and shape.variant != '' else 'Default' %}
+                                                            <li><a class="dropdown-item" href="#" data-variant="{{ variant_value }}">{{ variant_display }}</a></li>
                                                         {% endfor %}
                                                     </ul>
                                                 </div>
                                             {% endif %}
                                         </div>
                                         <div class="chord-diagram-container">
-                                            <object data="{{ url_for('get_chord_diagram', chord_name=chord_name) }}" 
+                                            {% set initial_shape = initial_shapes_dict.get(chord_name) %}
+                                            {% set initial_diagram_url = url_for('get_chord_diagram', chord_name=chord_name, variant=initial_shape.variant) if initial_shape else '' %}
+                                            <object data="{{ initial_diagram_url }}" 
                                                     type="image/svg+xml" 
                                                     class="chord-diagram">
                                                 {{ chord_name }} diagram
@@ -88,11 +100,12 @@
                                         </div>
                                     </div>
                                 </div>
+                                {% endif %}
                             {% endfor %}
                         </div>
                         {% else %}
-                        <p>No chord shapes found in the database for the chords in this song.</p>
-                        <p>You can add chord shapes in the <a href="{{ url_for('admin_chords') }}">Admin Chord Shapes</a> section.</p>
+                        <p>No chord shapes found in the database or hardcoded list for the chords in this song.</p>
+                        <p>You can add custom chord shapes in the <a href="{{ url_for('admin_chords') }}">Admin Chord Shapes</a> section.</p>
                         {% endif %}
                     </div>
                 </div>
