@@ -495,7 +495,7 @@ def view_song(song_id):
         'E7': {'shape': [(0, 0), (2, 2), (0, 0), (1, 1), (0, 0), (0, 0)], 'start_fret': 0, 'variant': None},
         'B7': {'shape': [(2, 2), (1, 1), (2, 2), (0, 0), (2, 2), (0, 'x')], 'start_fret': 0, 'variant': None},
         'Bm': {'shape': [(2, 2), (2, 2), (4, 4), (4, 4), (3, 3), (2, 2)], 'start_fret': 2, 'variant': None},
-        'Fmaj7': {'shape': [(0, 'x'), (0, 'x'), (3, 3), (2, 2), (1, 1), (0, 0)], 'start_fret': 1, 'variant': None},
+        'Fmaj7': {'shape': [(0, 'x'), (3, 3), (3, 4), (2, 2), (1, 1), (0, 0)], 'start_fret': 0, 'variant': None},
         'Cadd9': {'shape': [(0, 'x'), (3, 2), (2, 1), (0, 0), (3, 3), (3, 4)], 'start_fret': 0, 'variant': None},
     }
 
