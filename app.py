@@ -1102,17 +1102,11 @@ def get_chord_diagram(chord_name):
         svg += f'<line x1="{x}" y1="{top_margin}" x2="{x}" y2="{top_margin + 4 * fret_height}" class="string"/>'
     # Draw starting fret number label (e.g., '5fr') to the left of the first fret, inline with the first fret line
     if start_fret > 0:
-        # Calculate the vertical position for the start fret label to align with the correct fret line
-        # The label should be placed vertically centered between the fret line *at* start_fret and the line below it.
-        # Fret lines are at top_margin + i * fret_height where i is 0 for the nut, 1 for the first fret, etc.
-        # So the fret line *at* start_fret is top_margin + (start_fret) * fret_height.
-        # The fret line *below* start_fret is top_margin + (start_fret + 1) * fret_height.
-        # The midpoint is (top_margin + start_fret * fret_height + top_margin + (start_fret + 1) * fret_height) / 2
-        # Simplified: top_margin + (start_fret + 0.5) * fret_height
-        # We need to adjust this y position slightly for text vertical alignment, typically by half the font size or a small offset.
-        y_label = top_margin + (start_fret + 0.5) * fret_height + 5 # Adjusted calculation and added vertical offset for text alignment
+        # Position the label inline with the second horizontal line (first fret line)
+        # The second horizontal line is at y = top_margin + 1 * fret_height
+        y_label = top_margin + fret_height # Target the vertical position of the first fret line
         label = f'{start_fret}fr'
-        svg += f'<text x="{left_margin - 10}" y="{y_label}" font-size="14" fill="#333" text-anchor="end">{label}</text>'
+        svg += f'<text x="{left_margin - 10}" y="{y_label}" font-size="14" fill="#333" text-anchor="end" dominant-baseline="middle">{label}</text>'
 
     # Draw dots and finger numbering in a single pass
     if chord_shape:
@@ -1198,8 +1192,8 @@ def get_chord_shape(name, variant=None):
         'A7': {'shape': [(0, 'x'), (0, 0), (2, 2), (0, 0), (2, 2), (0, 0)], 'start_fret': 0},
         'E7': {'shape': [(0, 0), (2, 2), (0, 0), (1, 1), (0, 0), (0, 0)], 'start_fret': 0},
         'B7': {'shape': [(2, 2), (1, 1), (2, 2), (0, 0), (2, 2), (0, 'x')], 'start_fret': 0},
-        'Bm': {'shape': [(2, 2), (2, 2), (4, 4), (4, 4), (3, 3), (2, 2)], 'start_fret': 2},
-        'Fmaj7': {'shape': [(0, 'x'), (0, 'x'), (3, 3), (2, 2), (1, 1), (0, 0)], 'start_fret': 1},
+        'Fmaj7': {'shape': [(0, 'x'), (3, 3), (3, 4), (2, 2), (1, 1), (0, 0)], 'start_fret': 0},
+        'Bm': {'shape': [(2, 2), (2, 2), (4, 4), (4, 4), (3, 3), (2, 2)], 'start_fret': 0},
         'Cadd9': {'shape': [(0, 'x'), (3, 2), (2, 1), (0, 0), (3, 3), (3, 4)], 'start_fret': 0},
     }
 
