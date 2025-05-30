@@ -90,13 +90,13 @@
                                             {% endif %}
                                         </div>
                                         <div class="chord-diagram-container">
-                                            {% set initial_shape = initial_shapes_dict.get(chord_name) %}
-                                            {% set initial_diagram_url = url_for('get_chord_diagram', chord_name=chord_name, variant=initial_shape.variant) if initial_shape else '' %}
-                                            <object data="{{ initial_diagram_url }}" 
-                                                    type="image/svg+xml" 
-                                                    class="chord-diagram">
-                                                {{ chord_name }} diagram
-                                            </object>
+                                            {# Embed the pre-generated SVG directly #}
+                                            {% if initial_diagram_svgs.get(chord_name) %}
+                                                {{ initial_diagram_svgs.get(chord_name) | safe }}
+                                            {% else %}
+                                                {# Fallback if no initial diagram was generated (shouldn't happen if initial_shapes_dict logic is correct) #}
+                                                <svg width="150" height="200"><text x="10" y="20" font-size="12">Shape not found</text></svg>
+                                            {% endif %}
                                         </div>
                                     </div>
                                 </div>

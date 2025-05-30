@@ -14,6 +14,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import humanize
 from version import VERSION
+import sys
 
 from io import StringIO, BytesIO
 from werkzeug.utils import secure_filename
@@ -34,6 +35,7 @@ if not app.debug:
     ))
     file_handler.setLevel(logging.INFO)
     app.logger.addHandler(file_handler)
+
     app.logger.setLevel(logging.INFO)
     app.logger.info('Guitar app startup')
 
@@ -456,9 +458,16 @@ def view_song(song_id):
     ordered_unique_chords = []
     if song.chord_progression:
         # Regex to find potential chords (words that might be chords)
-        # This regex looks for: Start of word, Root note (A-G), optional flat/sharp, followed by zero or more letters, numbers, or symbols commonly found in chord names (+, -, #, /, (, )).
-        # Attempting a more permissive regex for common chord name characters
-        chords_in_progression = re.findall(r'\b[A-G][b#]?[A-Za-z0-9#+\-/()]*\b', song.chord_progression)
+        # This regex aims to capture common chord formats, including slash chords, more robustly.
+        # It looks for a root note (A-G), optional accidental (b or #), followed by optional chord types/extensions (letters, numbers, +, -), and then an optional non-capturing group for a slash followed by a bass note (A-G with optional accidental).
+        chords_in_progression = re.findall(r'\b[A-G][b#]?[a-zA-Z0-9+\-]*?(?:/[A-G][b#]?)?\b', song.chord_progression)
+        app.logger.info(f"Regex found chords: {chords_in_progression}")
+        # Remove the temporary console handler
+        for handler in app.logger.handlers:
+            if isinstance(handler, logging.StreamHandler) and handler.stream == sys.stdout:
+                app.logger.removeHandler(handler)
+                break
+
         for chord in chords_in_progression:
             chord_name = chord.strip()
             if chord_name:
@@ -467,7 +476,6 @@ def view_song(song_id):
                     ordered_unique_chords.append(chord_name)
 
     # Initialize chord_shapes_dict with all unique chords found in the progression
-    # The values will be lists of available database shapes, potentially augmented with hardcoded defaults
     chord_shapes_dict = {chord_name: [] for chord_name in ordered_unique_chords}
 
     if ordered_unique_chords:
@@ -477,12 +485,14 @@ def view_song(song_id):
         for shape in all_shapes_from_db:
             # Initialize list for this chord name if it doesn't exist yet
             chord_shapes_dict[shape.name].append(shape)
+        app.logger.info(f"Shapes from DB added to dict: {chord_shapes_dict}")
 
     # Define hardcoded shapes locally for augmentation logic
+    # Note: These are used as fallbacks if no matching shape is found in the database
     hardcoded_shapes_data = {
         'C': {'shape': [(0, 'x'), (3, 3), (2, 2), (0, 0), (1, 1), (0, 0)], 'start_fret': 0, 'variant': None},
         'G': {'shape': [(3, 1), (2, 2), (0, 0), (0, 0), (0, 0), (3, 3)], 'start_fret': 0, 'variant': None},
-        'D': {'shape': [(2, 'x'), (2, 'x'), (0, 0), (2, 2), (3, 1), (2, 3)], 'start_fret': 0, 'variant': None},
+        'D': {'shape': [(0, 'x'), (0, 'x'), (0, 0), (2, 2), (3, 1), (2, 3)], 'start_fret': 0, 'variant': None},
         'A': {'shape': [(0, 'x'), (0, 0), (2, 2), (2, 3), (2, 2), (0, 0)], 'start_fret': 0, 'variant': None},
         'E': {'shape': [(0, 0), (2, 2), (2, 2), (1, 1), (0, 0), (0, 0)], 'start_fret': 0, 'variant': None},
         'Am': {'shape': [(0, 'x'), (0, 0), (2, 2), (2, 2), (1, 1), (0, 0)], 'start_fret': 0, 'variant': None},
@@ -494,14 +504,25 @@ def view_song(song_id):
         'A7': {'shape': [(0, 'x'), (0, 0), (2, 2), (0, 0), (2, 2), (0, 0)], 'start_fret': 0, 'variant': None},
         'E7': {'shape': [(0, 0), (2, 2), (0, 0), (1, 1), (0, 0), (0, 0)], 'start_fret': 0, 'variant': None},
         'B7': {'shape': [(2, 2), (1, 1), (2, 2), (0, 0), (2, 2), (0, 'x')], 'start_fret': 0, 'variant': None},
-        'Bm': {'shape': [(2, 2), (2, 2), (4, 4), (4, 4), (3, 3), (2, 2)], 'start_fret': 2, 'variant': None},
-        'Fmaj7': {'shape': [(0, 'x'), (3, 3), (3, 4), (2, 2), (1, 1), (0, 0)], 'start_fret': 0, 'variant': None},
+        'Fmaj7': {'shape': [(0, 'x'), (0, 'x'), (3, 4), (2, 2), (1, 1), (0, 0)], 'start_fret': 0, 'variant': None},
+        'Bm': {'shape': [(2, 2), (2, 2), (4, 4), (4, 4), (3, 3), (2, 2)], 'start_fret': 0, 'variant': None},
         'Cadd9': {'shape': [(0, 'x'), (3, 2), (2, 1), (0, 0), (3, 3), (3, 4)], 'start_fret': 0, 'variant': None},
+        'D7': {'shape': [(0, 'x'), (0, 'x'), (0, 0), (2, 1), (1, 2), (2, 3)], 'start_fret': 0, 'variant': None}, # Added D7 shape
     }
 
     # For each unique chord, check if a hardcoded default exists and add it if no database default exists
     for chord_name in ordered_unique_chords:
+        # Try the full chord name first (e.g., 'Fmaj7/C')
         hardcoded_shape = hardcoded_shapes_data.get(chord_name)
+
+        # If no hardcoded shape for the full name, and it's a slash chord, try the base chord name (e.g., 'Fmaj7')
+        if not hardcoded_shape and '/' in chord_name:
+            base_chord_name = chord_name.split('/')[0]
+            hardcoded_shape = hardcoded_shapes_data.get(base_chord_name)
+            # If a base chord shape is found, we will use it but still associate it with the original slash chord name
+            if hardcoded_shape:
+                 app.logger.info(f"Using hardcoded shape for base chord {base_chord_name} for slash chord {chord_name}")
+
         if hardcoded_shape:
             # Get the list of database shapes for this chord name
             db_shapes_for_chord = chord_shapes_dict.get(chord_name, [])
@@ -523,6 +544,8 @@ def view_song(song_id):
                 dummy_shape = HardcodedShapeDummy(chord_name, hardcoded_shape['shape'], hardcoded_shape['start_fret'], hardcoded_shape['variant'])
                 chord_shapes_dict[chord_name].append(dummy_shape)
 
+    app.logger.info(f"Chord shapes dict after augmenting with hardcoded: {chord_shapes_dict}")
+
     # Sort the shapes for each chord name to ensure consistent dropdown order (e.g., default first)
     for chord_name in chord_shapes_dict:
         chord_shapes_dict[chord_name].sort(key=lambda shape: (shape.variant is not None, shape.variant if shape.variant is not None else '')) # Sorts None/'' first
@@ -536,6 +559,18 @@ def view_song(song_id):
         shapes = chord_shapes_dict.get(chord_name, [])
         initial_shape = None
         current_variant = selected_variants_dict.get(chord_name)
+
+        # New logic: If no shapes were found (neither DB nor hardcoded default), try getting a hardcoded shape for the base name if it's a slash chord.
+        if not shapes and '/' in chord_name:
+             base_chord_name = chord_name.split('/')[0]
+             # Use the get_chord_shape utility to retrieve the hardcoded shape (which now handles the HardcodedShapeDummy wrapper)
+             base_shape_dummy = get_chord_shape(base_chord_name)
+             if base_shape_dummy:
+                 # If a base shape is found, add it as the only option for this slash chord and set it as the initial shape.
+                 app.logger.info(f"Adding fallback hardcoded shape for {base_chord_name} to {chord_name}")
+                 chord_shapes_dict[chord_name] = [base_shape_dummy]
+                 shapes = chord_shapes_dict[chord_name] # Update shapes list for the following logic
+                 # We don't explicitly set initial_shape here, the logic below will pick it up as the first shape
 
         if shapes:
             # Prioritize the saved variant if it exists in the available shapes
@@ -558,24 +593,90 @@ def view_song(song_id):
 
             # If after all attempts, initial_shape is still None, use the very first shape as a fallback
             # This handles cases where a saved variant no longer exists, or the default logic above didn't find a match
-            if initial_shape is None:
-                initial_shape = shapes[0] # shapes list is guaranteed to have at least one item here if this block is reached
+            if initial_shape is None and shapes:
+                initial_shape = shapes[0] # Use the first available shape
 
         # Store the determined initial shape for this chord name
         initial_shapes_dict[chord_name] = initial_shape
+        app.logger.info(f"Initial shape for {chord_name}: {initial_shape}")
 
-    app.logger.info(f"Ordered unique chords: {ordered_unique_chords}")
-    app.logger.info(f"Chord shapes dictionary: {chord_shapes_dict}")
-    app.logger.info(f"Initial shapes dictionary: {initial_shapes_dict}")
+    # Generate SVG for the initially selected shape of each chord
+    initial_diagram_svgs = {}
+    for chord_name, initial_shape in initial_shapes_dict.items():
+        if initial_shape:
+            chord_shape = initial_shape.get_shape()
+            start_fret = int(initial_shape.start_fret)
 
-    # Pass the initial_shapes_dict to the template along with other data
+            # SVG dimensions (copying from get_chord_diagram)
+            width = 220
+            height = 200
+            fret_height = 30
+            string_spacing = 20
+            left_margin = 40
+            top_margin = 20
+
+            svg = f'''
+    <svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">
+        <style>
+            .fret {{ stroke: #666; stroke-width: 1; }}
+            .string {{ stroke: #666; stroke-width: 1; }}
+            .dot {{ fill: #000; }}
+            .open {{ fill: none; stroke: #000; stroke-width: 1; }}
+            .x {{ font-family: Arial; font-size: 14px; }}
+            .chord-name {{ font-family: Arial; font-size: 16px; }}
+        </style>
+    '''
+            # Draw frets
+            for i in range(5):
+                y = top_margin + i * fret_height
+                svg += f'<line x1="{left_margin}" y1="{y}" x2="{left_margin + 5 * string_spacing}" y2="{y}" class="fret"/>'
+            # Draw strings
+            for i in range(6):
+                x = left_margin + i * string_spacing
+                svg += f'<line x1="{x}" y1="{top_margin}" x2="{x}" y2="{top_margin + 4 * fret_height}" class="string"/>'
+            # Draw starting fret number label (e.g., '5fr') to the left of the first fret, inline with the second fret line
+            if start_fret > 0:
+                # Position the label inline with the second horizontal line (first fret line)
+                # The second horizontal line is at y = top_margin + 1 * fret_height
+                y_label = top_margin + fret_height # Target the vertical position of the first fret line
+                # y_label = top_margin + 1.5 * fret_height  # Adjust vertical position slightly lower
+                label = f'{start_fret}fr'
+                # Adjusted x position and text-anchor for the label
+                svg += f'<text x="{left_margin - 15}" y="{y_label + fret_height/2}" font-size="14" fill="#333" text-anchor="end" dominant-baseline="middle">{label}</text>'
+
+            # Draw dots and finger numbering in a single pass
+            if chord_shape:
+                for string_idx, (fret, symbol) in enumerate(chord_shape):
+                    x = left_margin + string_idx * string_spacing
+                    if symbol == 'x':
+                        # Draw 'x' for muted strings
+                        svg += f'<text x="{x}" y="{top_margin - 10}" text-anchor="middle" class="x">×</text>'
+                    elif fret == 0:
+                        # Draw open circle for open strings
+                        svg += f'<circle cx="{x}" cy="{top_margin - 15}" r="4" class="open"/>'
+                    elif isinstance(fret, int) and fret > 0:
+                        # Draw dot for fretted notes
+                        y = top_margin + (fret - 0.5) * fret_height
+                        svg += f'<circle cx="{x}" cy="{y}" r="6" class="dot"/>'
+                        # Add finger numbering inside the dot if the symbol is an integer finger number > 0
+                        if isinstance(symbol, int) and symbol > 0:
+                            # Position text at the center of the dot, adjusted slightly upwards
+                            svg += f'<text x="{x}" y="{y + 2}" text-anchor="middle" font-size="12" fill="#fff" alignment-baseline="middle">{symbol}</text>'
+
+            svg += '</svg>'
+
+            # Store the generated SVG string
+            initial_diagram_svgs[chord_name] = svg.strip()
+
+    # Pass the initial_shapes_dict and initial_diagram_svgs to the template
     return render_template('view_song.html', 
                            song=song, 
                            predefined_pairs=predefined_pairs, 
                            chord_shapes_dict=chord_shapes_dict,
                            ordered_unique_chords=ordered_unique_chords,
                            initial_shapes_dict=initial_shapes_dict,
-                           selected_variants=selected_variants_dict)
+                           selected_variants=selected_variants_dict,
+                           initial_diagram_svgs=initial_diagram_svgs)
 
 @app.route('/admin')
 @login_required
@@ -1053,7 +1154,7 @@ def chord_pair_history(chord_pair):
                          chord_pair=chord_pair,
                          records=records)
 
-@app.route('/chord/<chord_name>')
+@app.route('/chord/<path:chord_name>')
 def get_chord_diagram(chord_name):
     """Generate a basic chord diagram"""
     # Get variant from request arguments, default to None if not present or empty
@@ -1062,7 +1163,13 @@ def get_chord_diagram(chord_name):
         variant = None
 
     # Use the refined utility function to get the shape (either from DB or hardcoded)
+    # First, try the full chord name (e.g., 'Fmaj7/C')
     shape_data = get_chord_shape(chord_name, variant=variant)
+
+    # If no shape found for the full name, and it's a slash chord, try the base name
+    if not shape_data and '/' in chord_name:
+        base_chord_name = chord_name.split('/')[0]
+        shape_data = get_chord_shape(base_chord_name, variant=variant)
 
     # If no shape data is found, return an empty SVG or an error indicator
     if not shape_data:
@@ -1072,6 +1179,8 @@ def get_chord_diagram(chord_name):
     chord_shape = shape_data.get_shape()
     # Explicitly get start_fret and ensure it's an integer
     start_fret = int(shape_data.start_fret)
+
+    app.logger.info(f"Generating SVG for {chord_name} with shape: {chord_shape} and start_fret: {start_fret}")
 
     # SVG dimensions
     width = 220
@@ -1114,10 +1223,10 @@ def get_chord_diagram(chord_name):
             x = left_margin + string_idx * string_spacing
             if symbol == 'x':
                 # Draw 'x' for muted strings
-                svg += f'<text x="{x}" y="{top_margin - 5}" text-anchor="middle" class="x">×</text>'
+                svg += f'<text x="{x}" y="{top_margin - 10}" text-anchor="middle" class="x">×</text>'
             elif fret == 0:
                 # Draw open circle for open strings
-                svg += f'<circle cx="{x}" cy="{top_margin - 10}" r="4" class="open"/>'
+                svg += f'<circle cx="{x}" cy="{top_margin - 15}" r="4" class="open"/>'
             elif isinstance(fret, int) and fret > 0:
                 # Draw dot for fretted notes
                 y = top_margin + (fret - 0.5) * fret_height
@@ -1176,11 +1285,20 @@ def get_chord_shape(name, variant=None):
         # Return the ChordShape object directly
         return db_chord_empty_variant
 
-    # If still not found in database (either specific variant, None, or empty string), fallback to hardcoded shapes
+    # If not found in DB, check if it's a slash chord and try the base name
+    if '/' in name:
+        base_name = name.split('/')[0]
+        # Recursively call get_chord_shape with the base name and the same variant
+        # This handles cases where a specific variant of the base chord is requested for a slash chord
+        base_shape = get_chord_shape(base_name, variant=variant)
+        if base_shape:
+             return base_shape
+
+    # If still not found, fallback to hardcoded shapes
     hardcoded_shapes = {
         'C': {'shape': [(0, 'x'), (3, 3), (2, 2), (0, 0), (1, 1), (0, 0)], 'start_fret': 0},
         'G': {'shape': [(3, 1), (2, 2), (0, 0), (0, 0), (0, 0), (3, 3)], 'start_fret': 0},
-        'D': {'shape': [(2, 'x'), (2, 'x'), (0, 0), (2, 2), (3, 1), (2, 3)], 'start_fret': 0},
+        'D': {'shape': [(0, 'x'), (0, 'x'), (0, 0), (2, 2), (3, 1), (2, 3)], 'start_fret': 0},
         'A': {'shape': [(0, 'x'), (0, 0), (2, 2), (2, 3), (2, 2), (0, 0)], 'start_fret': 0},
         'E': {'shape': [(0, 0), (2, 2), (2, 2), (1, 1), (0, 0), (0, 0)], 'start_fret': 0},
         'Am': {'shape': [(0, 'x'), (0, 0), (2, 2), (2, 2), (1, 1), (0, 0)], 'start_fret': 0},
@@ -1310,4 +1428,4 @@ if __name__ == '__main__':
         db.create_all()
         create_default_admin()
         create_default_chord_pairs()
-    app.run(host='0.0.0.0', port=5001, debug=False) 
+    app.run(host='0.0.0.0', port=5001, debug=True) 
