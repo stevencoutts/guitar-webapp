@@ -10,7 +10,12 @@
     <div class="mb-3">
         <label for="shape" class="form-label">Shape (JSON)</label>
         <textarea class="form-control" id="shape" name="shape" rows="4" required>{{ chord.shape if chord else '' }}</textarea>
-        <div class="form-text">Example: <code>[[0, "x"], [3, 1], [2, 1], [0, 0], [1, 1], [0, 0]]</code> <br>Use double quotes for strings.</div>
+        <div class="form-text">Example: <code>[[0, "x"], [3, 1], [2, 2], [0, 0], [1, 1], [0, 0]]</code> <br>Use double quotes for strings.</div>
+    </div>
+    <div class="mb-3">
+        <label for="start_fret" class="form-label">Starting Fret</label>
+        <input type="number" class="form-control" id="start_fret" name="start_fret" min="0" value="{{ chord.start_fret if chord else 0 }}" required>
+        <div class="form-text">Defaults to 0 (nut). Set to a higher number for barre chords or shapes higher up the neck.</div>
     </div>
     <button type="submit" class="btn btn-success">{{ 'Update' if chord else 'Add' }}</button>
     <a href="{{ url_for('admin_chords') }}" class="btn btn-secondary">Cancel</a>

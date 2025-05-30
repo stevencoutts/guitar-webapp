@@ -153,6 +153,7 @@ class ChordShape(db.Model):
     name = db.Column(db.String(20), unique=True, nullable=False)
     shape = db.Column(db.Text, nullable=False)  # JSON string representing the shape
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    start_fret = db.Column(db.Integer, default=0, nullable=False)  # 0 = nut
 
     def get_shape(self):
         try:
@@ -621,19 +622,31 @@ def chord_changes():
             flash('Practice session saved successfully!', 'success')
             return redirect(url_for('chord_changes'))
 
-    # Get practice records for the current user
-    records = PracticeRecord.query.filter_by(user_id=current_user.id).order_by(PracticeRecord.date.desc()).all()
-    
-    # Get best scores for each chord pair
+    # Sorting logic for unique chord pairs
+    sort = request.args.get('sort', 'date')
+    order = request.args.get('order', 'desc')
+    # Get all records for the user
+    all_records = PracticeRecord.query.filter_by(user_id=current_user.id).all()
+    # Build a dict: chord_pair -> latest record
+    latest_records = {}
     best_scores = {}
-    for record in records:
-        if record.chord_pair not in best_scores or record.score > best_scores[record.chord_pair]:
-            best_scores[record.chord_pair] = record.score
+    for record in all_records:
+        cp = record.chord_pair
+        if cp not in latest_records or record.date > latest_records[cp].date:
+            latest_records[cp] = record
+        if cp not in best_scores or record.score > best_scores[cp]:
+            best_scores[cp] = record.score
+    # Convert to list for sorting
+    unique_records = list(latest_records.values())
+    if sort == 'chord_pair':
+        unique_records.sort(key=lambda r: r.chord_pair, reverse=(order=='desc'))
+    else:  # sort by date
+        unique_records.sort(key=lambda r: r.date, reverse=(order=='desc'))
 
     # Get predefined chord pairs
     predefined_pairs = ChordPair.query.order_by(ChordPair.difficulty).all()
 
-    return render_template('chord_changes.html', records=records, best_scores=best_scores, predefined_pairs=predefined_pairs)
+    return render_template('chord_changes.html', records=unique_records, best_scores=best_scores, predefined_pairs=predefined_pairs, sort=sort, order=order)
 
 @app.route('/backup', methods=['GET', 'POST'])
 @login_required
@@ -897,21 +910,21 @@ def chord_pair_history(chord_pair):
 @app.route('/chord/<chord_name>')
 def get_chord_diagram(chord_name):
     """Generate a basic chord diagram"""
-    # Try to get from DB first
     db_shape = get_chord_shape_by_name(chord_name)
     if db_shape:
-        chord_shape = db_shape
+        chord_shape = db_shape['shape']
+        start_fret = db_shape['start_fret'] if db_shape['start_fret'] is not None else 0
     else:
         # fallback to hardcoded
         chord_shapes = {
-            'C': [(0, 'x'), (3, 1), (2, 1), (0, 0), (1, 1), (0, 0)],  # x32010
-            'G': [(3, 3), (2, 0), (0, 0), (0, 0), (0, 0), (3, 3)],  # 320003
-            'D': [(2, 'x'), (2, 'x'), (0, 0), (2, 2), (3, 3), (2, 2)],  # xx0232
+            'C': [(0, 'x'), (3, 3), (2, 2), (0, 0), (1, 1), (0, 0)],  # x32010
+            'G': [(3, 1), (2, 2), (0, 0), (0, 0), (0, 0), (3, 3)],  # 320003
+            'D': [(2, 'x'), (2, 'x'), (0, 0), (2, 2), (3, 1), (2, 3)],  # xx0232
             'A': [(0, 'x'), (0, 0), (2, 2), (2, 2), (2, 2), (0, 0)],  # x02220
             'E': [(0, 0), (2, 2), (2, 2), (1, 1), (0, 0), (0, 0)],  # 022100
             'Am': [(0, 'x'), (0, 0), (2, 2), (2, 2), (1, 1), (0, 0)],  # x02210
             'Em': [(0, 0), (2, 2), (2, 2), (0, 0), (0, 0), (0, 0)],  # 022000
-            'F': [(1, 1), (3, 3), (3, 3), (2, 2), (1, 1), (1, 1)],  # 133211
+            'F': [(1, 1), (3, 4), (3, 3), (2, 2), (1, 1), (1, 1)],  # 133211
             'Dm': [(0, 'x'), (0, 'x'), (0, 0), (2, 2), (3, 3), (1, 1)],  # xx0231
             'G7': [(3, 3), (2, 2), (0, 0), (0, 0), (0, 0), (1, 1)],  # 320001
             'C7': [(0, 'x'), (3, 3), (2, 2), (3, 3), (1, 1), (0, 0)],  # x32310
@@ -920,15 +933,16 @@ def get_chord_diagram(chord_name):
             'B7': [(2, 2), (1, 1), (2, 2), (0, 0), (2, 2), (0, 'x')],  # 212020
             'Bm': [(2, 2), (2, 2), (4, 4), (4, 4), (3, 3), (2, 2)],  # 224432
             'Fmaj7': [(0, 'x'), (0, 'x'), (3, 3), (2, 2), (1, 1), (0, 0)],  # 133211
-            'Cadd9': [(0, 'x'), (3, 3), (2, 2), (0, 0), (3, 3), (3, 3)],  # x32030
+            'Cadd9': [(0, 'x'), (3, 2), (2, 1), (0, 0), (3, 3), (3, 4)],  # x32030
         }
         chord_shape = chord_shapes.get(chord_name)
+        start_fret = 0
     # SVG dimensions
     width = 150
     height = 200
     fret_height = 30
     string_spacing = 20
-    left_margin = 25
+    left_margin = 35
     top_margin = 20
     svg = f'''
     <svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">
@@ -947,12 +961,17 @@ def get_chord_diagram(chord_name):
         svg += f'<line x1="{left_margin}" y1="{y}" x2="{left_margin + 5 * string_spacing}" y2="{y}" class="fret"/>'
     # Draw strings
     for i in range(6):
-        x = left_margin + i * string_spacing  # Draw from low E to high E
+        x = left_margin + i * string_spacing
         svg += f'<line x1="{x}" y1="{top_margin}" x2="{x}" y2="{top_margin + 4 * fret_height}" class="string"/>'
+    # Draw starting fret number label (e.g., '5fr') to the left of the first fret, inline with the first fret line
+    if start_fret > 0:
+        y_label = top_margin
+        label = f'{start_fret}fr'
+        svg += f'<text x="{left_margin - 28}" y="{y_label + 5}" font-size="14" fill="#333" text-anchor="middle">{label}</text>'
     # Draw dots for the chord if we know it
     if chord_shape:
         for string_idx, (fret, symbol) in enumerate(chord_shape):
-            x = left_margin + string_idx * string_spacing  # Draw from low E to high E
+            x = left_margin + string_idx * string_spacing
             if symbol == 'x':
                 svg += f'<text x="{x}" y="{top_margin - 5}" text-anchor="middle" class="x">×</text>'
             elif fret == 0:
@@ -960,6 +979,8 @@ def get_chord_diagram(chord_name):
             else:
                 y = top_margin + (fret - 0.5) * fret_height
                 svg += f'<circle cx="{x}" cy="{y}" r="6" class="dot"/>'
+                if isinstance(symbol, int) or (isinstance(symbol, str) and str(symbol).isdigit()):
+                    svg += f'<text x="{x}" y="{y + 4}" text-anchor="middle" font-size="10" fill="#fff">{symbol}</text>'
     svg += '</svg>'
     return Response(svg, mimetype='image/svg+xml')
 
@@ -973,7 +994,7 @@ def inject_version():
 def get_chord_shape_by_name(name):
     chord = ChordShape.query.filter_by(name=name).first()
     if chord:
-        return chord.get_shape()
+        return {'shape': chord.get_shape(), 'start_fret': chord.start_fret}
     return None
 
 @app.route('/admin/chords')
@@ -994,6 +1015,7 @@ def new_chord_shape():
     if request.method == 'POST':
         name = request.form.get('name')
         shape = request.form.get('shape')
+        start_fret = int(request.form.get('start_fret', 1))
         if not name or not shape:
             flash('Name and shape are required.')
             return redirect(url_for('new_chord_shape'))
@@ -1003,7 +1025,7 @@ def new_chord_shape():
         try:
             # Validate shape is valid JSON
             json_shape = json.loads(shape)
-            chord = ChordShape(name=name, shape=json.dumps(json_shape))
+            chord = ChordShape(name=name, shape=json.dumps(json_shape), start_fret=start_fret)
             db.session.add(chord)
             db.session.commit()
             flash('Chord shape added successfully!')
@@ -1023,6 +1045,7 @@ def edit_chord_shape(chord_id):
     if request.method == 'POST':
         name = request.form.get('name')
         shape = request.form.get('shape')
+        start_fret = int(request.form.get('start_fret', 1))
         if not name or not shape:
             flash('Name and shape are required.')
             return redirect(url_for('edit_chord_shape', chord_id=chord_id))
@@ -1030,6 +1053,7 @@ def edit_chord_shape(chord_id):
             json_shape = json.loads(shape)
             chord.name = name
             chord.shape = json.dumps(json_shape)
+            chord.start_fret = start_fret
             db.session.commit()
             flash('Chord shape updated successfully!')
             return redirect(url_for('admin_chords'))

@@ -77,39 +77,53 @@
                             <thead>
                                 <tr>
                                     <th>Actions</th>
-                                    <th>Chord Pair</th>
+                                    <th>
+                                        <a href="?sort=chord_pair&order={% if sort == 'chord_pair' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                                            Chord Pair
+                                            {% if sort == 'chord_pair' %}
+                                                <span>{% if order == 'asc' %}▲{% else %}▼{% endif %}</span>
+                                            {% endif %}
+                                        </a>
+                                    </th>
                                     <th>Best Score</th>
-                                    <th>Last Practice</th>
+                                    <th>
+                                        <a href="?sort=date&order={% if sort == 'date' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                                            Last Practice
+                                            {% if sort == 'date' %}
+                                                <span>{% if order == 'asc' %}▲{% else %}▼{% endif %}</span>
+                                            {% endif %}
+                                        </a>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for record in records|groupby('chord_pair')|map('first')|list %}
-                                    <tr>
-                                        <td>
-                                            <div class="btn-group">
-                                                <button class="btn btn-sm btn-outline-danger load-chord-pair" data-chord-pair="{{ record }}">
-                                                    <i class="fas fa-edit me-1"></i>Practise
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-success enter-score" data-chord-pair="{{ record }}">
-                                                    <i class="fas fa-plus me-1"></i>Enter Score
-                                                </button>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <a href="{{ url_for('chord_pair_history', chord_pair=record) }}" 
-                                               class="badge bg-primary me-2 mb-2">
-                                                {{ record }}
-                                            </a>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-primary">
-                                                {{ best_scores[record] }} changes
-                                            </span>
-                                        </td>
-                                        <td>
-                                            {{ records|selectattr('chord_pair', 'equalto', record)|map(attribute='date')|first|datetime }}
-                                        </td>
-                                    </tr>
+                                {% for record in records %}
+                                <tr>
+                                    <td>
+                                        <div class="btn-group">
+                                            <button class="btn btn-sm btn-outline-danger load-chord-pair" data-chord-pair="{{ record.chord_pair }}">
+                                                <i class="fas fa-edit me-1"></i>Practise
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-success enter-score" data-chord-pair="{{ record.chord_pair }}">
+                                                <i class="fas fa-plus me-1"></i>Enter Score
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('chord_pair_history', chord_pair=record.chord_pair) }}" 
+                                           class="badge bg-primary me-2 mb-2">
+                                            {{ record.chord_pair }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">
+                                            {{ best_scores[record.chord_pair] }} changes
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {{ record.date|datetime }}
+                                    </td>
+                                </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
