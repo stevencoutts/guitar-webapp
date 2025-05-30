@@ -486,7 +486,7 @@ def view_song(song_id):
         'E': {'shape': [(0, 0), (2, 2), (2, 2), (1, 1), (0, 0), (0, 0)], 'start_fret': 0, 'variant': None},
         'Am': {'shape': [(0, 'x'), (0, 0), (2, 2), (2, 2), (1, 1), (0, 0)], 'start_fret': 0, 'variant': None},
         'Em': {'shape': [(0, 0), (2, 2), (2, 3), (0, 0), (0, 0), (0, 0)], 'start_fret': 0, 'variant': None},
-        'F': {'shape': [(1, 1), (3, 4), (3, 3), (2, 2), (1, 1), (1, 1)], 'start_fret': 0, 'variant': None},
+        'F': {'shape': [(1, 1), (3, 4), (3, 3), (2, 2), (1, 1), (1, 1)], 'start_fret': 1, 'variant': None},
         'Dm': {'shape': [(0, 'x'), (0, 'x'), (0, 0), (2, 2), (3, 3), (1, 1)], 'start_fret': 0, 'variant': None},
         'G7': {'shape': [(3, 3), (2, 2), (0, 0), (0, 0), (0, 0), (1, 1)], 'start_fret': 0, 'variant': None},
         'C7': {'shape': [(0, 'x'), (3, 3), (2, 2), (3, 3), (1, 1), (0, 0)], 'start_fret': 0, 'variant': None},
@@ -1021,19 +1021,22 @@ def get_chord_diagram(chord_name):
 
     # If no shape data is found, return an empty SVG or an error indicator
     if not shape_data:
+        # Return a small, empty SVG or similar to avoid breaking the page layout
         return Response('<svg width="150" height="200"><text x="10" y="20" font-size="12">Shape not found</text></svg>', mimetype='image/svg+xml')
 
     chord_shape = shape_data['shape']
-    start_fret = shape_data['start_fret'] if shape_data['start_fret'] is not None else 0
-    # variant = shape_data['variant'] # We don't need variant for drawing, but it's available
+    # Explicitly get start_fret and ensure it's an integer
+    start_fret = int(shape_data.get('start_fret', 0))
+    # variant = shape_data.get('variant') # Get variant if needed, though not used in drawing currently
 
     # SVG dimensions
-    width = 180
+    width = 220
     height = 200
     fret_height = 30
     string_spacing = 20
-    left_margin = 30
+    left_margin = 40
     top_margin = 20
+
     svg = f'''
     <svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">
         <style>
@@ -1055,9 +1058,9 @@ def get_chord_diagram(chord_name):
         svg += f'<line x1="{x}" y1="{top_margin}" x2="{x}" y2="{top_margin + 4 * fret_height}" class="string"/>'
     # Draw starting fret number label (e.g., '5fr') to the left of the first fret, inline with the first fret line
     if start_fret > 0:
-        y_label = top_margin
+        y_label = top_margin + fret_height
         label = f'{start_fret}fr'
-        svg += f'<text x="{left_margin - 28}" y="{y_label + 5}" font-size="14" fill="#333" text-anchor="middle">{label}</text>'
+        svg += f'<text x="{left_margin - 10}" y="{y_label + 5}" font-size="14" fill="#333" text-anchor="end">{label}</text>'
     # Draw dots for the chord if we know it
     if chord_shape:
         for string_idx, (fret, symbol) in enumerate(chord_shape):
@@ -1104,28 +1107,29 @@ def get_chord_shape(name, variant=None):
 
     # If still not found in database (either specific variant, None, or empty string), fallback to hardcoded shapes
     hardcoded_shapes = {
-        'C': [(0, 'x'), (3, 3), (2, 2), (0, 0), (1, 1), (0, 0)],  # x32010
-        'G': [(3, 1), (2, 2), (0, 0), (0, 0), (0, 0), (3, 3)],  # 320003
-        'D': [(2, 'x'), (2, 'x'), (0, 0), (2, 2), (3, 1), (2, 3)],  # xx0232
-        'A': [(0, 'x'), (0, 0), (2, 2), (2, 3), (2, 2), (0, 0)],  # x02220
-        'E': [(0, 0), (2, 2), (2, 2), (1, 1), (0, 0), (0, 0)],  # 022100
-        'Am': [(0, 'x'), (0, 0), (2, 2), (2, 2), (1, 1), (0, 0)],  # x02210
-        'Em': [(0, 0), (2, 2), (2, 3), (0, 0), (0, 0), (0, 0)],  # 022000
-        'F': [(1, 1), (3, 4), (3, 3), (2, 2), (1, 1), (1, 1)],  # 133211
-        'Dm': [(0, 'x'), (0, 'x'), (0, 0), (2, 2), (3, 3), (1, 1)],  # xx0231
-        'G7': [(3, 3), (2, 2), (0, 0), (0, 0), (0, 0), (1, 1)],  # 320001
-        'C7': [(0, 'x'), (3, 3), (2, 2), (3, 3), (1, 1), (0, 0)],  # x32310
-        'A7': [(0, 'x'), (0, 0), (2, 2), (0, 0), (2, 2), (0, 0)],  # x02020
-        'E7': [(0, 0), (2, 2), (0, 0), (1, 1), (0, 0), (0, 0)],  # 020100
-        'B7': [(2, 2), (1, 1), (2, 2), (0, 0), (2, 2), (0, 'x')],  # 212020
-        'Bm': [(2, 2), (2, 2), (4, 4), (4, 4), (3, 3), (2, 2)],  # 224432
-        'Fmaj7': [(0, 'x'), (0, 'x'), (3, 3), (2, 2), (1, 1), (0, 0)],  # 133211
-        'Cadd9': [(0, 'x'), (3, 2), (2, 1), (0, 0), (3, 3), (3, 4)],  # x32030
+        'C': {'shape': [(0, 'x'), (3, 3), (2, 2), (0, 0), (1, 1), (0, 0)], 'start_fret': 0},
+        'G': {'shape': [(3, 1), (2, 2), (0, 0), (0, 0), (0, 0), (3, 3)], 'start_fret': 0},
+        'D': {'shape': [(2, 'x'), (2, 'x'), (0, 0), (2, 2), (3, 1), (2, 3)], 'start_fret': 0},
+        'A': {'shape': [(0, 'x'), (0, 0), (2, 2), (2, 3), (2, 2), (0, 0)], 'start_fret': 0},
+        'E': {'shape': [(0, 0), (2, 2), (2, 2), (1, 1), (0, 0), (0, 0)], 'start_fret': 0},
+        'Am': {'shape': [(0, 'x'), (0, 0), (2, 2), (2, 2), (1, 1), (0, 0)], 'start_fret': 0},
+        'Em': {'shape': [(0, 0), (2, 2), (2, 3), (0, 0), (0, 0), (0, 0)], 'start_fret': 0},
+        'F': {'shape': [(1, 1), (3, 4), (3, 3), (2, 2), (1, 1), (1, 1)], 'start_fret': 1},
+        'Dm': {'shape': [(0, 'x'), (0, 'x'), (0, 0), (2, 2), (3, 3), (1, 1)], 'start_fret': 0},
+        'G7': {'shape': [(3, 3), (2, 2), (0, 0), (0, 0), (0, 0), (1, 1)], 'start_fret': 0},
+        'C7': {'shape': [(0, 'x'), (3, 3), (2, 2), (3, 3), (1, 1), (0, 0)], 'start_fret': 0},
+        'A7': {'shape': [(0, 'x'), (0, 0), (2, 2), (0, 0), (2, 2), (0, 0)], 'start_fret': 0},
+        'E7': {'shape': [(0, 0), (2, 2), (0, 0), (1, 1), (0, 0), (0, 0)], 'start_fret': 0},
+        'B7': {'shape': [(2, 2), (1, 1), (2, 2), (0, 0), (2, 2), (0, 'x')], 'start_fret': 0},
+        'Bm': {'shape': [(2, 2), (2, 2), (4, 4), (4, 4), (3, 3), (2, 2)], 'start_fret': 2},
+        'Fmaj7': {'shape': [(0, 'x'), (0, 'x'), (3, 3), (2, 2), (1, 1), (0, 0)], 'start_fret': 1},
+        'Cadd9': {'shape': [(0, 'x'), (3, 2), (2, 1), (0, 0), (3, 3), (3, 4)], 'start_fret': 0},
     }
 
-    hardcoded_shape = hardcoded_shapes.get(name)
-    if hardcoded_shape:
-        return {'shape': hardcoded_shape, 'start_fret': 0, 'variant': None}
+    hardcoded_shape_data = hardcoded_shapes.get(name)
+    if hardcoded_shape_data:
+        # Hardcoded shapes are treated as variant=None for display purposes
+        return {'shape': hardcoded_shape_data['shape'], 'start_fret': hardcoded_shape_data['start_fret'], 'variant': None}
 
     return None # No shape found at all
 
