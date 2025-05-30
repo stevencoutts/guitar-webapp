@@ -975,6 +975,7 @@ def backup():
                 'chord_shapes': [{
                     'id': cs.id,
                     'name': cs.name,
+                    'variant': cs.variant,
                     'shape': cs.shape,
                     'created_at': cs.created_at.isoformat() if cs.created_at else None
                 } for cs in chord_shapes]
@@ -1043,6 +1044,7 @@ def backup():
                                 chord = ChordShape(
                                     id=cs_data.get('id'),
                                     name=cs_data.get('name'),
+                                    variant=cs_data.get('variant'),
                                     shape=cs_data.get('shape'),
                                     created_at=datetime.fromisoformat(cs_data['created_at']) if cs_data.get('created_at') else None
                                 )
