@@ -622,19 +622,31 @@ def chord_changes():
             flash('Practice session saved successfully!', 'success')
             return redirect(url_for('chord_changes'))
 
-    # Get practice records for the current user
-    records = PracticeRecord.query.filter_by(user_id=current_user.id).order_by(PracticeRecord.date.desc()).all()
-    
-    # Get best scores for each chord pair
+    # Sorting logic for unique chord pairs
+    sort = request.args.get('sort', 'date')
+    order = request.args.get('order', 'desc')
+    # Get all records for the user
+    all_records = PracticeRecord.query.filter_by(user_id=current_user.id).all()
+    # Build a dict: chord_pair -> latest record
+    latest_records = {}
     best_scores = {}
-    for record in records:
-        if record.chord_pair not in best_scores or record.score > best_scores[record.chord_pair]:
-            best_scores[record.chord_pair] = record.score
+    for record in all_records:
+        cp = record.chord_pair
+        if cp not in latest_records or record.date > latest_records[cp].date:
+            latest_records[cp] = record
+        if cp not in best_scores or record.score > best_scores[cp]:
+            best_scores[cp] = record.score
+    # Convert to list for sorting
+    unique_records = list(latest_records.values())
+    if sort == 'chord_pair':
+        unique_records.sort(key=lambda r: r.chord_pair, reverse=(order=='desc'))
+    else:  # sort by date
+        unique_records.sort(key=lambda r: r.date, reverse=(order=='desc'))
 
     # Get predefined chord pairs
     predefined_pairs = ChordPair.query.order_by(ChordPair.difficulty).all()
 
-    return render_template('chord_changes.html', records=records, best_scores=best_scores, predefined_pairs=predefined_pairs)
+    return render_template('chord_changes.html', records=unique_records, best_scores=best_scores, predefined_pairs=predefined_pairs, sort=sort, order=order)
 
 @app.route('/backup', methods=['GET', 'POST'])
 @login_required
