@@ -66,28 +66,30 @@
                                 {% if shapes %}
                                 <div class="col-md-4 col-sm-6 mb-3">
                                     <div class="chord-card" data-chord-name="{{ chord_name }}">
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div class="chord-card-header mb-2">
                                             <div class="chord-name">{{ chord_name }}</div>
-                                            {% if shapes|length > 1 %}
-                                                <div class="dropdown">
-                                                    {% set current_variant = selected_variants.get(chord_name, '') %}
-                                                    {# Get the initial shape determined in the backend #}
-                                                    {% set initial_shape = initial_shapes_dict.get(chord_name) %}
-                                                    {# Set display variant and diagram URL based on the initial shape #}
-                                                    {% set selected_variant_display = initial_shape.variant if initial_shape and initial_shape.variant is not none and initial_shape.variant != '' else 'Default' %}
+                                            <div class="variant-dropdown-container mt-1">
+                                                {% if shapes|length > 1 %}
+                                                    <div class="dropdown">
+                                                        {% set current_variant = selected_variants.get(chord_name, '') %}
+                                                        {# Get the initial shape determined in the backend #}
+                                                        {% set initial_shape = initial_shapes_dict.get(chord_name) %}
+                                                        {# Set display variant and diagram URL based on the initial shape #}
+                                                        {% set selected_variant_display = initial_shape.variant if initial_shape and initial_shape.variant is not none and initial_shape.variant != '' else 'Default' %}
 
-                                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenuButton_{{ loop.index }}" data-bs-toggle="dropdown" aria-expanded="false">
-                                                        {{ selected_variant_display }}
-                                                    </button>
-                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton_{{ loop.index }}">
-                                                        {% for shape in shapes %}
-                                                            {% set variant_value = shape.variant if shape.variant is not none else '' %}
-                                                            {% set variant_display = shape.variant if shape.variant is not none and shape.variant != '' else 'Default' %}
-                                                            <li><a class="dropdown-item" href="#" data-variant="{{ variant_value }}">{{ variant_display }}</a></li>
-                                                        {% endfor %}
-                                                    </ul>
-                                                </div>
-                                            {% endif %}
+                                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenuButton_{{ loop.index }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                                            {{ selected_variant_display }}
+                                                        </button>
+                                                        <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton_{{ loop.index }}">
+                                                            {% for shape in shapes %}
+                                                                {% set variant_value = shape.variant if shape.variant is not none else '' %}
+                                                                {% set variant_display = shape.variant if shape.variant is not none and shape.variant != '' else 'Default' %}
+                                                                <li><a class="dropdown-item" href="#" data-variant="{{ variant_value }}">{{ variant_display }}</a></li>
+                                                            {% endfor %}
+                                                        </ul>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                         <div class="chord-diagram-container">
                                             {# Embed the pre-generated SVG directly #}
@@ -289,18 +291,37 @@
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     
+    .chord-card-header {
+        /* Add flexbox to align items horizontally within the header */
+        display: flex;
+        justify-content: space-between; /* Distribute space between chord name and dropdown container */
+        align-items: center; /* Vertically align items */
+        margin-bottom: 5px; /* Keep a small margin below the header */
+        flex-wrap: wrap; /* Allow items to wrap on small screens */
+    }
+    
     .chord-name {
         font-size: 1.2em;
         font-weight: bold;
-        margin-bottom: 10px;
+        margin-bottom: 0; /* Remove margin-bottom to align better in flexbox */
+        margin-right: 10px; /* Add margin-right for spacing from dropdown */
     }
     
+    .variant-dropdown-container {
+        /* Give the container a fixed minimum height to reserve space */
+        min-height: 30px; /* Approximate height of the small button */
+        margin-top: 0; /* Remove margin-top as space is handled by chord-card-header */
+        display: flex; /* Use flexbox to align dropdown vertically if needed */
+        align-items: center; /* Center dropdown vertically in its container */
+    }
+
     .chord-diagram-container {
         width: 100%;
-        height: 150px; /* Adjust height as needed */
+        /* Removed fixed height */
         display: flex;
         justify-content: center;
         align-items: center;
+        margin-top: 10px; /* Added margin-top for spacing */
     }
     
     .chord-diagram {
