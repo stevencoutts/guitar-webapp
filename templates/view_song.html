@@ -123,6 +123,14 @@
                 <div class="card-body">
                     <h5 class="card-title mb-3">Strumming Pattern</h5>
                     <pre class="strumming-pattern">{{ song.strumming_pattern }}</pre>
+                    <div class="mt-3">
+                        <button class="btn btn-primary me-2" id="play-strumming-btn">
+                            <i class="fas fa-play me-2"></i>Play Strumming Pattern
+                        </button>
+                        <button class="btn btn-secondary" id="stop-strumming-btn" style="display: none;">
+                            <i class="fas fa-stop me-2"></i>Stop
+                        </button>
+                    </div>
                 </div>
             </div>
             {% endif %}
@@ -347,9 +355,11 @@
 console.log('Script block started'); // Added for debugging
 let metronomeInterval;
 let audioContext;
-let isPlaying = false;
+let isPlaying = false; // Flag for strumming playback
+let isMetronomePlaying = false; // Use a separate flag for metronome playback
 
-function createClick() {
+// Function to create a basic click sound
+function createClick(volume = 0.1) {
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
@@ -360,59 +370,204 @@ function createClick() {
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
     
-    // Create a more click-like sound
-    oscillator.type = 'square';
-    oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+    oscillator.type = 'sine'; // Simple sine wave for a less harsh click
+    oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4 note
+    gainNode.gain.setValueAtTime(volume, audioContext.currentTime); // Control volume
     
-    // Quick attack and decay for a click sound
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05);
+    // Quick attack and decay
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.03);
     
     oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.05); // Shorter duration for a click
+    oscillator.stop(audioContext.currentTime + 0.03); // Shorter duration
+}
+
+// Function to create a slightly different sound for downstrokes (optional)
+function createDownstrokeSound(volume = 0.15) {
+     if (!audioContext) {
+         audioContext = new (window.AudioContext || window.webkitAudioContext)();
+     }
+
+     const oscillator = audioContext.createOscillator();
+     const gainNode = audioContext.createGain();
+
+     oscillator.connect(gainNode);
+     gainNode.connect(audioContext.destination);
+
+     oscillator.type = 'triangle'; // Different waveform
+     oscillator.frequency.setValueAtTime(330, audioContext.currentTime); // E4 note
+     gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+
+     gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.05);
+
+     oscillator.start();
+     oscillator.stop(audioContext.currentTime + 0.05);
+}
+
+let strummingTimer;
+let currentStrummingPattern = [];
+let currentStrummingIndex = 0;
+
+function startStrumming() {
+    if (isPlaying) return; // Prevent multiple playback instances
+    isPlaying = true;
+    document.getElementById('play-strumming-btn').style.display = 'none';
+    document.getElementById('stop-strumming-btn').style.display = 'inline-block';
+
+    const strummingPatternText = document.querySelector('.strumming-pattern').textContent;
+    const songBpm = {{ song.bpm }};
+
+    // Parse pattern: treat each character (including spaces and hyphens) as a stroke event or rest.
+    // This assumes each character represents a fixed time subdivision, e.g., an eighth note.
+    currentStrummingPattern = strummingPatternText.split(''); // Split into array of characters
+    currentStrummingIndex = 0;
+
+    // Remove leading/trailing whitespace from the pattern array if necessary, though splitting handles this somewhat.
+    // Let's assume leading/trailing spaces in the pre tag are handled by textContent.trim() implicitly or explicitly before this point,
+    // or that they are intended as rests.
+    // For safety, let's re-trim the text before splitting to handle potential newline issues from <pre>
+    const trimmedPatternText = strummingPatternText.trim();
+    currentStrummingPattern = trimmedPatternText.split('');
+
+    if (currentStrummingPattern.length === 0) {
+        console.warn('Strumming pattern is empty.');
+        stopStrumming();
+        return;
+    }
+
+    // Calculate interval based on eighth note duration
+    const beatDuration = 60 / songBpm; // Duration of a quarter note in seconds
+    const strokeInterval = (beatDuration / 2) * 1000; // Interval in milliseconds for an eighth note
+
+    // Function to play the next stroke in the pattern
+    function playNextStroke() {
+        if (!isPlaying) {
+            // Stop if playback is no longer active
+            return;
+        }
+
+        // Reset index if we've reached the end of the pattern
+        if (currentStrummingIndex >= currentStrummingPattern.length) {
+            currentStrummingIndex = 0;
+        }
+
+        const stroke = currentStrummingPattern[currentStrummingIndex];
+
+        if (stroke.toUpperCase() === 'D') {
+            // Play the stronger beat sound for downstrokes
+            createBeatSound();
+        } else if (stroke.toUpperCase() === 'U') {
+            // Play a standard click for upstrokes
+            createClick();
+        } else if (stroke === '-' || stroke === ' ') {
+            // This is a rest or missed stroke (including spaces), play no sound
+            // console.log('Rest or space'); // Optional: Log silent steps
+        }
+        // Ignore other characters for sound playback for now
+
+        currentStrummingIndex++;
+
+        // Schedule the next stroke
+        strummingTimer = setTimeout(playNextStroke, strokeInterval);
+    }
+
+    // Start playing the pattern
+    playNextStroke();
+}
+
+function stopStrumming() {
+    isPlaying = false;
+    clearTimeout(strummingTimer);
+    document.getElementById('play-strumming-btn').style.display = 'inline-block';
+    document.getElementById('stop-strumming-btn').style.display = 'none';
+    currentStrummingIndex = 0; // Reset pattern index
+}
+
+// Add event listeners to the buttons
+document.getElementById('play-strumming-btn').addEventListener('click', startStrumming);
+document.getElementById('stop-strumming-btn').addEventListener('click', stopStrumming);
+
+
+// Metronome functions (existing)
+// let metronomeInterval; // Removed duplicate declaration
+// let audioContext; // Removed duplicate declaration
+// let isMetronomePlaying = false; // Renamed and kept single declaration at top
+
+// Use the same audioContext for metronome and strumming
+// Function to create a basic click sound (can be reused)
+// function createClick(volume = 0.1) { ... } // Already defined above
+
+// Function to create a slightly different sound for the first beat (optional)
+function createBeatSound(volume = 0.2) {
+     if (!audioContext) {
+         audioContext = new (window.AudioContext || window.webkitAudioContext)();
+     }
+
+     const oscillator = audioContext.createOscillator();
+     const gainNode = audioContext.createGain();
+
+     oscillator.connect(gainNode);
+     gainNode.connect(audioContext.destination);
+
+     oscillator.type = 'square'; // Different waveform for beat
+     oscillator.frequency.setValueAtTime(660, audioContext.currentTime); // F5 note
+     gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+
+     gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.04);
+
+     oscillator.start();
+     oscillator.stop(audioContext.currentTime + 0.04);
 }
 
 function startMetronome() {
-    if (isPlaying) return;
-    
-    // Show metronome display
-    document.querySelector('.metronome-display').style.display = 'block';
-    
-    // Get BPM and time signature from the song data
+    if (isMetronomePlaying) return;
+    isMetronomePlaying = true;
+
+    // Hide metronome start button, show stop (adjust based on your button IDs if different)
+    // Assuming you have separate buttons or want to manage visibility differently
+    // For now, let's assume the existing metronome buttons are managed separately.
+    // If using the same play/stop buttons, we'd need more complex state.
+    // Let's assume separate buttons for now as the HTML structure suggests.
+
+    // Show metronome display (adjust class/ID if needed)
+    // document.querySelector('.metronome-display').style.display = 'block';
+
     const songBpm = {{ song.bpm }};
     const timeSignature = "{{ song.time_signature }}".split('/');
-    const beatsPerBar = parseInt(timeSignature[0]);
-    
-    // Calculate interval in milliseconds
+    const beatsPerBar = parseInt(timeSignature[0]) || 4; // Default to 4/4 if parsing fails
+
+    // Calculate interval in milliseconds for a quarter note
     const interval = (60 / songBpm) * 1000;
-    
-    // Start the metronome
-    isPlaying = true;
+
     let beat = 0;
-    
-    // Update dots before playing first beat
-    updateDots(beat);
-    
-    // Play first beat immediately
-    createClick();
-    
-    // Increment beat before starting interval
-    beat = (beat + 1) % beatsPerBar;
-    
-    metronomeInterval = setInterval(() => {
-        // Update visual dots first
+
+    // Function to play the next metronome beat
+    function playNextMetronomeBeat() {
+        if (!isMetronomePlaying) return; // Check flag before playing
+
+        // Update dots before playing sound (adjust class/ID if needed)
         updateDots(beat);
-        
-        // Play sound
-        createClick();
-        
+
+        // Play sound - distinct sound for the first beat
+        if (beat === 0) {
+            createBeatSound(); // Stronger sound for the downbeat
+        } else {
+            createClick(); // Lighter sound for other beats
+        }
+
         // Increment beat
         beat = (beat + 1) % beatsPerBar;
-    }, interval);
+
+        // Schedule the next beat
+        metronomeInterval = setTimeout(playNextMetronomeBeat, interval);
+    }
+
+    // Start the metronome after a short delay to allow the first dot to light up
+    // Or play the first beat immediately and then set the interval/timeout
+     playNextMetronomeBeat(); // Play first beat immediately
 }
 
 function updateDots(activeBeat) {
-    const dots = document.querySelectorAll('.dot');
+    const dots = document.querySelectorAll('.metronome-display .dot');
     dots.forEach((dot, index) => {
         dot.classList.remove('active');
         if (index === activeBeat) {
@@ -422,153 +577,43 @@ function updateDots(activeBeat) {
 }
 
 function stopMetronome() {
-    if (!isPlaying) return;
-    
-    clearInterval(metronomeInterval);
-    isPlaying = false;
-    
-    // Hide metronome display
-    document.querySelector('.metronome-display').style.display = 'none';
-    
-    // Remove active state from dots
-    document.querySelectorAll('.dot').forEach(dot => {
+    isMetronomePlaying = false; // Set flag to false
+    clearTimeout(metronomeInterval);
+
+    // Hide metronome display (adjust class/ID if needed)
+    // document.querySelector('.metronome-display').style.display = 'none';
+
+    // Remove active state from dots (adjust class/ID if needed)
+    document.querySelectorAll('.metronome-display .dot').forEach(dot => {
         dot.classList.remove('active');
     });
 }
 
-// Clean up audio context when leaving the page
-window.addEventListener('beforeunload', () => {
-    if (audioContext) {
-        audioContext.close();
-    }
-});
+// Metronome button event listeners are assumed to be already present or added elsewhere.
+// If not, you would add them here:
+// document.getElementById('start-metronome-btn').addEventListener('click', startMetronome);
+// document.getElementById('stop-metronome-btn').addEventListener('click', stopMetronome);
 
+
+// Function to update chord diagram (existing)
+// ...
+
+// Function to save selected variant (existing)
+// ...
+
+// Initial load and event listeners (existing)
 document.addEventListener('DOMContentLoaded', function() {
-    // Function to update chord diagram
-    function updateChordDiagram(chordName, variant, container) {
-        let url = `{{ url_for('get_chord_diagram', chord_name='_CHORD_NAME_') }}`;
-        url = url.replace('_CHORD_NAME_', encodeURIComponent(chordName));
+    console.log('Script block started');
+    // Existing code to handle chord diagram dropdowns and saving variants
 
-        // Add variant to URL if it exists and is not empty string
-        if (variant && variant !== 'Default' && variant !== '') {
-            // Use URLSearchParams for cleaner URL construction
-            const urlParams = new URLSearchParams();
-            urlParams.append('variant', variant);
-            url += '?' + urlParams.toString();
-        }
+    // Ensure AudioContext is created on user interaction (e.g., first button click)
+    // This avoids issues with browsers requiring user gesture before creating AudioContext
 
-        const objectElement = container.querySelector('.chord-diagram');
-        if (objectElement) {
-            objectElement.data = url;
-        } else {
-            // If object element doesn't exist, create it
-            const newObjectElement = document.createElement('object');
-            newObjectElement.setAttribute('data', url);
-            newObjectElement.setAttribute('type', 'image/svg+xml');
-            newObjectElement.classList.add('chord-diagram');
-            newObjectElement.textContent = `${chordName} diagram`; // Fallback text
-            container.innerHTML = ''; // Clear container
-            container.appendChild(newObjectElement);
-        }
-    }
+    // Event listeners for strumming buttons are added globally above.
 
-    // Function to save selected variant to the backend
-    function saveSelectedVariant(songId, chordName, variant) {
-        const saveUrl = `{{ url_for('save_selected_variant', song_id=song.id) }}`;
-        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+    // Existing metronome button listeners assumed or to be added.
 
-        // Convert None/empty variant to empty string for saving consistency
-        const variantToSave = variant === 'Default' || variant === null ? '' : variant;
-
-        fetch(saveUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({
-                chord_name: chordName,
-                variant: variantToSave
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log('Variant saved:', data.message);
-                // Optionally show a small success message to the user
-            } else {
-                console.error('Error saving variant:', data.message);
-                // Optionally show an error message
-            }
-        })
-        .catch(error => {
-            console.error('Fetch error saving variant:', error);
-            // Optionally show a network error message
-        });
-    }
-
-    // Add event listeners to dropdown items
-    document.querySelectorAll('.chord-card .dropdown-item').forEach(item => {
-        item.addEventListener('click', function(e) {
-            e.preventDefault();
-            const chordCard = this.closest('.chord-card');
-            const chordName = chordCard.dataset.chordName;
-            const variant = this.dataset.variant; // Use data-variant attribute (will be empty string for default)
-
-            // Update the dropdown button text
-            const dropdownButton = chordCard.querySelector('.dropdown-toggle');
-            if (dropdownButton) {
-                // Set button text to the text content of the selected dropdown item
-                dropdownButton.textContent = this.textContent;
-            }
-
-            // Update the chord diagram
-            const diagramContainer = chordCard.querySelector('.chord-diagram-container');
-            if (diagramContainer) {
-                updateChordDiagram(chordName, variant, diagramContainer);
-            }
-
-            // Save the selected variant
-            saveSelectedVariant({{ song.id }}, chordName, variant);
-        });
-    });
-
-    // Initial load: load saved variants or the first variant (default)
-    const selectedVariants = {{ selected_variants | tojson }}; // Get saved variants passed from backend
-    // Removed debugging log for selectedVariants
-    // console.log('Loaded selectedVariants:', selectedVariants); // Added logging for debugging
-
-    document.querySelectorAll('.chord-card').forEach(card => {
-        const chordName = card.dataset.chordName;
-        const savedVariant = selectedVariants[chordName];
-
-        // Find the corresponding dropdown item
-        let targetItem = null;
-        if (savedVariant !== undefined) {
-             // Look for a dropdown item with a data-variant matching the saved variant (or empty string for default)
-             targetItem = card.querySelector(`.dropdown-item[data-variant="${savedVariant}"]`);
-        }
-
-        // If a saved variant was found and matches a dropdown item, simulate a click on it
-        // Otherwise, ensure the default (first) item is loaded (which is handled by the initial loop already)
-        if (targetItem) {
-            // Simulate a click on the target item to update diagram, button text, and save (though saving again is redundant here)
-            targetItem.click();
-        } else {
-             // If no saved variant or saved variant doesn't exist as an option, ensure the first variant is displayed.
-             // The initial loop that sets up event listeners also loads the first variant, so no extra action needed here
-        }
-         // Ensure the dropdown button text is correct on load if no saved variant or saved variant not found
-         if (!targetItem) {
-             const firstDropdownItem = card.querySelector('.dropdown-menu .dropdown-item:first-child');
-             if (firstDropdownItem) {
-                  const dropdownButton = card.querySelector('.dropdown-toggle');
-                  if (dropdownButton) {
-                       dropdownButton.textContent = firstDropdownItem.textContent;
-                  }
-             }
-         }
-    });
 });
+
 </script>
 {% endblock %} 

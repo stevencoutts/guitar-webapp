@@ -16,6 +16,22 @@ A web application for guitarists to track their practice sessions, manage songs,
   - Capo position tracking
   - Personal song library
 
+### Strumming Pattern Notation
+
+When entering a strumming pattern for a song, you can use the following characters:
+
+- `D`: Represents a downstroke. Plays a stronger beat sound during playback.
+- `U`: Represents an upstroke. Plays a standard click sound during playback.
+- `-`: Represents a silent rest or missed stroke. Plays no sound.
+- ` `: Represents a silent rest or pause. Plays no sound.
+
+The playback feature interprets each character (including spaces and hyphens) as a time subdivision equivalent to an **eighth note** at the song's specified BPM.
+
+To create rhythms:
+- A sequence like `D U` represents two eighth notes (a quarter note). At 120 BPM, this would be 0.5 seconds total.
+- A pattern like `D - U -` represents a downstroke on beat 1, a silent rest on the 'and' of 1, an upstroke on beat 2, and a silent rest on the 'and' of 2. Each character is an eighth note duration.
+- Use spaces and hyphens to represent rests and align your strokes with the beats of the song. For example, `D DU UDU` should be entered with spaces/hyphens to represent the rests if intended as a full measure in 4/4 time (e.g., `D - D U - U D U` or similar depending on the exact rhythm).
+
 - **Practice Tools**
   - One-minute chord change practice
   - Predefined chord pairs with difficulty levels
