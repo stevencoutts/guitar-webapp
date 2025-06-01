@@ -25,11 +25,13 @@ A web application for guitarists to track their practice sessions, manage songs,
 
 - **Chord Diagrams**
   - Interactive SVG chord diagrams
-  - Available chords:
+  - Available built-in chords:
     - Basic: C, G, D, A, E
     - Minor: Am, Em, Dm, Bm
     - Seventh: G7, C7, A7, E7, B7
     - Extended: Fmaj7, Cadd9
+  - DB stored chord interface
+  - Chord varient support
   - Shows fret positions, open strings, muted strings, and finger positions
   - Access via `/chord/<chord_name>` (e.g., `/chord/C`)
 
