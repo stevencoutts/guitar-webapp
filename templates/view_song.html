@@ -63,7 +63,6 @@
                         <div class="row">
                             {% for chord_name in ordered_unique_chords %}
                                 {% set shapes = chord_shapes_dict.get(chord_name, []) %}
-                                {% if shapes %}
                                 <div class="col-md-4 col-sm-6 mb-3">
                                     <div class="chord-card" data-chord-name="{{ chord_name }}">
                                         <div class="chord-card-header mb-2">
@@ -92,17 +91,14 @@
                                             </div>
                                         </div>
                                         <div class="chord-diagram-container">
-                                            {# Embed the pre-generated SVG directly #}
-                                            {% if initial_diagram_svgs.get(chord_name) %}
-                                                {{ initial_diagram_svgs.get(chord_name) | safe }}
-                                            {% else %}
-                                                {# Fallback if no initial diagram was generated (shouldn't happen if initial_shapes_dict logic is correct) #}
-                                                <svg width="150" height="200"><text x="10" y="20" font-size="12">Shape not found</text></svg>
-                                            {% endif %}
+                                            {# Embed the pre-generated SVG directly - removed conditional check for debugging #}
+                                            {{ initial_diagram_svgs.get(chord_name) | safe }}
+                                            {# Fallback if no initial diagram was generated (shouldn't happen if initial_shapes_dict logic is correct) #}
+                                            {# Kept fallback message here commented out in case the dict lookup itself fails unexpectedly #}
+                                            {# <svg width="150" height="200"><text x="10" y="20" font-size="12">Shape not found in initial_diagram_svgs</text></svg> #}
                                         </div>
                                     </div>
                                 </div>
-                                {% endif %}
                             {% endfor %}
                         </div>
                         {% else %}
@@ -330,9 +326,25 @@
         height: auto;
         width: auto;
     }
+
+    /* Added custom styles for chord cards to ensure minimum width */
+    .chord-list .col-md-4.col-sm-6 {
+        /* Prevent flex-shrink and ensure a base width */
+        flex-shrink: 0;
+        flex-basis: 250px; /* Set a base width that accommodates the fallback message */
+        max-width: 100%; /* Ensure it doesn't exceed parent width */
+    }
+
+    /* Optional: Adjust column classes if needed for responsiveness */
+    @media (min-width: 768px) {
+        .chord-list .col-md-4 {
+             flex-basis: auto; /* Let Bootstrap handle width on medium+ screens if preferred */
+        }
+    }
 </style>
 
 <script>
+console.log('Script block started'); // Added for debugging
 let metronomeInterval;
 let audioContext;
 let isPlaying = false;
@@ -523,6 +535,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initial load: load saved variants or the first variant (default)
     const selectedVariants = {{ selected_variants | tojson }}; // Get saved variants passed from backend
+    // Removed debugging log for selectedVariants
+    // console.log('Loaded selectedVariants:', selectedVariants); // Added logging for debugging
 
     document.querySelectorAll('.chord-card').forEach(card => {
         const chordName = card.dataset.chordName;
