@@ -344,6 +344,7 @@
 </style>
 
 <script>
+console.log('Script block started'); // Added for debugging
 let metronomeInterval;
 let audioContext;
 let isPlaying = false;
@@ -534,6 +535,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initial load: load saved variants or the first variant (default)
     const selectedVariants = {{ selected_variants | tojson }}; // Get saved variants passed from backend
+    // Removed debugging log for selectedVariants
+    // console.log('Loaded selectedVariants:', selectedVariants); // Added logging for debugging
 
     document.querySelectorAll('.chord-card').forEach(card => {
         const chordName = card.dataset.chordName;

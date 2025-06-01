@@ -960,11 +960,13 @@ def backup():
                     'artist': song.artist,
                     'time_signature': song.time_signature,
                     'bpm': song.bpm,
+                    'capo': song.capo,
                     'chord_progression': song.chord_progression,
                     'strumming_pattern': song.strumming_pattern,
                     'notes': song.notes,
                     'created_at': song.created_at.isoformat() if song.created_at else None,
-                    'updated_at': song.updated_at.isoformat() if song.updated_at else None
+                    'updated_at': song.updated_at.isoformat() if song.updated_at else None,
+                    'selected_variants': song.selected_variants
                 } for song in (all_songs if current_user.is_admin else songs)],
                 'practice_records': [{
                     'id': record.id,
@@ -1096,7 +1098,8 @@ def backup():
                                     capo=song_data.get('capo', 'None'),
                                     chord_progression=song_data.get('chord_progression'),
                                     strumming_pattern=song_data.get('strumming_pattern'),
-                                    notes=song_data.get('notes')
+                                    notes=song_data.get('notes'),
+                                    selected_variants=song_data.get('selected_variants', '{}')
                                 )
                                 db.session.add(song)
                             except Exception as e:
