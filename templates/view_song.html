@@ -47,7 +47,7 @@
                         <p><strong>Time Signature:</strong> {{ song.time_signature }}</p>
                         <p><strong>BPM:</strong> {{ song.bpm }}</p>
                         <p><strong>Capo:</strong> {{ song.capo }}</p>
-                        <p><strong>Strumming Pattern:</strong> {{ song.strumming_pattern }}</p>
+                        <p><strong>Strumming Pattern:</strong> <pre class="strumming-pattern">{{ song.strumming_pattern }}</pre></p>
                         {% if song.notes %}
                         <p><strong>Notes:</strong> {{ song.notes }}</p>
                         {% endif %}

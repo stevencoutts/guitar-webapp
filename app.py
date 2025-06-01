@@ -300,6 +300,8 @@ def new_song():
         strumming_pattern = request.form.get('strumming_pattern')
         notes = request.form.get('notes', '')  # Get notes with empty string as default
         
+        app.logger.info(f"New song form submission - chord_progression: {chord_progression!r}") # Log received chord progression
+
         if not all([title, time_signature, bpm, chord_progression, strumming_pattern]):
             flash('All required fields must be filled out')
             return redirect(url_for('new_song'))
@@ -360,6 +362,9 @@ def edit_song(song_id):
         song.chord_progression = request.form.get('chord_progression')
         song.strumming_pattern = request.form.get('strumming_pattern')
         song.notes = request.form.get('notes')
+
+        app.logger.info(f"Edit song form submission - chord_progression: {song.chord_progression!r}") # Log received chord progression
+
         db.session.commit()
         flash('Song updated successfully!')
         return redirect(url_for('view_song', song_id=song.id))
@@ -670,6 +675,8 @@ def view_song(song_id):
             initial_diagram_svgs[chord_name] = '<svg width="400" height="100" xmlns="http://www.w3.org/2000/svg"><text x="50%" y="50%" font-size="14" fill="#333" text-anchor="middle" dominant-baseline="middle">Please add chord shape</text></svg>'
 
     # Pass the initial_shapes_dict and initial_diagram_svgs to the template
+    app.logger.info(f"Rendering view_song template for song {song_id} - strumming_pattern: {song.strumming_pattern!r}") # Log strumming pattern before rendering
+
     return render_template('view_song.html', 
                            song=song, 
                            predefined_pairs=predefined_pairs, 
@@ -1434,4 +1441,4 @@ if __name__ == '__main__':
         db.create_all()
         create_default_admin()
         create_default_chord_pairs()
-    app.run(host='0.0.0.0', port=5001, debug=False) 
+    app.run(host='0.0.0.0', port=5001, debug=True) 
