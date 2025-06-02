@@ -612,7 +612,30 @@ function stopMetronome() {
 // Initial load and event listeners (existing)
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Script block started');
-    // Existing code to handle chord diagram dropdowns and saving variants
+    
+    // Add event listeners for chord variant dropdowns
+    document.querySelectorAll('.dropdown-item[data-variant]').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const variant = this.getAttribute('data-variant');
+            const chordCard = this.closest('.chord-card');
+            const chordName = chordCard.getAttribute('data-chord-name');
+            const dropdown = this.closest('.dropdown');
+            const dropdownButton = dropdown.querySelector('.dropdown-toggle');
+            const diagramContainer = chordCard.querySelector('.chord-diagram-container');
+            
+            // Update dropdown button text
+            const variantDisplay = variant || 'Default';
+            dropdownButton.textContent = variantDisplay;
+            
+            // Update chord diagram
+            updateChordDiagram(chordName, variant, diagramContainer);
+            
+            // Save selected variant
+            saveSelectedVariant(chordName, variant);
+        });
+    });
 
     // Ensure AudioContext is created on user interaction (e.g., first button click)
     // This avoids issues with browsers requiring user gesture before creating AudioContext
@@ -728,5 +751,46 @@ function renderStrummingPattern() {
     container.appendChild(svg);
 }
 
+// Function to update chord diagram
+function updateChordDiagram(chordName, variant, container) {
+    const encodedChordName = encodeURIComponent(chordName);
+    const variantParam = variant ? `?variant=${encodeURIComponent(variant)}` : '';
+    const newUrl = `/chord/${encodedChordName}${variantParam}`;
+    
+    // Create a new object element to load the new SVG
+    const newObject = document.createElement('object');
+    newObject.data = newUrl;
+    newObject.type = 'image/svg+xml';
+    newObject.className = 'chord-diagram';
+    newObject.textContent = `${chordName} diagram`;
+    
+    // Replace the existing diagram
+    container.innerHTML = '';
+    container.appendChild(newObject);
+}
+
+// Function to save selected variant
+function saveSelectedVariant(chordName, variant) {
+    fetch(`/song/{{ song.id }}/save_variant`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            chord_name: chordName,
+            variant: variant
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            console.error('Failed to save variant:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error saving variant:', error);
+    });
+}
 </script>
 {% endblock %} 
