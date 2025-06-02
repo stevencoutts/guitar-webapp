@@ -110,9 +110,63 @@
 
             <div class="card mb-4">
                 <div class="card-body">
-                    <h5 class="card-title mb-3">Chord Progression</h5>
-                    <div class="chord-progression-container">
-                        <pre class="chord-progression">{{ song.chord_progression }}</pre>
+                    <h5 class="card-title mb-3">
+                        Chord Progression
+                        <div class="float-end">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-secondary active" id="view-simple-btn" onclick="toggleProgessionView('simple')">
+                                    <i class="fas fa-align-left me-1"></i>Simple
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="view-formatted-btn" onclick="toggleProgessionView('formatted')">
+                                    <i class="fas fa-th me-1"></i>Formatted
+                                </button>
+                            </div>
+                        </div>
+                    </h5>
+                    
+                    <!-- Simple View (Original) -->
+                    <div id="chord-progression-simple" class="chord-progression-view">
+                        <div class="chord-progression-container">
+                            <pre class="chord-progression">{{ song.chord_progression }}</pre>
+                        </div>
+                    </div>
+                    
+                    <!-- Formatted View (Enhanced) -->
+                    <div id="chord-progression-formatted" class="chord-progression-view" style="display: none;">
+                        <div class="progression-controls mb-3">
+                            <div class="row align-items-center">
+                                <div class="col-auto">
+                                    <label class="form-label mb-0 me-2">Chords per line:</label>
+                                    <select class="form-select form-select-sm d-inline-block w-auto" id="chords-per-line" onchange="updateFormattedView()">
+                                        <option value="4" selected>4</option>
+                                        <option value="8">8</option>
+                                        <option value="12">12</option>
+                                        <option value="16">16</option>
+                                    </select>
+                                </div>
+                                <div class="col-auto">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="show-bar-numbers" checked onchange="updateFormattedView()">
+                                        <label class="form-check-label" for="show-bar-numbers">
+                                            Show bar numbers
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="highlight-on-click" checked>
+                                        <label class="form-check-label" for="highlight-on-click">
+                                            Click to highlight
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="formatted-progression-container">
+                            <div id="formatted-progression" class="formatted-progression">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -348,6 +402,147 @@
              flex-basis: auto; /* Let Bootstrap handle width on medium+ screens if preferred */
         }
     }
+
+    /* Enhanced Chord Progression Styles */
+    .chord-progression-view {
+        transition: opacity 0.3s ease;
+    }
+
+    .progression-controls {
+        border-bottom: 1px solid #e9ecef;
+        padding-bottom: 1rem;
+    }
+
+    .formatted-progression {
+        font-family: 'Courier New', monospace;
+        font-size: 1rem;
+        line-height: 1.8;
+    }
+
+    .progression-line {
+        margin-bottom: 1.5rem;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 1rem;
+        background: #f8f9fa;
+    }
+
+    .bar-number {
+        color: #6c757d;
+        font-size: 0.85rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .chord-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+        margin-bottom: 0.25rem;
+    }
+
+    .chord-item {
+        background: #fff;
+        border: 2px solid #dee2e6;
+        border-radius: 6px;
+        padding: 0.4rem 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 50px;
+        text-align: center;
+        position: relative;
+    }
+
+    .chord-item:hover {
+        border-color: #007bff;
+        background: #e7f3ff;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,123,255,0.1);
+    }
+
+    .chord-item.highlighted {
+        background: #007bff;
+        color: white;
+        border-color: #0056b3;
+        box-shadow: 0 0 10px rgba(0,123,255,0.3);
+    }
+
+    .chord-item.active {
+        background: #28a745;
+        color: white;
+        border-color: #1e7e34;
+        animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+    }
+
+    .chord-beat-indicator {
+        position: absolute;
+        bottom: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 4px;
+        height: 4px;
+        background: #6c757d;
+        border-radius: 50%;
+    }
+
+    .compact-progression {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        font-family: 'Courier New', monospace;
+        font-size: 0.95rem;
+    }
+
+    .compact-chord {
+        background: #e9ecef;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+
+    .compact-chord:hover {
+        background: #007bff;
+        color: white;
+    }
+
+    .compact-chord.highlighted {
+        background: #ffc107;
+        color: #000;
+    }
+
+    .bar-separator {
+        margin: 0 0.5rem;
+        color: #6c757d;
+        font-weight: bold;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .chord-item {
+            min-width: 40px;
+            padding: 0.3rem 0.6rem;
+            font-size: 0.9rem;
+        }
+        
+        .progression-controls .row {
+            flex-direction: column;
+            align-items: flex-start !important;
+        }
+        
+        .progression-controls .col-auto {
+            margin-bottom: 0.5rem;
+        }
+    }
 </style>
 
 <script>
@@ -359,6 +554,13 @@ let isMetronomePlaying = false; // Use a separate flag for metronome playback
 
 // Declare strummingPatternData in a higher scope
 let strummingPatternData = [];
+
+// Enhanced chord progression variables
+let currentProgressionView = 'simple';
+let chordProgressionData = '';
+let highlightedChord = null;
+
+console.log('Raw chord progression from template:', chordProgressionData);
 
 // Function to create a basic click sound
 function createClick(volume = 0.1) {
@@ -650,6 +852,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Assign the strumming pattern data to the global variable after DOM is loaded
     strummingPatternData = {{ song.strumming_pattern_list | tojson }};
 
+    // Initialize chord progression
+    initChordProgression();
+
 });
 
 // Function to render the strumming pattern as SVG
@@ -875,5 +1080,186 @@ function saveSelectedVariant(chordName, variant) {
         console.error('Error saving variant:', error);
     });
 }
+
+// Enhanced Chord Progression Functions
+
+function toggleProgessionView(view) {
+    // Update button states
+    document.querySelectorAll('.btn-group button').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`view-${view}-btn`).classList.add('active');
+    
+    // Hide all views
+    document.querySelectorAll('.chord-progression-view').forEach(viewEl => viewEl.style.display = 'none');
+    
+    // Show selected view
+    document.getElementById(`chord-progression-${view}`).style.display = 'block';
+    
+    currentProgressionView = view;
+    
+    // Initialize the view if needed
+    if (view === 'formatted') {
+        updateFormattedView();
+    }
+}
+
+function parseChordProgression(progressionText) {
+    // Split by lines and then by spaces to get individual chord items
+    const lines = progressionText.split('\n');
+    const chords = [];
+    
+    lines.forEach(line => {
+        if (line.trim()) {
+            // Split by spaces and filter out empty strings
+            const lineChords = line.trim().split(/\s+/).filter(chord => chord.length > 0);
+            chords.push(...lineChords);
+        }
+    });
+    
+    return chords;
+}
+
+function updateFormattedView() {
+    console.log('updateFormattedView called');
+    console.log('chordProgressionData:', chordProgressionData);
+    
+    const chordsPerLine = parseInt(document.getElementById('chords-per-line').value);
+    const showBarNumbers = document.getElementById('show-bar-numbers').checked;
+    const container = document.getElementById('formatted-progression');
+    
+    if (!container) {
+        console.error('formatted-progression container not found');
+        return;
+    }
+    
+    container.innerHTML = '';
+    
+    const chords = parseChordProgression(chordProgressionData);
+    console.log('parsed chords:', chords);
+    
+    if (chords.length === 0) {
+        container.innerHTML = '<p class="text-muted">No chords found in progression</p>';
+        return;
+    }
+    
+    // Group chords into lines
+    for (let i = 0; i < chords.length; i += chordsPerLine) {
+        const lineChords = chords.slice(i, i + chordsPerLine);
+        const lineDiv = document.createElement('div');
+        lineDiv.className = 'progression-line';
+        
+        if (showBarNumbers) {
+            const barNumber = document.createElement('span');
+            barNumber.className = 'bar-number';
+            barNumber.textContent = `Bar ${Math.floor(i / chordsPerLine) + 1}`;
+            lineDiv.appendChild(barNumber);
+        }
+        
+        const chordRow = document.createElement('div');
+        chordRow.className = 'chord-row';
+        
+        lineChords.forEach((chord, index) => {
+            const chordElement = document.createElement('span');
+            chordElement.className = 'chord-item';
+            chordElement.textContent = chord;
+            chordElement.setAttribute('data-chord', chord);
+            
+            // Add click handler for highlighting
+            chordElement.addEventListener('click', function() {
+                if (document.getElementById('highlight-on-click').checked) {
+                    highlightChord(chord);
+                }
+            });
+            
+            chordRow.appendChild(chordElement);
+        });
+        
+        lineDiv.appendChild(chordRow);
+        container.appendChild(lineDiv);
+    }
+    
+    console.log('updateFormattedView completed');
+}
+
+function updateCompactView() {
+    const container = document.getElementById('compact-progression');
+    container.innerHTML = '';
+    
+    const chords = parseChordProgression(chordProgressionData);
+    if (chords.length === 0) {
+        container.innerHTML = '<p class="text-muted">No chords found in progression</p>';
+        return;
+    }
+    
+    // Parse time signature to determine bar length
+    const timeSignature = "{{ song.time_signature }}";
+    const [numerator] = timeSignature.split('/');
+    const chordsPerBar = parseInt(numerator) || 4;
+    
+    chords.forEach((chord, index) => {
+        const chordElement = document.createElement('span');
+        chordElement.className = 'compact-chord';
+        chordElement.textContent = chord;
+        chordElement.setAttribute('data-chord', chord);
+        
+        // Add click handler for highlighting
+        chordElement.addEventListener('click', function() {
+            highlightChord(chord);
+        });
+        
+        container.appendChild(chordElement);
+        
+        // Add bar separator after complete bars
+        if ((index + 1) % chordsPerBar === 0 && index < chords.length - 1) {
+            const separator = document.createElement('span');
+            separator.className = 'bar-separator';
+            separator.textContent = '|';
+            container.appendChild(separator);
+        }
+    });
+}
+
+function highlightChord(chordName) {
+    // Remove previous highlights
+    document.querySelectorAll('.chord-item.highlighted, .compact-chord.highlighted').forEach(el => {
+        el.classList.remove('highlighted');
+    });
+    
+    // Highlight all instances of this chord
+    document.querySelectorAll(`[data-chord="${chordName}"]`).forEach(el => {
+        el.classList.add('highlighted');
+    });
+    
+    // Scroll the corresponding chord diagram into view
+    const chordCard = document.querySelector(`[data-chord-name="${chordName}"]`);
+    if (chordCard) {
+        chordCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Temporarily highlight the chord card
+        chordCard.style.transition = 'box-shadow 0.3s ease';
+        chordCard.style.boxShadow = '0 0 20px rgba(0,123,255,0.5)';
+        setTimeout(() => {
+            chordCard.style.boxShadow = '';
+        }, 2000);
+    }
+    
+    highlightedChord = chordName;
+}
+
+function clearHighlights() {
+    document.querySelectorAll('.chord-item.highlighted, .compact-chord.highlighted').forEach(el => {
+        el.classList.remove('highlighted');
+    });
+    highlightedChord = null;
+}
+
+// Initialize chord progression data from the DOM
+function initChordProgression() {
+    // Get the chord progression text from the simple view
+    const simpleView = document.querySelector('#chord-progression-simple .chord-progression');
+    if (simpleView) {
+        chordProgressionData = simpleView.textContent.trim();
+        console.log('Chord progression data loaded:', chordProgressionData);
+    }
+}
 </script>
-{% endblock %} 
+{% endblock %}
