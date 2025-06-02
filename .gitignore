@@ -41,6 +41,9 @@ guitar_app.db
 # Logs
 *.log
 logs/
+guitar_app.log
+guitar_app.log*
+
 
 # Local development
 .env.local
