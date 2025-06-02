@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, session, Response
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, session, Response, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_migrate import Migrate
@@ -21,10 +21,27 @@ from werkzeug.utils import secure_filename
 import requests
 from bs4 import BeautifulSoup
 
+# Define the Config class
+class Config:
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'you-will-never-guess' # Provide a fallback for development
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    UPLOAD_FOLDER = 'uploads'
+
 # Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
+# Load configuration from the Config class
+app.config.from_object(Config)
+
+# Set debug mode to False
+# app.debug = True # Commenting out or removing debug = True
+app.debug = False
+
+# Define application version (if it exists here)
+# Assuming version is defined somewhere, let's add a placeholder if not found or update if found
+app.config['VERSION'] = 'v1.0' # Set the version number
 
 # Configure logging
 if not app.debug:
@@ -44,12 +61,36 @@ if not os.environ.get('SECRET_KEY'):
     raise ValueError("No SECRET_KEY set for Flask application")
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 
-# Ensure the instance folder exists
-os.makedirs('instance', exist_ok=True)
+# Configure SQLite database URI
+basedir = os.path.abspath(os.path.dirname(__file__))
+database_url = os.environ.get('DATABASE_URL')
 
-# Configure SQLite database
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///instance/guitar.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+if database_url and database_url.startswith('sqlite:///file:'):
+    # Assuming the URI is already in the correct format with uri=true
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+elif database_url and database_url.startswith('sqlite:///'):
+     # If DATABASE_URL is set and is a relative SQLite path, convert to absolute
+     # Remove the 'sqlite:///' prefix to get the relative path part
+     relative_db_path = database_url[len('sqlite:///'):]
+     # Construct the absolute path and format as SQLite URI with uri=true
+     absolute_db_path = os.path.join(basedir, relative_db_path)
+     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///file:{absolute_db_path}?uri=true'
+else:
+     # Otherwise, use the DATABASE_URL as is, or the default absolute path
+     default_db_path = os.path.join(basedir, 'instance', 'guitar.db')
+     app.config['SQLALCHEMY_DATABASE_URI'] = database_url or f'sqlite:///file:{default_db_path}?uri=true'
+
+# Ensure the instance folder exists for SQLite database if a relative path is used
+# Check if the database URI is a relative path that requires the 'instance' folder
+db_uri = app.config.get('SQLALCHEMY_DATABASE_URI')
+if db_uri and 'sqlite:///file:' in db_uri:
+    # Extract the path from the URI (handle uri=true format)
+    db_path = db_uri.replace('sqlite:///file:', '').split('?')[0]
+    # If the path is relative and contains 'instance/', ensure the folder exists
+    if 'instance/' in db_path and not os.path.isabs(db_path):
+        instance_dir = os.path.join(basedir, 'instance')
+        os.makedirs(instance_dir, exist_ok=True)
+
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 # Development vs Production settings
@@ -65,7 +106,6 @@ else:
 # Initialize extensions
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
-csrf = CSRFProtect(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -124,12 +164,39 @@ class Song(db.Model):
     bpm = db.Column(db.Integer, nullable=False)  # Beats per minute
     capo = db.Column(db.String(10), default='None', nullable=False)  # Capo position
     chord_progression = db.Column(db.Text, nullable=False)
-    strumming_pattern = db.Column(db.Text)
+    strumming_pattern = db.Column(db.Text) # Stores JSON string of 16th note strumming pattern (e.g., '["D", "U", "-", "X", ...]')
     notes = db.Column(db.Text)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     selected_variants = db.Column(db.Text, default='{}', nullable=False) # Stores JSON string of selected variants {chord_name: variant_name}
+    display_beats = db.Column(db.Integer, default=4, nullable=False) # Number of beats to display in the editor (4 or 8)
+
+    @property
+    def strumming_pattern_list(self):
+        """Deserialize the JSON strumming pattern into a list."""
+        if self.strumming_pattern:
+            try:
+                return json.loads(self.strumming_pattern)
+            except json.JSONDecodeError:
+                # Log error and return empty list for invalid JSON
+                if app.logger:
+                    app.logger.error(f"Invalid JSON in strumming_pattern for song {self.id}: {self.strumming_pattern}")
+                return []
+        return []
+
+    @strumming_pattern_list.setter
+    def strumming_pattern_list(self, value):
+        """Serialize a list into the JSON strumming pattern string."""
+        if isinstance(value, list):
+            self.strumming_pattern = json.dumps(value)
+        elif value is None or value == '':
+            self.strumming_pattern = None
+        else:
+            # Log error for unexpected type
+            if app.logger:
+                 app.logger.error(f"Attempted to set strumming_pattern_list with unexpected type for song {self.id}: {type(value)}")
+            self.strumming_pattern = None # Or handle as an error
 
 class PracticeRecord(db.Model):
     """Practice record model for tracking practice sessions"""
@@ -297,13 +364,42 @@ def new_song():
         bpm = request.form.get('bpm')
         capo = request.form.get('capo', 'None')  # Default to 'None' if not specified
         chord_progression = request.form.get('chord_progression')
-        strumming_pattern = request.form.get('strumming_pattern')
-        notes = request.form.get('notes', '')  # Get notes with empty string as default
         
-        app.logger.info(f"New song form submission - chord_progression: {chord_progression!r}") # Log received chord progression
+        # Handle strumming pattern JSON data
+        strumming_pattern_json = request.form.get('strumming_pattern')
+        if strumming_pattern_json:
+            try:
+                # Validate and deserialize the JSON. Ensure it's a list of strings.
+                strumming_pattern_list = json.loads(strumming_pattern_json)
+                if isinstance(strumming_pattern_list, list) and all(isinstance(item, str) for item in strumming_pattern_list):
+                     # Use the setter to handle serialization to text
+                    strumming_pattern_to_save = strumming_pattern_list
+                else:
+                    flash('Invalid strumming pattern data format.', 'danger')
+                    # Optionally, log the invalid data
+                    if app.logger:
+                        app.logger.error(f"Received invalid strumming_pattern JSON for new song: {strumming_pattern_json}")
+                    # Decide how to handle invalid data on new song creation - perhaps return or set to None/default
+                    # For now, we will continue and allow it to be None if validation fails
+                    strumming_pattern_to_save = None # Or maybe an empty list? Let's stick to None if invalid/empty
 
-        if not all([title, time_signature, bpm, chord_progression, strumming_pattern]):
-            flash('All required fields must be filled out')
+            except json.JSONDecodeError:
+                flash('Invalid JSON data for strumming pattern.', 'danger')
+                 # Optionally, log the error
+                if app.logger:
+                     app.logger.error(f"Error decoding strumming_pattern JSON for new song: {strumming_pattern_json}")
+                strumming_pattern_to_save = None # Or maybe an empty list? Let's stick to None if invalid/empty
+        else:
+             # If no strumming pattern is provided (e.g., field is empty), set it to None
+            strumming_pattern_to_save = None
+
+        notes = request.form.get('notes', '')  # Get notes with empty string as default
+        display_beats = int(request.form.get('display_beats', 4)) # Get selected display beats, default to 4
+        
+        # app.logger.info(f"New song form submission - chord_progression: {chord_progression!r}") # Log received chord progression
+
+        if not all([title, time_signature, bpm, chord_progression]): # Strumming pattern is now optional
+            flash('Title, Time Signature, BPM, and Chord Progression are required fields')
             return redirect(url_for('new_song'))
             
         # Basic input validation
@@ -325,7 +421,7 @@ def new_song():
             return redirect(url_for('new_song'))
         
         # Log the capo value for debugging
-        app.logger.info(f"Creating song with capo: {capo}")
+        # app.logger.info(f"Creating song with capo: {capo}")
         
         song = Song(
             title=title,
@@ -334,9 +430,11 @@ def new_song():
             bpm=bpm,
             capo=capo,
             chord_progression=chord_progression,
-            strumming_pattern=strumming_pattern,
+            # Use the processed strumming_pattern_to_save
+            strumming_pattern_list=strumming_pattern_to_save, # Use the setter
             notes=notes,
-            user_id=current_user.id
+            user_id=current_user.id,
+            display_beats=display_beats
         )
         db.session.add(song)
         db.session.commit()
@@ -350,25 +448,52 @@ def edit_song(song_id):
     """Handle editing existing songs"""
     song = db.session.get(Song, song_id)
     if not song or song.user_id != current_user.id:
-        flash('Song not found or access denied')
-        return redirect(url_for('index'))
-    
+        abort(403) # Forbidden
     if request.method == 'POST':
-        song.title = request.form.get('title')
+        song.title = request.form['title']
         song.artist = request.form.get('artist')
         song.time_signature = request.form.get('time_signature')
         song.bpm = request.form.get('bpm')
         song.capo = request.form.get('capo', 'None')  # Get capo value, default to 'None'
         song.chord_progression = request.form.get('chord_progression')
-        song.strumming_pattern = request.form.get('strumming_pattern')
-        song.notes = request.form.get('notes')
 
-        app.logger.info(f"Edit song form submission - chord_progression: {song.chord_progression!r}") # Log received chord progression
+        # Handle strumming pattern JSON data
+        strumming_pattern_json = request.form.get('strumming_pattern')
+        if strumming_pattern_json:
+            try:
+                # Validate and deserialize the JSON. Ensure it's a list of strings.
+                strumming_pattern_list = json.loads(strumming_pattern_json)
+                if isinstance(strumming_pattern_list, list) and all(isinstance(item, str) for item in strumming_pattern_list):
+                     # Use the setter to handle serialization to text
+                    song.strumming_pattern_list = strumming_pattern_list
+                else:
+                    flash('Invalid strumming pattern data format.', 'danger')
+                    # Optionally, log the invalid data
+                    if app.logger:
+                        app.logger.error(f"Received invalid strumming_pattern JSON for song {song_id}: {strumming_pattern_json}")
+
+            except json.JSONDecodeError:
+                flash('Invalid JSON data for strumming pattern.', 'danger')
+                 # Optionally, log the error
+                if app.logger:
+                     app.logger.error(f"Error decoding strumming_pattern JSON for song {song_id}: {strumming_pattern_json}")
+        else:
+             # If no strumming pattern is provided, set it to None
+            song.strumming_pattern = None
+
+        song.notes = request.form.get('notes')
+        song.display_beats = int(request.form.get('display_beats', 4)) # Update display beats, default to 4
+
+        # app.logger.info(f"Edit song form submission - chord_progression: {song.chord_progression!r}") # Log received chord progression
 
         db.session.commit()
         flash('Song updated successfully!')
         return redirect(url_for('view_song', song_id=song.id))
-    return render_template('edit_song.html', song=song)
+    
+    # Add print statement to check strumming_pattern value before rendering template
+    print(f"DEBUG: song.strumming_pattern before rendering edit_song.html: {song.strumming_pattern!r}")
+
+    return render_template('edit_song.html', song=song, initial_display_beats=song.display_beats)
 
 @app.route('/song/<int:song_id>/delete', methods=['POST'])
 @login_required
@@ -524,8 +649,8 @@ def view_song(song_id):
             base_chord_name = chord_name.split('/')[0]
             hardcoded_shape = hardcoded_shapes_data.get(base_chord_name)
             # If a base chord shape is found, we will use it but still associate it with the original slash chord name
-            if hardcoded_shape:
-                 app.logger.info(f"Using hardcoded shape for base chord {base_chord_name} for slash chord {chord_name}")
+            # if hardcoded_shape:
+                 # app.logger.info(f"Using hardcoded shape for base chord {base_chord_name} for slash chord {chord_name}")
 
         if hardcoded_shape:
             # Get the list of database shapes for this chord name
@@ -571,7 +696,7 @@ def view_song(song_id):
              base_shape_dummy = get_chord_shape(base_chord_name)
              if base_shape_dummy:
                  # If a base shape is found, add it as the only option for this slash chord and set it as the initial shape.
-                 app.logger.info(f"Adding fallback hardcoded shape for {base_chord_name} to {chord_name}")
+                 # app.logger.info(f"Adding fallback hardcoded shape for {base_chord_name} to {chord_name}")
                  chord_shapes_dict[chord_name] = [base_shape_dummy]
                  shapes = chord_shapes_dict[chord_name] # Update shapes list for the following logic
                  # We don't explicitly set initial_shape here, the logic below will pick it up as the first shape
@@ -675,7 +800,7 @@ def view_song(song_id):
             initial_diagram_svgs[chord_name] = '<svg width="400" height="100" xmlns="http://www.w3.org/2000/svg"><text x="50%" y="50%" font-size="14" fill="#333" text-anchor="middle" dominant-baseline="middle">Please add chord shape</text></svg>'
 
     # Pass the initial_shapes_dict and initial_diagram_svgs to the template
-    app.logger.info(f"Rendering view_song template for song {song_id} - strumming_pattern: {song.strumming_pattern!r}") # Log strumming pattern before rendering
+    # app.logger.info(f"Rendering view_song template for song {song_id} - strumming_pattern: {song.strumming_pattern!r}") # Log strumming pattern before rendering
 
     return render_template('view_song.html', 
                            song=song, 
@@ -1064,38 +1189,29 @@ def backup():
                     user_id_mapping = {}
                     if current_user.is_admin and 'users' in backup_data:
                         for user_data in backup_data['users']:
-                            # Find if user with this username already exists in the current database
-                            existing_user = User.query.filter_by(username=user_data.get('username')).first()
+                            # Find the existing user by ID
+                            existing_user = User.query.get(user_data.get('id'))
 
                             if existing_user:
                                 # If user exists, update their details
-                                # Do not update the current admin user if the backup data is for them
-                                if existing_user.id != current_user.id:
-                                    existing_user.password_hash = user_data.get('password_hash', existing_user.password_hash) # Update password hash
-                                    existing_user.is_admin = user_data.get('is_admin', False)
-                                    existing_user.disabled = user_data.get('disabled', False)
-                                    # Note: We don't update the username as we are using it to find the user
-                                    user_id_mapping[user_data.get('id')] = existing_user.id
-                                else:
-                                    # If the existing user is the current admin, map the old ID to the current admin's ID
-                                    user_id_mapping[user_data.get('id')] = current_user.id
-                                    # Optionally log a warning if the backup admin data is different from current
-                                    if app.logger:
-                                        if existing_user.username != user_data.get('username') or existing_user.is_admin != user_data.get('is_admin', False) or existing_user.disabled != user_data.get('disabled', False):
-                                            app.logger.warning(f"Backup admin user data ({user_data.get('username')}) differs from current admin user ({existing_user.username}). Current admin data is kept.")
-
+                                existing_user.username = user_data.get('username')
+                                existing_user.password_hash = user_data.get('password_hash')
+                                existing_user.is_admin = user_data.get('is_admin', False)
+                                existing_user.disabled = user_data.get('disabled', False) # Explicitly restore disabled status
+                                # Add to mapping for referencing in songs/records
+                                user_id_mapping[user_data.get('id')] = existing_user.id
                             else:
-                                # If user does not exist, create a new one
+                                # If user doesn't exist, create a new one
                                 user = User(
                                     # Do NOT set ID here, let the database assign a new one
                                     username=user_data.get('username'),
                                     password_hash=user_data.get('password_hash'),
                                     is_admin=user_data.get('is_admin', False),
-                                    disabled=user_data.get('disabled', False)
+                                    disabled=user_data.get('disabled', False) # Explicitly restore disabled status
                                 )
                                 db.session.add(user)
-                                # We need to flush to get the new ID for the mapping
-                                db.session.flush()
+                                # We need to commit to get the new ID for the mapping, then add to mapping
+                                db.session.flush() # Use flush to get the new ID without ending the transaction
                                 user_id_mapping[user_data.get('id')] = user.id
                     
                     # Restore songs
@@ -1209,7 +1325,7 @@ def get_chord_diagram(chord_name):
     # Explicitly get start_fret and ensure it's an integer
     start_fret = int(shape_data.start_fret)
 
-    app.logger.info(f"Generating SVG for {chord_name} with shape: {chord_shape} and start_fret: {start_fret}")
+    # app.logger.info(f"Generating SVG for {chord_name} with shape: {chord_shape} and start_fret: {start_fret}")
     
     # SVG dimensions
     width = 220
