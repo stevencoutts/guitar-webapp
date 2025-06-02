@@ -1189,30 +1189,45 @@ def backup():
                     user_id_mapping = {}
                     if current_user.is_admin and 'users' in backup_data:
                         for user_data in backup_data['users']:
-                            # Find the existing user by ID
-                            existing_user = User.query.get(user_data.get('id'))
+                            username_from_backup = user_data.get('username')
+                            old_user_id_from_backup = user_data.get('id')
+
+                            # Explicitly handle the 'admin' user when restoring as admin
+                            if username_from_backup == 'admin':
+                                # Map the old admin ID to the current admin's ID
+                                user_id_mapping[old_user_id_from_backup] = current_user.id
+                                # Optionally log a warning if backup admin data differs from current
+                                if app.logger:
+                                    existing_admin = User.query.filter_by(username='admin').first()
+                                    if existing_admin and (existing_admin.is_admin != user_data.get('is_admin', True) or existing_admin.disabled != user_data.get('disabled', False)):
+                                         app.logger.warning(f"Backup data for admin user (old ID {old_user_id_from_backup}) differs from current admin user. Current admin details will be kept.")
+                                continue # Skip the rest of the loop for the admin user
+
+                            # For other users, try to find an existing user by username
+                            existing_user = User.query.filter_by(username=username_from_backup).first()
 
                             if existing_user:
-                                # If user exists, update their details
-                                existing_user.username = user_data.get('username')
-                                existing_user.password_hash = user_data.get('password_hash')
+                                # If user exists (and is not the current admin, which was handled above), update their details
+                                existing_user.password_hash = user_data.get('password_hash', existing_user.password_hash) # Update password hash
                                 existing_user.is_admin = user_data.get('is_admin', False)
-                                existing_user.disabled = user_data.get('disabled', False) # Explicitly restore disabled status
-                                # Add to mapping for referencing in songs/records
-                                user_id_mapping[user_data.get('id')] = existing_user.id
+                                existing_user.disabled = user_data.get('disabled', False)
+                                # The username is used for lookup, so we don't update it here
+                                # Add to mapping from old backup ID to existing user's current ID
+                                user_id_mapping[old_user_id_from_backup] = existing_user.id
+
                             else:
-                                # If user doesn't exist, create a new one
+                                # If user does not exist, create a new one
                                 user = User(
                                     # Do NOT set ID here, let the database assign a new one
                                     username=user_data.get('username'),
                                     password_hash=user_data.get('password_hash'),
                                     is_admin=user_data.get('is_admin', False),
-                                    disabled=user_data.get('disabled', False) # Explicitly restore disabled status
+                                    disabled=user_data.get('disabled', False)
                                 )
                                 db.session.add(user)
-                                # We need to commit to get the new ID for the mapping, then add to mapping
-                                db.session.flush() # Use flush to get the new ID without ending the transaction
-                                user_id_mapping[user_data.get('id')] = user.id
+                                # We need to flush to get the new ID for the mapping
+                                db.session.flush()
+                                user_id_mapping[old_user_id_from_backup] = user.id
                     
                     # Restore songs
                     songs_to_restore = backup_data.get('songs', [])
@@ -1573,4 +1588,4 @@ if __name__ == '__main__':
         db.create_all()
         create_default_admin()
         create_default_chord_pairs()
-    app.run(host='0.0.0.0', port=5001, debug=True) 
+    app.run(host='0.0.0.0', port=5001, debug=False) 
