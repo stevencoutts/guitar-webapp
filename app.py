@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, session, Response
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, session, Response, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_migrate import Migrate
@@ -138,12 +138,38 @@ class Song(db.Model):
     bpm = db.Column(db.Integer, nullable=False)  # Beats per minute
     capo = db.Column(db.String(10), default='None', nullable=False)  # Capo position
     chord_progression = db.Column(db.Text, nullable=False)
-    strumming_pattern = db.Column(db.Text)
+    strumming_pattern = db.Column(db.Text) # Stores JSON string of 16th note strumming pattern (e.g., '["D", "U", "-", "X", ...]')
     notes = db.Column(db.Text)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     selected_variants = db.Column(db.Text, default='{}', nullable=False) # Stores JSON string of selected variants {chord_name: variant_name}
+
+    @property
+    def strumming_pattern_list(self):
+        """Deserialize the JSON strumming pattern into a list."""
+        if self.strumming_pattern:
+            try:
+                return json.loads(self.strumming_pattern)
+            except json.JSONDecodeError:
+                # Log error and return empty list for invalid JSON
+                if app.logger:
+                    app.logger.error(f"Invalid JSON in strumming_pattern for song {self.id}: {self.strumming_pattern}")
+                return []
+        return []
+
+    @strumming_pattern_list.setter
+    def strumming_pattern_list(self, value):
+        """Serialize a list into the JSON strumming pattern string."""
+        if isinstance(value, list):
+            self.strumming_pattern = json.dumps(value)
+        elif value is None or value == '':
+            self.strumming_pattern = None
+        else:
+            # Log error for unexpected type
+            if app.logger:
+                 app.logger.error(f"Attempted to set strumming_pattern_list with unexpected type for song {self.id}: {type(value)}")
+            self.strumming_pattern = None # Or handle as an error
 
 class PracticeRecord(db.Model):
     """Practice record model for tracking practice sessions"""
@@ -311,13 +337,41 @@ def new_song():
         bpm = request.form.get('bpm')
         capo = request.form.get('capo', 'None')  # Default to 'None' if not specified
         chord_progression = request.form.get('chord_progression')
-        strumming_pattern = request.form.get('strumming_pattern')
+        
+        # Handle strumming pattern JSON data
+        strumming_pattern_json = request.form.get('strumming_pattern')
+        if strumming_pattern_json:
+            try:
+                # Validate and deserialize the JSON. Ensure it's a list of strings.
+                strumming_pattern_list = json.loads(strumming_pattern_json)
+                if isinstance(strumming_pattern_list, list) and all(isinstance(item, str) for item in strumming_pattern_list):
+                     # Use the setter to handle serialization to text
+                    strumming_pattern_to_save = strumming_pattern_list
+                else:
+                    flash('Invalid strumming pattern data format.', 'danger')
+                    # Optionally, log the invalid data
+                    if app.logger:
+                        app.logger.error(f"Received invalid strumming_pattern JSON for new song: {strumming_pattern_json}")
+                    # Decide how to handle invalid data on new song creation - perhaps return or set to None/default
+                    # For now, we will continue and allow it to be None if validation fails
+                    strumming_pattern_to_save = None # Or maybe an empty list? Let's stick to None if invalid/empty
+
+            except json.JSONDecodeError:
+                flash('Invalid JSON data for strumming pattern.', 'danger')
+                 # Optionally, log the error
+                if app.logger:
+                     app.logger.error(f"Error decoding strumming_pattern JSON for new song: {strumming_pattern_json}")
+                strumming_pattern_to_save = None # Or maybe an empty list? Let's stick to None if invalid/empty
+        else:
+             # If no strumming pattern is provided (e.g., field is empty), set it to None
+            strumming_pattern_to_save = None
+
         notes = request.form.get('notes', '')  # Get notes with empty string as default
         
         app.logger.info(f"New song form submission - chord_progression: {chord_progression!r}") # Log received chord progression
 
-        if not all([title, time_signature, bpm, chord_progression, strumming_pattern]):
-            flash('All required fields must be filled out')
+        if not all([title, time_signature, bpm, chord_progression]): # Strumming pattern is now optional
+            flash('Title, Time Signature, BPM, and Chord Progression are required fields')
             return redirect(url_for('new_song'))
             
         # Basic input validation
@@ -348,7 +402,8 @@ def new_song():
             bpm=bpm,
             capo=capo,
             chord_progression=chord_progression,
-            strumming_pattern=strumming_pattern,
+            # Use the processed strumming_pattern_to_save
+            strumming_pattern_list=strumming_pattern_to_save, # Use the setter
             notes=notes,
             user_id=current_user.id
         )
@@ -364,17 +419,39 @@ def edit_song(song_id):
     """Handle editing existing songs"""
     song = db.session.get(Song, song_id)
     if not song or song.user_id != current_user.id:
-        flash('Song not found or access denied')
-        return redirect(url_for('index'))
-    
+        abort(403) # Forbidden
     if request.method == 'POST':
-        song.title = request.form.get('title')
+        song.title = request.form['title']
         song.artist = request.form.get('artist')
         song.time_signature = request.form.get('time_signature')
         song.bpm = request.form.get('bpm')
         song.capo = request.form.get('capo', 'None')  # Get capo value, default to 'None'
         song.chord_progression = request.form.get('chord_progression')
-        song.strumming_pattern = request.form.get('strumming_pattern')
+
+        # Handle strumming pattern JSON data
+        strumming_pattern_json = request.form.get('strumming_pattern')
+        if strumming_pattern_json:
+            try:
+                # Validate and deserialize the JSON. Ensure it's a list of strings.
+                strumming_pattern_list = json.loads(strumming_pattern_json)
+                if isinstance(strumming_pattern_list, list) and all(isinstance(item, str) for item in strumming_pattern_list):
+                     # Use the setter to handle serialization to text
+                    song.strumming_pattern_list = strumming_pattern_list
+                else:
+                    flash('Invalid strumming pattern data format.', 'danger')
+                    # Optionally, log the invalid data
+                    if app.logger:
+                        app.logger.error(f"Received invalid strumming_pattern JSON for song {song_id}: {strumming_pattern_json}")
+
+            except json.JSONDecodeError:
+                flash('Invalid JSON data for strumming pattern.', 'danger')
+                 # Optionally, log the error
+                if app.logger:
+                     app.logger.error(f"Error decoding strumming_pattern JSON for song {song_id}: {strumming_pattern_json}")
+        else:
+             # If no strumming pattern is provided, set it to None
+            song.strumming_pattern = None
+
         song.notes = request.form.get('notes')
 
         app.logger.info(f"Edit song form submission - chord_progression: {song.chord_progression!r}") # Log received chord progression
@@ -382,6 +459,10 @@ def edit_song(song_id):
         db.session.commit()
         flash('Song updated successfully!')
         return redirect(url_for('view_song', song_id=song.id))
+    
+    # Add print statement to check strumming_pattern value before rendering template
+    print(f"DEBUG: song.strumming_pattern before rendering edit_song.html: {song.strumming_pattern!r}")
+
     return render_template('edit_song.html', song=song)
 
 @app.route('/song/<int:song_id>/delete', methods=['POST'])

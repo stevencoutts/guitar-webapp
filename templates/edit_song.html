@@ -49,7 +49,9 @@
                     </div>
                     <div class="mb-3">
                         <label for="strumming_pattern" class="form-label">Strumming Pattern</label>
-                        <textarea class="form-control" id="strumming_pattern" name="strumming_pattern" rows="3" required>{{ song.strumming_pattern }}</textarea>
+                        <svg id="strummingPatternEditor" width="400" height="100"></svg>
+                        <input type="hidden" id="strumming_pattern" name="strumming_pattern" required>
+                        <div class="form-text">Click on the pattern slots to change strum direction (↓, ↑, - , X)</div>
                     </div>
                     <div class="d-flex justify-content-between">
                         <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
@@ -65,4 +67,144 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Pass initial strumming pattern data from Flask/Jinja to JavaScript
+    const initialStrummingPatternJson = {{ song.strumming_pattern | tojson }};
+</script>
+<script>
+    const svg = document.getElementById('strummingPatternEditor');
+    const hiddenInput = document.getElementById('strumming_pattern');
+
+    const beatUnit = 4; // Number of 16th notes per beat (e.g., 4 for 4/4 time)
+    const numberOfBeats = 4; // Number of beats to display (e.g., 4 beats)
+    const totalSlots = beatUnit * numberOfBeats;
+    const slotWidth = 25; // Width of each 16th note slot
+    const slotHeight = 30; // Height of each slot
+    const startX = 10;
+    const startY = 20; // Reset startY, numbers will be adjusted in drawGrid
+
+    let strummingPattern = Array(totalSlots).fill('-'); // Initialize with rests
+
+    const strummingSymbols = ['D', 'U', '-', 'X']; // Down, Up, Rest, Mute (Internal representation)
+    const displaySymbols = ['↓', '↑', '-', 'X']; // Display representation
+
+    function drawGrid() {
+        svg.innerHTML = ''; // Clear previous drawings
+
+        // Draw horizontal lines for beats
+        for (let i = 0; i <= numberOfBeats; i++) {
+            const x = startX + i * beatUnit * slotWidth;
+            svg.innerHTML += `<line x1="${x}" y1="${startY}" x2="${x}" y2="${startY + slotHeight}" stroke="black" stroke-width="2"/>`;
+        }
+
+        // Draw vertical lines for divisions (16th notes)
+        for (let i = 0; i <= totalSlots; i++) {
+            const x = startX + i * slotWidth;
+            if (i % beatUnit !== 0) { // Avoid redrawing beat lines
+                 svg.innerHTML += `<line x1="${x}" y1="${startY}" x2="${x}" y2="${startY + slotHeight}" stroke="grey" stroke-width="1"/>`;
+            }
+        }
+
+         // Add beat numbers
+        for (let i = 0; i < numberOfBeats; i++) {
+            // Position x to be centered over the start of each beat
+            const x = startX + i * beatUnit * slotWidth; // Align with the beat line
+            // Position y slightly above the grid lines
+            const y = startY - 8; // Adjusted y position for beat numbers
+            svg.innerHTML += `<text x="${x}" y="${y}" text-anchor="middle" font-size="12">${i + 1}</text>`;
+        }
+
+        // Draw interactive slots and symbols
+        for (let i = 0; i < totalSlots; i++) {
+            const x = startX + i * slotWidth;
+            const y = startY;
+
+            // Create a clickable area for each slot
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('x', x);
+            rect.setAttribute('y', y);
+            rect.setAttribute('width', slotWidth);
+            rect.setAttribute('height', slotHeight);
+            rect.setAttribute('fill', 'transparent'); // Make it invisible but clickable
+            rect.setAttribute('data-index', i); // Store the index of the slot
+            svg.appendChild(rect);
+
+            // Add event listener to the rect
+            rect.addEventListener('click', handleClick);
+
+            // Add symbol text (initial or from strummingPattern array)
+            const symbolText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            symbolText.setAttribute('x', x + slotWidth / 2);
+            symbolText.setAttribute('y', y + slotHeight / 2 + 5); // Adjust for vertical centering
+            symbolText.setAttribute('text-anchor', 'middle');
+            symbolText.setAttribute('font-size', '18');
+            symbolText.setAttribute('fill', 'black');
+            symbolText.classList.add('strum-symbol'); // Add a class for easy selection
+             // Get the display symbol based on the current value in strummingPattern array
+            const currentSymbol = strummingPattern[i];
+            const symbolIndex = strummingSymbols.indexOf(currentSymbol);
+            symbolText.textContent = (symbolIndex !== -1) ? displaySymbols[symbolIndex] : '?'; // Use ? for unknown symbols
+
+            symbolText.setAttribute('data-index', i); // Store the index on the text too
+            svg.appendChild(symbolText);
+        }
+    }
+
+    function handleClick(event) {
+        const index = parseInt(event.target.getAttribute('data-index'));
+        const currentSymbol = strummingPattern[index];
+        let currentIndex = strummingSymbols.indexOf(currentSymbol);
+         // If current symbol is not found, default to -1 so nextIndex starts from 0 (first symbol)
+        if (currentIndex === -1) {
+            currentIndex = -1;
+        }
+        const nextIndex = (currentIndex + 1) % strummingSymbols.length;
+        const nextSymbol = strummingSymbols[nextIndex];
+
+        strummingPattern[index] = nextSymbol; // Update the internal pattern array
+
+        // Update the displayed symbol in the SVG
+        const symbolTextElement = svg.querySelector(`.strum-symbol[data-index='${index}']`);
+        if(symbolTextElement) {
+            symbolTextElement.textContent = displaySymbols[nextIndex];
+        }
+
+        updateHiddenInput(); // Update the hidden input field
+    }
+
+    function updateHiddenInput() {
+        hiddenInput.value = JSON.stringify(strummingPattern);
+    }
+
+    // Load initial pattern if editing an existing song
+    if (initialStrummingPatternJson) { // Check if the string is not empty
+        try {
+            const parsedPattern = JSON.parse(initialStrummingPatternJson);
+            console.log('Parsed initial pattern:', parsedPattern);
+
+            if (Array.isArray(parsedPattern)) {
+                if (parsedPattern.length === totalSlots) {
+                    strummingPattern = parsedPattern;
+                    console.log('Strumming pattern successfully loaded.', strummingPattern);
+                } else {
+                    console.warn(`Parsed strumming pattern length (${parsedPattern.length}) does not match expected totalSlots (${totalSlots}). Using default pattern.`);
+                    strummingPattern = Array(totalSlots).fill('-'); // Reset to default if length is unexpected
+                }
+            } else {
+                console.error('Invalid or unexpected strumming pattern data: Parsed data is not an array.');
+                strummingPattern = Array(totalSlots).fill('-'); // Reset to default if not an array
+            }
+        } catch (e) {
+            console.error('Error parsing initial strumming pattern JSON:', e);
+            strummingPattern = Array(totalSlots).fill('-'); // Reset to default on error
+        }
+    }
+
+    // Initial drawing of the grid
+    drawGrid();
+
+</script>
 {% endblock %} 

@@ -416,27 +416,39 @@ function startStrumming() {
     const strummingPatternText = document.querySelector('.strumming-pattern').textContent;
     const songBpm = {{ song.bpm }};
 
-    // Parse pattern: treat each character (including spaces and hyphens) as a stroke event or rest.
-    // This assumes each character represents a fixed time subdivision, e.g., an eighth note.
-    currentStrummingPattern = strummingPatternText.split(''); // Split into array of characters
-    currentStrummingIndex = 0;
+    // Parse the JSON string from the <pre> tag into a JavaScript array
+    try {
+        // Use JSON.parse to convert the JSON string to an array
+        currentStrummingPattern = JSON.parse(strummingPatternText.trim());
 
-    // Remove leading/trailing whitespace from the pattern array if necessary, though splitting handles this somewhat.
-    // Let's assume leading/trailing spaces in the pre tag are handled by textContent.trim() implicitly or explicitly before this point,
-    // or that they are intended as rests.
-    // For safety, let's re-trim the text before splitting to handle potential newline issues from <pre>
-    const trimmedPatternText = strummingPatternText.trim();
-    currentStrummingPattern = trimmedPatternText.split('');
+        // Optional: Basic validation to ensure it's an array and contains expected items
+        if (!Array.isArray(currentStrummingPattern) || !currentStrummingPattern.every(item => ['D', 'U', '-', 'X'].includes(item))) {
+             console.error('Parsed strumming pattern is not a valid array of strumming symbols:', currentStrummingPattern);
+             flashMessage('Invalid strumming pattern data.', 'danger'); // Assuming a flashMessage function exists
+             stopStrumming();
+             return;
+        }
 
-    if (currentStrummingPattern.length === 0) {
-        console.warn('Strumming pattern is empty.');
+    } catch (e) {
+        console.error('Error parsing strumming pattern JSON:', e);
+        flashMessage('Error loading strumming pattern.', 'danger'); // Assuming a flashMessage function exists
         stopStrumming();
         return;
     }
 
-    // Calculate interval based on eighth note duration
-    const beatDuration = 60 / songBpm; // Duration of a quarter note in seconds
-    const strokeInterval = (beatDuration / 2) * 1000; // Interval in milliseconds for an eighth note
+    currentStrummingIndex = 0;
+
+    if (currentStrummingPattern.length === 0) {
+        console.warn('Strumming pattern is empty after parsing.');
+        stopStrumming();
+        return;
+    }
+
+    // Calculate interval based on 16th note duration
+    // A quarter note duration is (60 / songBpm) seconds.
+    // A 16th note duration is (quarter note duration) / 4.
+    const quarterNoteDurationMs = (60 / songBpm) * 1000; // Duration of a quarter note in milliseconds
+    const strokeInterval = quarterNoteDurationMs / 4; // Interval in milliseconds for a 16th note
 
     // Function to play the next stroke in the pattern
     function playNextStroke() {
@@ -447,10 +459,12 @@ function startStrumming() {
 
         // Reset index if we've reached the end of the pattern
         if (currentStrummingIndex >= currentStrummingPattern.length) {
+            console.log('Strumming pattern loop: Resetting index to 0'); // Log index reset
             currentStrummingIndex = 0;
         }
 
         const stroke = currentStrummingPattern[currentStrummingIndex];
+        console.log(`Strumming pattern loop: Index ${currentStrummingIndex}, Stroke: '${stroke}', Interval: ${strokeInterval.toFixed(2)}ms`); // Log current stroke and interval
 
         if (stroke.toUpperCase() === 'D') {
             // Play the stronger beat sound for downstrokes
