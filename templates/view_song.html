@@ -47,7 +47,6 @@
                         <p><strong>Time Signature:</strong> {{ song.time_signature }}</p>
                         <p><strong>BPM:</strong> {{ song.bpm }}</p>
                         <p><strong>Capo:</strong> {{ song.capo }}</p>
-                        <p><strong>Strumming Pattern:</strong> <pre class="strumming-pattern">{{ song.strumming_pattern }}</pre></p>
                         {% if song.notes %}
                         <p><strong>Notes:</strong> {{ song.notes }}</p>
                         {% endif %}
@@ -122,7 +121,7 @@
             <div class="card mb-4">
                 <div class="card-body">
                     <h5 class="card-title mb-3">Strumming Pattern</h5>
-                    <pre class="strumming-pattern">{{ song.strumming_pattern }}</pre>
+                    <div id="strumming-pattern-display"></div>
                     <div class="mt-3">
                         <button class="btn btn-primary me-2" id="play-strumming-btn">
                             <i class="fas fa-play me-2"></i>Play Strumming Pattern
@@ -358,6 +357,9 @@ let audioContext;
 let isPlaying = false; // Flag for strumming playback
 let isMetronomePlaying = false; // Use a separate flag for metronome playback
 
+// Declare strummingPatternData in a higher scope
+let strummingPatternData = [];
+
 // Function to create a basic click sound
 function createClick(volume = 0.1) {
     if (!audioContext) {
@@ -413,30 +415,24 @@ function startStrumming() {
     document.getElementById('play-strumming-btn').style.display = 'none';
     document.getElementById('stop-strumming-btn').style.display = 'inline-block';
 
-    const strummingPatternText = document.querySelector('.strumming-pattern').textContent;
     const songBpm = {{ song.bpm }};
 
-    // Parse the JSON string from the <pre> tag into a JavaScript array
-    try {
-        // Use JSON.parse to convert the JSON string to an array
-        currentStrummingPattern = JSON.parse(strummingPatternText.trim());
+    // Use the strummingPatternData variable directly (already parsed in DOMContentLoaded)
+    currentStrummingPattern = strummingPatternData;
 
-        // Optional: Basic validation to ensure it's an array and contains expected items
-        if (!Array.isArray(currentStrummingPattern) || !currentStrummingPattern.every(item => ['D', 'U', '-', 'X'].includes(item))) {
-             console.error('Parsed strumming pattern is not a valid array of strumming symbols:', currentStrummingPattern);
-             flashMessage('Invalid strumming pattern data.', 'danger'); // Assuming a flashMessage function exists
-             stopStrumming();
-             return;
-        }
-
-    } catch (e) {
-        console.error('Error parsing strumming pattern JSON:', e);
-        flashMessage('Error loading strumming pattern.', 'danger'); // Assuming a flashMessage function exists
-        stopStrumming();
-        return;
+    // Optional: Basic validation
+    if (!Array.isArray(currentStrummingPattern) || !currentStrummingPattern.every(item => ['D', 'U', '-', 'X'].includes(item))) {
+         console.error('Strumming pattern data is not a valid array of symbols:', currentStrummingPattern);
+         // Handle invalid data if necessary, maybe stop playback or show a message
+         flashMessage('Invalid strumming pattern data format.', 'danger'); // Assuming flashMessage exists
+         stopStrumming(); // Stop playback if data is invalid
+         return;
     }
 
     currentStrummingIndex = 0;
+
+    console.log('startStrumming: currentStrummingPattern =', currentStrummingPattern);
+    console.log('startStrumming: songBpm =', songBpm);
 
     if (currentStrummingPattern.length === 0) {
         console.warn('Strumming pattern is empty after parsing.');
@@ -625,7 +621,112 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Existing metronome button listeners assumed or to be added.
 
+    // Render the strumming pattern SVG on page load
+    renderStrummingPattern();
+
+    // Assign the strumming pattern data to the global variable after DOM is loaded
+    strummingPatternData = {{ song.strumming_pattern_list | tojson }};
+
 });
+
+// Function to render the strumming pattern as SVG
+function renderStrummingPattern() {
+    const container = document.getElementById('strumming-pattern-display');
+    if (!container) {
+        console.error('Strumming pattern display container not found.');
+        return;
+    }
+
+    // Get strumming pattern data passed from Flask
+    const strummingPatternData = {{ song.strumming_pattern_list | tojson }};
+    const numberOfBeats = {{ song.display_beats | tojson }}; // Assuming song.display_beats is available and indicates beats to display
+
+    console.log('renderStrummingPattern: strummingPatternData =', strummingPatternData);
+
+    if (!strummingPatternData || strummingPatternData.length === 0) {
+        container.innerHTML = '<p>No strumming pattern available.</p>';
+        return;
+    }
+
+    const beatUnit = 4; // 16th notes per beat
+    // Determine beats per line and total slots
+    const beatsPerLine = (numberOfBeats === 8) ? 4 : numberOfBeats;
+    const totalSlotsPerLine = beatUnit * beatsPerLine;
+    const totalSlots = beatUnit * numberOfBeats; // Keep total slots for iterating through data
+
+    const slotWidth = 25; // Width of each 16th note slot
+    const slotHeight = 30; // Height of each slot
+    const startX = 10;
+    // Adjust startY and SVG height based on the number of lines
+    const startY = 20; 
+    const lineSpacing = 40; // Vertical space between lines
+    const numberOfLines = (numberOfBeats === 8) ? 2 : 1;
+    const svgWidth = startX + beatsPerLine * beatUnit * slotWidth + startX; // Calculate width based on slots per line
+    const svgHeight = startY + numberOfLines * (slotHeight + 30) + (numberOfLines > 1 ? (numberOfLines - 1) * lineSpacing : 0); // Calculate height
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', svgWidth);
+    svg.setAttribute('height', svgHeight);
+
+    const displaySymbols = ['↓', '↑', '-', 'X']; // Display representation
+
+    // Draw grid lines, beat numbers, and strumming symbols
+    for (let i = 0; i < totalSlots; i++) {
+         const line = Math.floor(i / totalSlotsPerLine);
+         const indexOnLine = i % totalSlotsPerLine;
+
+         const currentLineStartX = startX;
+         const currentLineStartY = startY + line * (slotHeight + 30 + lineSpacing);
+
+         const x = currentLineStartX + indexOnLine * slotWidth;
+         const y = currentLineStartY;
+
+         // Draw vertical line at the start of each slot
+         const verticalLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+         verticalLine.setAttribute('x1', x);
+         verticalLine.setAttribute('y1', y);
+         verticalLine.setAttribute('x2', x);
+         verticalLine.setAttribute('y2', y + slotHeight);
+
+         if (indexOnLine % beatUnit === 0) { // Start of a beat
+             verticalLine.setAttribute('stroke', 'black');
+             verticalLine.setAttribute('stroke-width', '2');
+
+             // Add beat numbers above the start of each beat
+             const beatNumber = (line * beatsPerLine) + (indexOnLine / beatUnit) + 1;
+             const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+             text.setAttribute('x', x + 3); // Position slightly after the beat line
+             text.setAttribute('y', currentLineStartY - 5); // Position above the lines
+             text.setAttribute('text-anchor', 'start'); // Align text to start after the line
+             text.setAttribute('font-size', '12');
+             text.textContent = beatNumber;
+             svg.appendChild(text);
+         }
+         else {
+             verticalLine.setAttribute('stroke', 'grey');
+             verticalLine.setAttribute('stroke-width', '1');
+         }
+         svg.appendChild(verticalLine);
+
+         // Add strumming symbols
+         const symbolText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+         symbolText.setAttribute('x', x + slotWidth / 2);
+         symbolText.setAttribute('y', y + slotHeight / 2 + 5); // Adjust for vertical centering
+         symbolText.setAttribute('text-anchor', 'middle');
+         symbolText.setAttribute('font-size', '18');
+         symbolText.setAttribute('fill', 'black');
+         // Ensure index is within bounds of the actual data
+         const symbol = (i < strummingPatternData.length) ? strummingPatternData[i] : '-';
+
+         // Map internal symbol (D, U, -, X) to display symbol (↓, ↑, -, X)
+         const symbolIndex = ['D', 'U', '-', 'X'].indexOf(symbol);
+         symbolText.textContent = (symbolIndex !== -1) ? displaySymbols[symbolIndex] : '?'; // Use ? for unknown symbols
+
+         svg.appendChild(symbolText);
+    }
+
+    container.appendChild(svg);
+}
 
 </script>
 {% endblock %} 
