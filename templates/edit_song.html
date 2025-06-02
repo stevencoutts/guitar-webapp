@@ -90,14 +90,16 @@
     const hiddenInput = document.getElementById('strumming_pattern');
     const displayBeatsSelect = document.getElementById('display_beats');
     const selectedDisplayBeatsInput = document.getElementById('selected_display_beats');
+    const timeSignatureInput = document.getElementById('time_signature');
 
-    const beatUnit = 4; // Number of 16th notes per beat (e.g., 4 for 4/4 time)
-    let numberOfBeats = initialDisplayBeats; // Initialize with the saved value
-    let totalSlots = beatUnit * numberOfBeats;
+    const beatUnit = 4; // Number of 16th notes per beat
+    let numberOfMeasures = 1; // Default to 1 measure
+    let beatsPerMeasure = 4; // Default to 4/4 time
+    let totalSlots = beatsPerMeasure * beatUnit * numberOfMeasures; // Total 16th note slots
     const slotWidth = 25; // Width of each 16th note slot
     const slotHeight = 30; // Height of each slot
     const startX = 10;
-    const startY = 20; // Reset startY, numbers will be adjusted in drawGrid
+    const startY = 20;
 
     // Initialize with rests, or load from saved pattern later
     let strummingPattern = Array(totalSlots).fill('-');
@@ -105,61 +107,100 @@
     const strummingSymbols = ['D', 'U', '-', 'X']; // Down, Up, Rest, Mute (Internal representation)
     const displaySymbols = ['↓', '↑', '-', 'X']; // Display representation
 
+    // Function to parse time signature and get beats per measure
+    function parseTimeSignature(timeSignatureStr) {
+        const parts = (timeSignatureStr || '4/4').split('/');
+        if (parts.length === 2) {
+            const numerator = parseInt(parts[0]);
+            const denominator = parseInt(parts[1]);
+            // For strumming patterns, we count in terms of the main beats
+            // So 4/4 = 4 beats, 3/4 = 3 beats, 6/8 = 2 beats (felt in 2), etc.
+            if (denominator === 8 && numerator === 6) {
+                return 2; // 6/8 is typically felt in 2
+            } else if (denominator === 8 && numerator === 9) {
+                return 3; // 9/8 is typically felt in 3
+            } else if (denominator === 8 && numerator === 12) {
+                return 4; // 12/8 is typically felt in 4
+            } else {
+                return numerator; // For most time signatures, use the numerator
+            }
+        }
+        return 4; // Default to 4/4 if parsing fails
+    }
+
+    // Function to update display beats dropdown based on time signature
+    function updateDisplayBeatsOptions() {
+        const timeSignature = timeSignatureInput.value || '4/4';
+        beatsPerMeasure = parseTimeSignature(timeSignature);
+        
+        // Clear existing options
+        displayBeatsSelect.innerHTML = '';
+        
+        // Add options for 1, 2, 3, and 4 measures
+        for (let measures = 1; measures <= 4; measures++) {
+            const option = document.createElement('option');
+            const totalBeats = beatsPerMeasure * measures;
+            option.value = totalBeats;
+            option.textContent = `${measures} Measure${measures > 1 ? 's' : ''} (${totalBeats} beats)`;
+            displayBeatsSelect.appendChild(option);
+        }
+        
+        // Default to 1 measure for the time signature
+        const defaultBeats = beatsPerMeasure;
+        displayBeatsSelect.value = defaultBeats;
+        updateDisplayBeats(defaultBeats);
+    }
+
     function drawGrid() {
-        // Calculate dynamic width based on totalSlots and slotWidth, plus margins
-        const dynamicWidth = startX + totalSlots * slotWidth + startX; // startX on both sides as padding
-        // Adjust width and height based on number of lines
-        const isTwoLine = numberOfBeats > 4; // Assuming 8 beats will be two lines
-        const svgWidth = startX + (isTwoLine ? 4 : numberOfBeats) * beatUnit * slotWidth + startX; // Width based on 4 beats per line or single line
-        const svgHeight = isTwoLine ? startY + 2 * (slotHeight + 20) : startY + slotHeight + 20; // Double height for two lines
+        // Calculate total measures and slots based on selected beats
+        const selectedBeats = parseInt(displayBeatsSelect.value) || beatsPerMeasure;
+        numberOfMeasures = Math.ceil(selectedBeats / beatsPerMeasure);
+        totalSlots = selectedBeats * beatUnit;
+        
+        // Calculate SVG dimensions
+        const svgWidth = startX + (selectedBeats * beatUnit * slotWidth) + startX;
+        const svgHeight = startY + slotHeight + 40; // Extra space for beat numbers
         
         svg.setAttribute('width', svgWidth);
         svg.setAttribute('height', svgHeight);
-
         svg.innerHTML = ''; // Clear previous drawings
 
-        // Draw horizontal lines for beats
-        for (let line = 0; line < (isTwoLine ? 2 : 1); line++) {
-            const lineStartY = startY + line * (slotHeight + 20); // Vertical offset for the second line
-            const beatsOnLine = isTwoLine ? 4 : numberOfBeats;
-            for (let i = 0; i <= beatsOnLine; i++) {
-                const x = startX + i * beatUnit * slotWidth;
-                svg.innerHTML += `<line x1="${x}" y1="${lineStartY}" x2="${x}" y2="${lineStartY + slotHeight}" stroke="black" stroke-width="2"/>`;
+        // Draw vertical lines for beats and measure boundaries
+        for (let beatIndex = 0; beatIndex <= selectedBeats; beatIndex++) {
+            const x = startX + beatIndex * beatUnit * slotWidth;
+            const isMainBeat = beatIndex % beatsPerMeasure === 0;
+            const isMeasureBoundary = beatIndex > 0 && beatIndex % beatsPerMeasure === 0;
+            
+            // Thicker lines for measure boundaries
+            const strokeWidth = isMeasureBoundary ? '3' : '2';
+            svg.innerHTML += `<line x1="${x}" y1="${startY}" x2="${x}" y2="${startY + slotHeight}" stroke="black" stroke-width="${strokeWidth}"/>`;
+            
+            // Add beat numbers above beats (but not at the very end)
+            if (beatIndex < selectedBeats) {
+                const beatInMeasure = (beatIndex % beatsPerMeasure) + 1;
+                const beatLineX = x; // Position directly above the beat line
+                svg.innerHTML += `<text x="${beatLineX}" y="${startY - 5}" text-anchor="middle" font-size="12">${beatInMeasure}</text>`;
             }
         }
 
-        // Draw vertical lines for divisions (16th notes)
-        for (let line = 0; line < (isTwoLine ? 2 : 1); line++) {
-            const lineStartY = startY + line * (slotHeight + 20);
-            const slotsOnLine = (isTwoLine ? 4 : numberOfBeats) * beatUnit;
-            for (let i = 0; i <= slotsOnLine; i++) {
-                const x = startX + i * slotWidth;
-                if (i % beatUnit !== 0) { // Avoid redrawing beat lines
-                     svg.innerHTML += `<line x1="${x}" y1="${lineStartY}" x2="${x}" y2="${lineStartY + slotHeight}" stroke="grey" stroke-width="1"/>`;
-                }
+        // Draw vertical lines for 16th note divisions
+        for (let i = 0; i <= totalSlots; i++) {
+            const x = startX + i * slotWidth;
+            const isOnBeat = i % beatUnit === 0;
+            
+            if (!isOnBeat) {
+                svg.innerHTML += `<line x1="${x}" y1="${startY}" x2="${x}" y2="${startY + slotHeight}" stroke="grey" stroke-width="1"/>`;
             }
         }
 
-        // Add beat numbers
-        for (let line = 0; line < (isTwoLine ? 2 : 1); line++) {
-            const lineStartY = startY + line * (slotHeight + 20);
-            const beatsOnLine = isTwoLine ? 4 : numberOfBeats;
-            for (let i = 0; i < beatsOnLine; i++) {
-                // Position x to be centered over the start of each beat
-                const x = startX + i * beatUnit * slotWidth; // Align with the beat line
-                // Position y slightly above the grid lines for the current line
-                const y = lineStartY - 8; // Adjusted y position for beat numbers
-
-                svg.innerHTML += `<text x="${x}" y="${y}" text-anchor="middle" font-size="12">${i + 1}</text>`;
-            }
-        }
+        // Draw horizontal lines (top and bottom)
+        svg.innerHTML += `<line x1="${startX}" y1="${startY}" x2="${startX + totalSlots * slotWidth}" y2="${startY}" stroke="black" stroke-width="2"/>`;
+        svg.innerHTML += `<line x1="${startX}" y1="${startY + slotHeight}" x2="${startX + totalSlots * slotWidth}" y2="${startY + slotHeight}" stroke="black" stroke-width="2"/>`;
 
         // Draw interactive slots and symbols
         for (let i = 0; i < totalSlots; i++) {
-            const line = Math.floor(i / (4 * beatUnit)); // Determine which line (0 or 1)
-            const indexOnLine = i % (4 * beatUnit); // Index within the current line
-            const x = startX + indexOnLine * slotWidth;
-            const y = startY + line * (slotHeight + 20); // Vertical offset for the second line
+            const x = startX + i * slotWidth;
+            const y = startY;
 
             // Create a clickable area for each slot
             const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -182,8 +223,8 @@
             symbolText.setAttribute('font-size', '18');
             symbolText.setAttribute('fill', 'black');
             symbolText.classList.add('strum-symbol'); // Add a class for easy selection
-             // Get the display symbol based on the current value in strummingPattern array
-            const currentSymbol = strummingPattern[i];
+            // Get the display symbol based on the current value in strummingPattern array
+            const currentSymbol = strummingPattern[i] || '-';
             const symbolIndex = strummingSymbols.indexOf(currentSymbol);
             symbolText.textContent = (symbolIndex !== -1) ? displaySymbols[symbolIndex] : '?'; // Use ? for unknown symbols
 
@@ -196,7 +237,7 @@
         const index = parseInt(event.target.getAttribute('data-index'));
         const currentSymbol = strummingPattern[index];
         let currentIndex = strummingSymbols.indexOf(currentSymbol);
-         // If current symbol is not found, default to -1 so nextIndex starts from 0 (first symbol)
+        // If current symbol is not found, default to -1 so nextIndex starts from 0 (first symbol)
         if (currentIndex === -1) {
             currentIndex = -1;
         }
@@ -220,21 +261,20 @@
 
     // Function to redraw the grid and update pattern when beats selection changes
     function updateDisplayBeats(newNumberOfBeats) {
-        numberOfBeats = newNumberOfBeats;
         const oldTotalSlots = strummingPattern.length;
-        totalSlots = beatUnit * numberOfBeats;
+        const newTotalSlots = newNumberOfBeats * beatUnit;
 
         // Adjust strummingPattern array size if necessary
-        if (totalSlots > oldTotalSlots) {
+        if (newTotalSlots > oldTotalSlots) {
             // If increasing beats, pad with rests
-            strummingPattern = strummingPattern.concat(Array(totalSlots - oldTotalSlots).fill('-'));
-        } else if (totalSlots < oldTotalSlots) {
+            strummingPattern = strummingPattern.concat(Array(newTotalSlots - oldTotalSlots).fill('-'));
+        } else if (newTotalSlots < oldTotalSlots) {
             // If decreasing beats, truncate the array
-            strummingPattern = strummingPattern.slice(0, totalSlots);
+            strummingPattern = strummingPattern.slice(0, newTotalSlots);
         }
 
         // Update the hidden input for form submission
-        selectedDisplayBeatsInput.value = numberOfBeats;
+        selectedDisplayBeatsInput.value = newNumberOfBeats;
 
         drawGrid(); // Redraw the grid with the new settings
         updateHiddenInput(); // Update the hidden input with the adjusted pattern
@@ -246,6 +286,12 @@
         updateDisplayBeats(newBeats);
     });
 
+    // Add event listener to time signature input
+    timeSignatureInput.addEventListener('input', () => {
+        updateDisplayBeatsOptions();
+        drawGrid(); // Redraw the grid with new time signature
+    });
+
     // Load initial pattern if editing an existing song
     if (initialStrummingPatternJson) { // Check if the string is not empty
         try {
@@ -253,12 +299,22 @@
             console.log('Parsed initial pattern:', parsedPattern);
 
             if (Array.isArray(parsedPattern)) {
-                if (parsedPattern.length === totalSlots) {
+                // Initialize the pattern array with the correct size first
+                const currentTimeSignature = timeSignatureInput.value || '4/4';
+                beatsPerMeasure = parseTimeSignature(currentTimeSignature);
+                const expectedSlots = (initialDisplayBeats || beatsPerMeasure) * beatUnit;
+                
+                if (parsedPattern.length === expectedSlots) {
                     strummingPattern = parsedPattern;
                     console.log('Strumming pattern successfully loaded.', strummingPattern);
                 } else {
-                    console.warn(`Parsed strumming pattern length (${parsedPattern.length}) does not match expected totalSlots (${totalSlots}). Using default pattern.`);
-                    strummingPattern = Array(totalSlots).fill('-'); // Reset to default if length is unexpected
+                    console.warn(`Parsed strumming pattern length (${parsedPattern.length}) does not match expected slots (${expectedSlots}). Adjusting pattern.`);
+                    // Adjust the loaded pattern to fit the expected size
+                    if (parsedPattern.length > expectedSlots) {
+                        strummingPattern = parsedPattern.slice(0, expectedSlots);
+                    } else {
+                        strummingPattern = parsedPattern.concat(Array(expectedSlots - parsedPattern.length).fill('-'));
+                    }
                 }
             } else {
                 console.error('Invalid or unexpected strumming pattern data: Parsed data is not an array.');
@@ -274,13 +330,8 @@
     }
 
     console.log('Final strumming pattern state before drawing grid:', strummingPattern); // Log before drawGrid
-    // Initial drawing of the grid
-    drawGrid();
-
-    // Set the initial value of the display beats dropdown
-    if (displayBeatsSelect) {
-        displayBeatsSelect.value = initialDisplayBeats;
-    }
-
+    
+    // Initialize display beats options and draw grid
+    updateDisplayBeatsOptions();
 </script>
 {% endblock %} 
