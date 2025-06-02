@@ -662,30 +662,52 @@ function renderStrummingPattern() {
 
     // Get strumming pattern data passed from Flask
     const strummingPatternData = {{ song.strumming_pattern_list | tojson }};
-    const numberOfBeats = {{ song.display_beats | tojson }}; // Assuming song.display_beats is available and indicates beats to display
+    const numberOfBeats = {{ song.display_beats | tojson }}; // Number of beats to display
+    const timeSignature = "{{ song.time_signature }}"; // Get time signature
 
     console.log('renderStrummingPattern: strummingPatternData =', strummingPatternData);
+    console.log('renderStrummingPattern: numberOfBeats =', numberOfBeats);
+    console.log('renderStrummingPattern: timeSignature =', timeSignature);
 
     if (!strummingPatternData || strummingPatternData.length === 0) {
         container.innerHTML = '<p>No strumming pattern available.</p>';
         return;
     }
 
+    // Parse time signature to get beats per measure
+    function parseTimeSignature(timeSignatureStr) {
+        const parts = (timeSignatureStr || '4/4').split('/');
+        if (parts.length === 2) {
+            const numerator = parseInt(parts[0]);
+            const denominator = parseInt(parts[1]);
+            // For strumming patterns, we count in terms of the main beats
+            if (denominator === 8 && numerator === 6) {
+                return 2; // 6/8 is typically felt in 2
+            } else if (denominator === 8 && numerator === 9) {
+                return 3; // 9/8 is typically felt in 3
+            } else if (denominator === 8 && numerator === 12) {
+                return 4; // 12/8 is typically felt in 4
+            } else {
+                return numerator; // For most time signatures, use the numerator
+            }
+        }
+        return 4; // Default to 4/4 if parsing fails
+    }
+
+    const beatsPerMeasure = parseTimeSignature(timeSignature);
     const beatUnit = 4; // 16th notes per beat
-    // Determine beats per line and total slots
-    const beatsPerLine = (numberOfBeats === 8) ? 4 : numberOfBeats;
-    const totalSlotsPerLine = beatUnit * beatsPerLine;
-    const totalSlots = beatUnit * numberOfBeats; // Keep total slots for iterating through data
+    const totalSlots = numberOfBeats * beatUnit; // Total 16th note slots to display
+    const numberOfMeasures = Math.ceil(numberOfBeats / beatsPerMeasure);
+
+    console.log('Calculated: beatsPerMeasure =', beatsPerMeasure, 'totalSlots =', totalSlots, 'numberOfMeasures =', numberOfMeasures);
 
     const slotWidth = 25; // Width of each 16th note slot
     const slotHeight = 30; // Height of each slot
     const startX = 10;
-    // Adjust startY and SVG height based on the number of lines
     const startY = 20; 
-    const lineSpacing = 40; // Vertical space between lines
-    const numberOfLines = (numberOfBeats === 8) ? 2 : 1;
-    const svgWidth = startX + beatsPerLine * beatUnit * slotWidth + startX; // Calculate width based on slots per line
-    const svgHeight = startY + numberOfLines * (slotHeight + 30) + (numberOfLines > 1 ? (numberOfLines - 1) * lineSpacing : 0); // Calculate height
+    
+    const svgWidth = startX + (numberOfBeats * beatUnit * slotWidth) + startX; // Width based on total beats
+    const svgHeight = startY + slotHeight + 40; // Height with space for beat numbers
 
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', svgWidth);
@@ -693,59 +715,92 @@ function renderStrummingPattern() {
 
     const displaySymbols = ['↓', '↑', '-', 'X']; // Display representation
 
-    // Draw grid lines, beat numbers, and strumming symbols
+    // Draw vertical lines for beats and measure boundaries
+    for (let beatIndex = 0; beatIndex <= numberOfBeats; beatIndex++) {
+        const x = startX + beatIndex * beatUnit * slotWidth;
+        const isMeasureBoundary = beatIndex > 0 && beatIndex % beatsPerMeasure === 0;
+        
+        // Thicker lines for measure boundaries
+        const strokeWidth = isMeasureBoundary ? '3' : '2';
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', x);
+        line.setAttribute('y1', startY);
+        line.setAttribute('x2', x);
+        line.setAttribute('y2', startY + slotHeight);
+        line.setAttribute('stroke', 'black');
+        line.setAttribute('stroke-width', strokeWidth);
+        svg.appendChild(line);
+        
+        // Add beat numbers above beats (but not at the very end)
+        if (beatIndex < numberOfBeats) {
+            const beatInMeasure = (beatIndex % beatsPerMeasure) + 1;
+            const beatLineX = x; // Position directly above the beat line
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', beatLineX);
+            text.setAttribute('y', startY - 5);
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('font-size', '12');
+            text.textContent = beatInMeasure;
+            svg.appendChild(text);
+        }
+    }
+
+    // Draw vertical lines for 16th note divisions
+    for (let i = 0; i <= totalSlots; i++) {
+        const x = startX + i * slotWidth;
+        const isOnBeat = i % beatUnit === 0;
+        
+        if (!isOnBeat) {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', x);
+            line.setAttribute('y1', startY);
+            line.setAttribute('x2', x);
+            line.setAttribute('y2', startY + slotHeight);
+            line.setAttribute('stroke', 'grey');
+            line.setAttribute('stroke-width', '1');
+            svg.appendChild(line);
+        }
+    }
+
+    // Draw horizontal lines (top and bottom)
+    const topLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    topLine.setAttribute('x1', startX);
+    topLine.setAttribute('y1', startY);
+    topLine.setAttribute('x2', startX + totalSlots * slotWidth);
+    topLine.setAttribute('y2', startY);
+    topLine.setAttribute('stroke', 'black');
+    topLine.setAttribute('stroke-width', '2');
+    svg.appendChild(topLine);
+
+    const bottomLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    bottomLine.setAttribute('x1', startX);
+    bottomLine.setAttribute('y1', startY + slotHeight);
+    bottomLine.setAttribute('x2', startX + totalSlots * slotWidth);
+    bottomLine.setAttribute('y2', startY + slotHeight);
+    bottomLine.setAttribute('stroke', 'black');
+    bottomLine.setAttribute('stroke-width', '2');
+    svg.appendChild(bottomLine);
+
+    // Add strumming symbols
     for (let i = 0; i < totalSlots; i++) {
-         const line = Math.floor(i / totalSlotsPerLine);
-         const indexOnLine = i % totalSlotsPerLine;
+        const x = startX + i * slotWidth;
+        const y = startY;
 
-         const currentLineStartX = startX;
-         const currentLineStartY = startY + line * (slotHeight + 30 + lineSpacing);
+        // Ensure index is within bounds of the actual data
+        const symbol = (i < strummingPatternData.length) ? strummingPatternData[i] : '-';
 
-         const x = currentLineStartX + indexOnLine * slotWidth;
-         const y = currentLineStartY;
+        // Map internal symbol (D, U, -, X) to display symbol (↓, ↑, -, X)
+        const symbolIndex = ['D', 'U', '-', 'X'].indexOf(symbol);
+        const displaySymbol = (symbolIndex !== -1) ? displaySymbols[symbolIndex] : '?'; // Use ? for unknown symbols
 
-         // Draw vertical line at the start of each slot
-         const verticalLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-         verticalLine.setAttribute('x1', x);
-         verticalLine.setAttribute('y1', y);
-         verticalLine.setAttribute('x2', x);
-         verticalLine.setAttribute('y2', y + slotHeight);
-
-         if (indexOnLine % beatUnit === 0) { // Start of a beat
-             verticalLine.setAttribute('stroke', 'black');
-             verticalLine.setAttribute('stroke-width', '2');
-
-             // Add beat numbers above the start of each beat
-             const beatNumber = (line * beatsPerLine) + (indexOnLine / beatUnit) + 1;
-             const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-             text.setAttribute('x', x + 3); // Position slightly after the beat line
-             text.setAttribute('y', currentLineStartY - 5); // Position above the lines
-             text.setAttribute('text-anchor', 'start'); // Align text to start after the line
-             text.setAttribute('font-size', '12');
-             text.textContent = beatNumber;
-             svg.appendChild(text);
-         }
-         else {
-             verticalLine.setAttribute('stroke', 'grey');
-             verticalLine.setAttribute('stroke-width', '1');
-         }
-         svg.appendChild(verticalLine);
-
-         // Add strumming symbols
-         const symbolText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-         symbolText.setAttribute('x', x + slotWidth / 2);
-         symbolText.setAttribute('y', y + slotHeight / 2 + 5); // Adjust for vertical centering
-         symbolText.setAttribute('text-anchor', 'middle');
-         symbolText.setAttribute('font-size', '18');
-         symbolText.setAttribute('fill', 'black');
-         // Ensure index is within bounds of the actual data
-         const symbol = (i < strummingPatternData.length) ? strummingPatternData[i] : '-';
-
-         // Map internal symbol (D, U, -, X) to display symbol (↓, ↑, -, X)
-         const symbolIndex = ['D', 'U', '-', 'X'].indexOf(symbol);
-         symbolText.textContent = (symbolIndex !== -1) ? displaySymbols[symbolIndex] : '?'; // Use ? for unknown symbols
-
-         svg.appendChild(symbolText);
+        const symbolText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        symbolText.setAttribute('x', x + slotWidth / 2);
+        symbolText.setAttribute('y', y + slotHeight / 2 + 5); // Adjust for vertical centering
+        symbolText.setAttribute('text-anchor', 'middle');
+        symbolText.setAttribute('font-size', '18');
+        symbolText.setAttribute('fill', 'black');
+        symbolText.textContent = displaySymbol;
+        svg.appendChild(symbolText);
     }
 
     container.appendChild(svg);
