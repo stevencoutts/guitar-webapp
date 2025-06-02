@@ -477,9 +477,8 @@ def edit_song(song_id):
                  # Optionally, log the error
                 if app.logger:
                      app.logger.error(f"Error decoding strumming_pattern JSON for song {song_id}: {strumming_pattern_json}")
-        else:
-             # If no strumming pattern is provided, set it to None
-            song.strumming_pattern = None
+        # If no strumming pattern is provided or it's empty, preserve the existing pattern
+        # This prevents accidental clearing of the pattern when other fields are updated
 
         song.notes = request.form.get('notes')
         song.display_beats = int(request.form.get('display_beats', 4)) # Update display beats, default to 4
