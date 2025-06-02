@@ -370,7 +370,7 @@ def new_song():
         notes = request.form.get('notes', '')  # Get notes with empty string as default
         display_beats = int(request.form.get('display_beats', 4)) # Get selected display beats, default to 4
         
-        app.logger.info(f"New song form submission - chord_progression: {chord_progression!r}") # Log received chord progression
+        # app.logger.info(f"New song form submission - chord_progression: {chord_progression!r}") # Log received chord progression
 
         if not all([title, time_signature, bpm, chord_progression]): # Strumming pattern is now optional
             flash('Title, Time Signature, BPM, and Chord Progression are required fields')
@@ -395,7 +395,7 @@ def new_song():
             return redirect(url_for('new_song'))
         
         # Log the capo value for debugging
-        app.logger.info(f"Creating song with capo: {capo}")
+        # app.logger.info(f"Creating song with capo: {capo}")
         
         song = Song(
             title=title,
@@ -458,7 +458,7 @@ def edit_song(song_id):
         song.notes = request.form.get('notes')
         song.display_beats = int(request.form.get('display_beats', 4)) # Update display beats, default to 4
 
-        app.logger.info(f"Edit song form submission - chord_progression: {song.chord_progression!r}") # Log received chord progression
+        # app.logger.info(f"Edit song form submission - chord_progression: {song.chord_progression!r}") # Log received chord progression
 
         db.session.commit()
         flash('Song updated successfully!')
@@ -623,8 +623,8 @@ def view_song(song_id):
             base_chord_name = chord_name.split('/')[0]
             hardcoded_shape = hardcoded_shapes_data.get(base_chord_name)
             # If a base chord shape is found, we will use it but still associate it with the original slash chord name
-            if hardcoded_shape:
-                 app.logger.info(f"Using hardcoded shape for base chord {base_chord_name} for slash chord {chord_name}")
+            # if hardcoded_shape:
+                 # app.logger.info(f"Using hardcoded shape for base chord {base_chord_name} for slash chord {chord_name}")
 
         if hardcoded_shape:
             # Get the list of database shapes for this chord name
@@ -670,7 +670,7 @@ def view_song(song_id):
              base_shape_dummy = get_chord_shape(base_chord_name)
              if base_shape_dummy:
                  # If a base shape is found, add it as the only option for this slash chord and set it as the initial shape.
-                 app.logger.info(f"Adding fallback hardcoded shape for {base_chord_name} to {chord_name}")
+                 # app.logger.info(f"Adding fallback hardcoded shape for {base_chord_name} to {chord_name}")
                  chord_shapes_dict[chord_name] = [base_shape_dummy]
                  shapes = chord_shapes_dict[chord_name] # Update shapes list for the following logic
                  # We don't explicitly set initial_shape here, the logic below will pick it up as the first shape
@@ -774,7 +774,7 @@ def view_song(song_id):
             initial_diagram_svgs[chord_name] = '<svg width="400" height="100" xmlns="http://www.w3.org/2000/svg"><text x="50%" y="50%" font-size="14" fill="#333" text-anchor="middle" dominant-baseline="middle">Please add chord shape</text></svg>'
 
     # Pass the initial_shapes_dict and initial_diagram_svgs to the template
-    app.logger.info(f"Rendering view_song template for song {song_id} - strumming_pattern: {song.strumming_pattern!r}") # Log strumming pattern before rendering
+    # app.logger.info(f"Rendering view_song template for song {song_id} - strumming_pattern: {song.strumming_pattern!r}") # Log strumming pattern before rendering
 
     return render_template('view_song.html', 
                            song=song, 
@@ -1299,7 +1299,7 @@ def get_chord_diagram(chord_name):
     # Explicitly get start_fret and ensure it's an integer
     start_fret = int(shape_data.start_fret)
 
-    app.logger.info(f"Generating SVG for {chord_name} with shape: {chord_shape} and start_fret: {start_fret}")
+    # app.logger.info(f"Generating SVG for {chord_name} with shape: {chord_shape} and start_fret: {start_fret}")
     
     # SVG dimensions
     width = 220

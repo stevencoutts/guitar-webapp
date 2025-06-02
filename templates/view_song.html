@@ -459,12 +459,10 @@ function startStrumming() {
 
         // Reset index if we've reached the end of the pattern
         if (currentStrummingIndex >= currentStrummingPattern.length) {
-            console.log('Strumming pattern loop: Resetting index to 0'); // Log index reset
             currentStrummingIndex = 0;
         }
 
         const stroke = currentStrummingPattern[currentStrummingIndex];
-        console.log(`Strumming pattern loop: Index ${currentStrummingIndex}, Stroke: '${stroke}', Interval: ${strokeInterval.toFixed(2)}ms`); // Log current stroke and interval
 
         if (stroke.toUpperCase() === 'D') {
             // Play the stronger beat sound for downstrokes
