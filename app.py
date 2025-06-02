@@ -47,8 +47,22 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 # Ensure the instance folder exists
 os.makedirs('instance', exist_ok=True)
 
-# Configure SQLite database
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///instance/guitar.db')
+# Configure SQLite database URI
+basedir = os.path.abspath(os.path.dirname(__file__))
+database_url = os.environ.get('DATABASE_URL')
+
+if database_url and database_url.startswith('sqlite:///'):
+    # If DATABASE_URL is set and is a relative SQLite path, convert to absolute
+    # Remove the 'sqlite:///' prefix to get the relative path part
+    relative_db_path = database_url[len('sqlite:///'):]
+    # Construct the absolute path and format as SQLite URI with uri=true
+    absolute_db_path = os.path.join(basedir, relative_db_path)
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///file:{absolute_db_path}?uri=true'
+else:
+    # Otherwise, use the DATABASE_URL as is, or the default absolute path
+    default_db_path = os.path.join(basedir, 'instance', 'guitar.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url or f'sqlite:///file:{default_db_path}?uri=true'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
