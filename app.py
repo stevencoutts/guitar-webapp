@@ -21,10 +21,27 @@ from werkzeug.utils import secure_filename
 import requests
 from bs4 import BeautifulSoup
 
+# Define the Config class
+class Config:
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'you-will-never-guess' # Provide a fallback for development
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    UPLOAD_FOLDER = 'uploads'
+
 # Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
+# Load configuration from the Config class
+app.config.from_object(Config)
+
+# Set debug mode to False
+# app.debug = True # Commenting out or removing debug = True
+app.debug = False
+
+# Define application version (if it exists here)
+# Assuming version is defined somewhere, let's add a placeholder if not found or update if found
+app.config['VERSION'] = 'v1.0' # Set the version number
 
 # Configure logging
 if not app.debug:
@@ -44,26 +61,36 @@ if not os.environ.get('SECRET_KEY'):
     raise ValueError("No SECRET_KEY set for Flask application")
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 
-# Ensure the instance folder exists
-os.makedirs('instance', exist_ok=True)
-
 # Configure SQLite database URI
 basedir = os.path.abspath(os.path.dirname(__file__))
 database_url = os.environ.get('DATABASE_URL')
 
-if database_url and database_url.startswith('sqlite:///'):
-    # If DATABASE_URL is set and is a relative SQLite path, convert to absolute
-    # Remove the 'sqlite:///' prefix to get the relative path part
-    relative_db_path = database_url[len('sqlite:///'):]
-    # Construct the absolute path and format as SQLite URI with uri=true
-    absolute_db_path = os.path.join(basedir, relative_db_path)
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///file:{absolute_db_path}?uri=true'
+if database_url and database_url.startswith('sqlite:///file:'):
+    # Assuming the URI is already in the correct format with uri=true
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+elif database_url and database_url.startswith('sqlite:///'):
+     # If DATABASE_URL is set and is a relative SQLite path, convert to absolute
+     # Remove the 'sqlite:///' prefix to get the relative path part
+     relative_db_path = database_url[len('sqlite:///'):]
+     # Construct the absolute path and format as SQLite URI with uri=true
+     absolute_db_path = os.path.join(basedir, relative_db_path)
+     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///file:{absolute_db_path}?uri=true'
 else:
-    # Otherwise, use the DATABASE_URL as is, or the default absolute path
-    default_db_path = os.path.join(basedir, 'instance', 'guitar.db')
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url or f'sqlite:///file:{default_db_path}?uri=true'
+     # Otherwise, use the DATABASE_URL as is, or the default absolute path
+     default_db_path = os.path.join(basedir, 'instance', 'guitar.db')
+     app.config['SQLALCHEMY_DATABASE_URI'] = database_url or f'sqlite:///file:{default_db_path}?uri=true'
 
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Ensure the instance folder exists for SQLite database if a relative path is used
+# Check if the database URI is a relative path that requires the 'instance' folder
+db_uri = app.config.get('SQLALCHEMY_DATABASE_URI')
+if db_uri and 'sqlite:///file:' in db_uri:
+    # Extract the path from the URI (handle uri=true format)
+    db_path = db_uri.replace('sqlite:///file:', '').split('?')[0]
+    # If the path is relative and contains 'instance/', ensure the folder exists
+    if 'instance/' in db_path and not os.path.isabs(db_path):
+        instance_dir = os.path.join(basedir, 'instance')
+        os.makedirs(instance_dir, exist_ok=True)
+
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 # Development vs Production settings
@@ -79,7 +106,6 @@ else:
 # Initialize extensions
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
-csrf = CSRFProtect(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
