@@ -144,6 +144,7 @@ class Song(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     selected_variants = db.Column(db.Text, default='{}', nullable=False) # Stores JSON string of selected variants {chord_name: variant_name}
+    display_beats = db.Column(db.Integer, default=4, nullable=False) # Number of beats to display in the editor (4 or 8)
 
     @property
     def strumming_pattern_list(self):
@@ -367,6 +368,7 @@ def new_song():
             strumming_pattern_to_save = None
 
         notes = request.form.get('notes', '')  # Get notes with empty string as default
+        display_beats = int(request.form.get('display_beats', 4)) # Get selected display beats, default to 4
         
         app.logger.info(f"New song form submission - chord_progression: {chord_progression!r}") # Log received chord progression
 
@@ -405,7 +407,8 @@ def new_song():
             # Use the processed strumming_pattern_to_save
             strumming_pattern_list=strumming_pattern_to_save, # Use the setter
             notes=notes,
-            user_id=current_user.id
+            user_id=current_user.id,
+            display_beats=display_beats
         )
         db.session.add(song)
         db.session.commit()
@@ -453,6 +456,7 @@ def edit_song(song_id):
             song.strumming_pattern = None
 
         song.notes = request.form.get('notes')
+        song.display_beats = int(request.form.get('display_beats', 4)) # Update display beats, default to 4
 
         app.logger.info(f"Edit song form submission - chord_progression: {song.chord_progression!r}") # Log received chord progression
 
@@ -463,7 +467,7 @@ def edit_song(song_id):
     # Add print statement to check strumming_pattern value before rendering template
     print(f"DEBUG: song.strumming_pattern before rendering edit_song.html: {song.strumming_pattern!r}")
 
-    return render_template('edit_song.html', song=song)
+    return render_template('edit_song.html', song=song, initial_display_beats=song.display_beats)
 
 @app.route('/song/<int:song_id>/delete', methods=['POST'])
 @login_required
