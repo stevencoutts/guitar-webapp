@@ -1097,7 +1097,8 @@ def backup():
                     'notes': song.notes,
                     'created_at': song.created_at.isoformat() if song.created_at else None,
                     'updated_at': song.updated_at.isoformat() if song.updated_at else None,
-                    'selected_variants': song.selected_variants
+                    'selected_variants': song.selected_variants,
+                    'display_beats': song.display_beats
                 } for song in (all_songs if current_user.is_admin else songs)],
                 'practice_records': [{
                     'id': record.id,
@@ -1250,10 +1251,29 @@ def backup():
                                     bpm=song_data.get('bpm'),
                                     capo=song_data.get('capo', 'None'),
                                     chord_progression=song_data.get('chord_progression'),
-                                    strumming_pattern=song_data.get('strumming_pattern'),
                                     notes=song_data.get('notes'),
-                                    selected_variants=song_data.get('selected_variants', '{}')
+                                    selected_variants=song_data.get('selected_variants', '{}'),
+                                    display_beats=song_data.get('display_beats', 4)
                                 )
+                                
+                                # Handle strumming pattern restoration properly using the setter
+                                strumming_pattern_data = song_data.get('strumming_pattern')
+                                if strumming_pattern_data:
+                                    if isinstance(strumming_pattern_data, str):
+                                        # If it's a JSON string, parse it and use the setter
+                                        try:
+                                            pattern_list = json.loads(strumming_pattern_data)
+                                            song.strumming_pattern_list = pattern_list
+                                        except json.JSONDecodeError:
+                                            # If JSON parsing fails, set to None
+                                            song.strumming_pattern_list = None
+                                    elif isinstance(strumming_pattern_data, list):
+                                        # If it's already a list, use the setter directly
+                                        song.strumming_pattern_list = strumming_pattern_data
+                                    else:
+                                        # For any other type, set to None
+                                        song.strumming_pattern_list = None
+                                
                                 db.session.add(song)
                             except Exception as e:
                                 raise

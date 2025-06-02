@@ -158,7 +158,7 @@
         
         // Multi-line layout calculations
         const maxBeatsPerLine = beatsPerMeasure; // Show 1 measure per line for better readability
-        const beatsPerLine = Math.min(selectedBeats, maxBeatsPerLine);
+        const beatsPerLine = maxBeatsPerLine; // Always use full measures per line
         const numberOfLines = Math.ceil(selectedBeats / beatsPerLine);
         
         // Calculate SVG dimensions for multi-line layout
@@ -177,8 +177,8 @@
             const beatsInThisLine = lineEndBeat - lineStartBeat;
             const lineY = startY + (line * lineHeight);
             
-            // Draw vertical lines for beats and measure boundaries
-            for (let beatIndex = 0; beatIndex <= beatsInThisLine; beatIndex++) {
+            // Draw vertical lines for beats and measure boundaries (exclude the end boundary to avoid extra beat)
+            for (let beatIndex = 0; beatIndex < beatsInThisLine; beatIndex++) {
                 const globalBeatIndex = lineStartBeat + beatIndex;
                 const x = startX + beatIndex * beatUnit * slotWidth;
                 const isMeasureBoundary = globalBeatIndex > 0 && globalBeatIndex % beatsPerMeasure === 0;
@@ -187,13 +187,15 @@
                 const strokeWidth = isMeasureBoundary ? '3' : '2';
                 svg.innerHTML += `<line x1="${x}" y1="${lineY}" x2="${x}" y2="${lineY + slotHeight}" stroke="black" stroke-width="${strokeWidth}"/>`;
                 
-                // Add beat numbers above beats (but not at the very end of line)
-                if (beatIndex < beatsInThisLine) {
-                    const beatInMeasure = (globalBeatIndex % beatsPerMeasure) + 1;
-                    const beatLineX = x; // Position directly above the beat line
-                    svg.innerHTML += `<text x="${beatLineX}" y="${lineY - 5}" text-anchor="middle" font-size="12">${beatInMeasure}</text>`;
-                }
+                // Add beat numbers above beats
+                const beatInMeasure = (globalBeatIndex % beatsPerMeasure) + 1;
+                const beatLineX = x; // Position directly above the beat line
+                svg.innerHTML += `<text x="${beatLineX}" y="${lineY - 5}" text-anchor="middle" font-size="12">${beatInMeasure}</text>`;
             }
+            
+            // Draw the final vertical line at the end of this line
+            const finalX = startX + beatsInThisLine * beatUnit * slotWidth;
+            svg.innerHTML += `<line x1="${finalX}" y1="${lineY}" x2="${finalX}" y2="${lineY + slotHeight}" stroke="black" stroke-width="2"/>`;
 
             // Draw vertical lines for 16th note divisions
             const slotsInThisLine = beatsInThisLine * beatUnit;
