@@ -609,7 +609,6 @@
 </style>
 
 <script>
-console.log('Script block started'); // Added for debugging
 let metronomeInterval;
 let audioContext;
 let isPlaying = false; // Flag for strumming playback
@@ -622,8 +621,6 @@ let strummingPatternData = [];
 let currentProgressionView = 'simple';
 let chordProgressionData = '';
 let highlightedChord = null;
-
-console.log('Raw chord progression from template:', chordProgressionData);
 
 // Function to create a basic click sound
 function createClick(volume = 0.1) {
@@ -681,13 +678,13 @@ function startStrumming() {
     document.getElementById('stop-strumming-btn').style.display = 'inline-block';
 
     const songBpm = {{ song.bpm }};
+    const timeSignatureStr = "{{ song.time_signature }}";
 
     // Use the strummingPatternData variable directly (already parsed in DOMContentLoaded)
     currentStrummingPattern = strummingPatternData;
 
     // Optional: Basic validation
     if (!Array.isArray(currentStrummingPattern) || !currentStrummingPattern.every(item => ['D', 'U', '-', 'X'].includes(item))) {
-         console.error('Strumming pattern data is not a valid array of symbols:', currentStrummingPattern);
          // Handle invalid data if necessary, maybe stop playback or show a message
          flashMessage('Invalid strumming pattern data format.', 'danger'); // Assuming flashMessage exists
          stopStrumming(); // Stop playback if data is invalid
@@ -696,20 +693,75 @@ function startStrumming() {
 
     currentStrummingIndex = 0;
 
-    console.log('startStrumming: currentStrummingPattern =', currentStrummingPattern);
-    console.log('startStrumming: songBpm =', songBpm);
-
     if (currentStrummingPattern.length === 0) {
-        console.warn('Strumming pattern is empty after parsing.');
         stopStrumming();
         return;
     }
 
-    // Calculate interval based on 16th note duration
-    // A quarter note duration is (60 / songBpm) seconds.
-    // A 16th note duration is (quarter note duration) / 4.
-    const quarterNoteDurationMs = (60 / songBpm) * 1000; // Duration of a quarter note in milliseconds
-    const strokeInterval = quarterNoteDurationMs / 4; // Interval in milliseconds for a 16th note
+    // Parse time signature for proper timing calculation
+    const timeSignatureParts = timeSignatureStr.split('/');
+    const beatsPerBar = parseInt(timeSignatureParts[0]) || 4;
+    const noteValue = parseInt(timeSignatureParts[1]) || 4;
+    
+    // For most music apps, BPM refers to the beat unit of the time signature
+    // For 4/4: BPM = quarter notes per minute
+    // For 4/3: BPM = 1/3 notes per minute  
+    // This makes the musical feeling consistent across time signatures
+    const beatInterval = (60 / songBpm) * 1000; // milliseconds per beat (whatever note value gets the beat)
+    
+    // Get subdivision data to determine timing within each beat
+    let rawStrummingData = {{ song.strumming_pattern_list | tojson }};
+    let beatSubdivisions;
+    
+    // Function to detect default subdivision type based on time signature
+    function getDefaultSubdivision(timeSignatureStr) {
+        const parts = (timeSignatureStr || '4/4').split('/');
+        if (parts.length === 2) {
+            const denominator = parseInt(parts[1]);
+            // Powers of 2 (2,4,8,16) = regular subdivisions
+            // Non-powers of 2 (3,5,6,7,9,etc.) = triplet subdivisions  
+            return (denominator & (denominator - 1)) === 0 ? 'regular' : 'triplet';
+        }
+        return 'regular'; // Default
+    }
+    
+    const defaultSubdivision = getDefaultSubdivision(timeSignatureStr);
+    
+    if (typeof rawStrummingData === 'object' && rawStrummingData !== null && 'subdivisions' in rawStrummingData) {
+        // New triplet format: use provided subdivisions
+        const providedSubdivisions = rawStrummingData.subdivisions || [];
+        beatSubdivisions = [];
+        for (let i = 0; i < beatsPerBar; i++) {
+            if (i < providedSubdivisions.length) {
+                beatSubdivisions[i] = providedSubdivisions[i];
+            } else {
+                beatSubdivisions[i] = defaultSubdivision;
+            }
+        }
+    } else {
+        // Legacy format: use default subdivisions based on time signature
+        beatSubdivisions = Array(beatsPerBar).fill(defaultSubdivision);
+    }
+
+    // Calculate subdivision interval dynamically based on pattern structure
+    // We need to determine how many subdivisions each stroke represents
+    const patternLength = currentStrummingPattern.length;
+    
+    // Calculate total subdivisions across all beats in the pattern
+    let totalSubdivisions = 0;
+    const numberOfMeasures = Math.ceil(patternLength / getTotalSubdivisionsPerMeasure());
+    
+    function getTotalSubdivisionsPerMeasure() {
+        let subdivisions = 0;
+        for (let beat = 0; beat < beatsPerBar; beat++) {
+            subdivisions += beatSubdivisions[beat] === 'triplet' ? 3 : 4;
+        }
+        return subdivisions;
+    }
+    
+    const subdivisionsPerMeasure = getTotalSubdivisionsPerMeasure();
+    const measureDuration = beatInterval * beatsPerBar; // Total duration of one measure
+    const subdivisionInterval = measureDuration / subdivisionsPerMeasure; // Duration of each subdivision
 
     // Function to play the next stroke in the pattern
     function playNextStroke() {
@@ -733,14 +785,13 @@ function startStrumming() {
             createClick();
         } else if (stroke === '-' || stroke === ' ') {
             // This is a rest or missed stroke (including spaces), play no sound
-            // console.log('Rest or space'); // Optional: Log silent steps
         }
         // Ignore other characters for sound playback for now
 
         currentStrummingIndex++;
 
-        // Schedule the next stroke
-        strummingTimer = setTimeout(playNextStroke, strokeInterval);
+        // Schedule the next stroke using the calculated subdivision interval
+        strummingTimer = setTimeout(playNextStroke, subdivisionInterval);
     }
 
     // Start playing the pattern
@@ -758,16 +809,6 @@ function stopStrumming() {
 // Add event listeners to the buttons
 document.getElementById('play-strumming-btn').addEventListener('click', startStrumming);
 document.getElementById('stop-strumming-btn').addEventListener('click', stopStrumming);
-
-
-// Metronome functions (existing)
-// let metronomeInterval; // Removed duplicate declaration
-// let audioContext; // Removed duplicate declaration
-// let isMetronomePlaying = false; // Renamed and kept single declaration at top
-
-// Use the same audioContext for metronome and strumming
-// Function to create a basic click sound (can be reused)
-// function createClick(volume = 0.1) { ... } // Already defined above
 
 // Function to create a slightly different sound for the first beat (optional)
 function createBeatSound(volume = 0.2) {
@@ -795,21 +836,18 @@ function startMetronome() {
     if (isMetronomePlaying) return;
     isMetronomePlaying = true;
 
-    // Hide metronome start button, show stop (adjust based on your button IDs if different)
-    // Assuming you have separate buttons or want to manage visibility differently
-    // For now, let's assume the existing metronome buttons are managed separately.
-    // If using the same play/stop buttons, we'd need more complex state.
-    // Let's assume separate buttons for now as the HTML structure suggests.
-
-    // Show metronome display (adjust class/ID if needed)
-    // document.querySelector('.metronome-display').style.display = 'block';
-
     const songBpm = {{ song.bpm }};
-    const timeSignature = "{{ song.time_signature }}".split('/');
-    const beatsPerBar = parseInt(timeSignature[0]) || 4; // Default to 4/4 if parsing fails
-
-    // Calculate interval in milliseconds for a quarter note
-    const interval = (60 / songBpm) * 1000;
+    const timeSignatureStr = "{{ song.time_signature }}";
+    
+    // Parse the time signature for irrational support
+    const timeSignatureParts = timeSignatureStr.split('/');
+    const beatsPerBar = parseInt(timeSignatureParts[0]) || 4;
+    const noteValue = parseInt(timeSignatureParts[1]) || 4;
+    
+    // For consistency with strumming pattern, BPM refers to the beat unit of the time signature
+    // For 4/4: BPM = quarter notes per minute
+    // For 4/3: BPM = 1/3 notes per minute
+    const beatInterval = (60 / songBpm) * 1000; // milliseconds per beat
 
     let beat = 0;
 
@@ -831,12 +869,11 @@ function startMetronome() {
         beat = (beat + 1) % beatsPerBar;
 
         // Schedule the next beat
-        metronomeInterval = setTimeout(playNextMetronomeBeat, interval);
+        metronomeInterval = setTimeout(playNextMetronomeBeat, beatInterval);
     }
 
-    // Start the metronome after a short delay to allow the first dot to light up
-    // Or play the first beat immediately and then set the interval/timeout
-     playNextMetronomeBeat(); // Play first beat immediately
+    // Start the metronome - play first beat immediately
+    playNextMetronomeBeat();
 }
 
 function updateDots(activeBeat) {
@@ -853,102 +890,36 @@ function stopMetronome() {
     isMetronomePlaying = false; // Set flag to false
     clearTimeout(metronomeInterval);
 
-    // Hide metronome display (adjust class/ID if needed)
-    // document.querySelector('.metronome-display').style.display = 'none';
-
     // Remove active state from dots (adjust class/ID if needed)
     document.querySelectorAll('.metronome-display .dot').forEach(dot => {
         dot.classList.remove('active');
     });
 }
 
-// Metronome button event listeners are assumed to be already present or added elsewhere.
-// If not, you would add them here:
-// document.getElementById('start-metronome-btn').addEventListener('click', startMetronome);
-// document.getElementById('stop-metronome-btn').addEventListener('click', stopMetronome);
-
-
-// Function to update chord diagram (existing)
-// ...
-
-// Function to save selected variant (existing)
-// ...
-
-// Initial load and event listeners (existing)
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Script block started');
-    
-    // Add event listeners for chord variant dropdowns
-    document.querySelectorAll('.dropdown-item[data-variant]').forEach(item => {
-        item.addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            const variant = this.getAttribute('data-variant');
-            const chordCard = this.closest('.chord-card');
-            const chordName = chordCard.getAttribute('data-chord-name');
-            const dropdown = this.closest('.dropdown');
-            const dropdownButton = dropdown.querySelector('.dropdown-toggle');
-            const diagramContainer = chordCard.querySelector('.chord-diagram-container');
-            
-            // Update dropdown button text
-            const variantDisplay = variant || 'Default';
-            dropdownButton.textContent = variantDisplay;
-            
-            // Update chord diagram
-            updateChordDiagram(chordName, variant, diagramContainer);
-            
-            // Save selected variant
-            saveSelectedVariant(chordName, variant);
-        });
-    });
-
-    // Ensure AudioContext is created on user interaction (e.g., first button click)
-    // This avoids issues with browsers requiring user gesture before creating AudioContext
-
-    // Event listeners for strumming buttons are added globally above.
-
-    // Existing metronome button listeners assumed or to be added.
-
-    // Render the strumming pattern SVG on page load
-    renderStrummingPattern();
-
-    // Assign the strumming pattern data to the global variable after DOM is loaded
-    strummingPatternData = {{ song.strumming_pattern_list | tojson }};
-
-    // Initialize chord progression
-    initChordProgression();
-
-});
-
 // Function to render the strumming pattern as SVG
 function renderStrummingPattern() {
     const container = document.getElementById('strumming-pattern-display');
     if (!container) {
-        console.error('Strumming pattern display container not found.');
         return;
     }
 
     // Get strumming pattern data passed from Flask
-    const strummingPatternData = {{ song.strumming_pattern_list | tojson }};
+    let rawStrummingData = {{ song.strumming_pattern_list | tojson }};
     const numberOfBeats = {{ song.display_beats | tojson }}; // Number of beats to display
     const timeSignature = "{{ song.time_signature }}"; // Get time signature
-
-    console.log('renderStrummingPattern: strummingPatternData =', strummingPatternData);
-    console.log('renderStrummingPattern: numberOfBeats =', numberOfBeats);
-    console.log('renderStrummingPattern: timeSignature =', timeSignature);
-
-    if (!strummingPatternData || strummingPatternData.length === 0) {
-        container.innerHTML = '<p>No strumming pattern available.</p>';
-        return;
-    }
-
-    // Parse time signature to get beats per measure
+    
+    // Handle different data formats
+    let strummingPatternData;
+    let beatSubdivisions;
+    
+    // Parse time signature to get beats per measure  
     function parseTimeSignature(timeSignatureStr) {
         const parts = (timeSignatureStr || '4/4').split('/');
         if (parts.length === 2) {
             const numerator = parseInt(parts[0]);
             const denominator = parseInt(parts[1]);
-            // For strumming patterns, we count in terms of the main beats
+            
+            // Handle traditional compound time signatures with special groupings
             if (denominator === 8 && numerator === 6) {
                 return 2; // 6/8 is typically felt in 2
             } else if (denominator === 8 && numerator === 9) {
@@ -956,32 +927,96 @@ function renderStrummingPattern() {
             } else if (denominator === 8 && numerator === 12) {
                 return 4; // 12/8 is typically felt in 4
             } else {
-                return numerator; // For most time signatures, use the numerator
+                // For all other time signatures (including irrational ones), use the numerator
+                // The numerator always represents the number of beats per measure
+                return numerator;
             }
         }
         return 4; // Default to 4/4 if parsing fails
     }
-
+    
+    // Function to detect default subdivision type based on time signature
+    function getDefaultSubdivision(timeSignatureStr) {
+        const parts = (timeSignatureStr || '4/4').split('/');
+        if (parts.length === 2) {
+            const denominator = parseInt(parts[1]);
+            // Powers of 2 (2,4,8,16) = regular subdivisions
+            // Non-powers of 2 (3,5,6,7,9,etc.) = triplet subdivisions  
+            return (denominator & (denominator - 1)) === 0 ? 'regular' : 'triplet';
+        }
+        return 'regular'; // Default
+    }
+    
     const beatsPerMeasure = parseTimeSignature(timeSignature);
-    const beatUnit = 4; // 16th notes per beat
-    const totalSlots = numberOfBeats * beatUnit; // Total 16th note slots to display
+    const defaultSubdivision = getDefaultSubdivision(timeSignature);
+    
+    if (typeof rawStrummingData === 'object' && rawStrummingData !== null && 'pattern' in rawStrummingData) {
+        // New triplet format: {pattern: [...], subdivisions: [...]}
+        strummingPatternData = rawStrummingData.pattern;
+        const providedSubdivisions = rawStrummingData.subdivisions || [];
+        
+        // Ensure subdivisions array is the right length
+        beatSubdivisions = [];
+        for (let i = 0; i < beatsPerMeasure; i++) {
+            if (i < providedSubdivisions.length) {
+                beatSubdivisions[i] = providedSubdivisions[i];
+            } else {
+                // Fill missing subdivisions with default based on time signature
+                beatSubdivisions[i] = defaultSubdivision;
+            }
+        }
+        
+    } else if (Array.isArray(rawStrummingData)) {
+        // Legacy format: just an array
+        strummingPatternData = rawStrummingData;
+        // Default subdivisions based on time signature
+        beatSubdivisions = Array(beatsPerMeasure).fill(defaultSubdivision);
+        
+    } else {
+        container.innerHTML = '<p>Invalid strumming pattern data format.</p>';
+        return;
+    }
 
-    console.log('Calculated: beatsPerMeasure =', beatsPerMeasure, 'totalSlots =', totalSlots);
+    if (!strummingPatternData || strummingPatternData.length === 0) {
+        container.innerHTML = '<p>No strumming pattern available.</p>';
+        return;
+    }
 
-    const slotWidth = 25; // Width of each 16th note slot
+    // Calculate total slots based on beat subdivisions
+    function calculateTotalSlots() {
+        let slots = 0;
+        for (let beat = 0; beat < beatsPerMeasure; beat++) {
+            if (beatSubdivisions[beat] === 'triplet') {
+                slots += 3; // Triplet = 3 subdivisions
+            } else {
+                slots += 4; // Regular = 4 sixteenth notes
+            }
+        }
+        return slots * numberOfMeasures;
+    }
+
+    const numberOfMeasures = Math.ceil(numberOfBeats / beatsPerMeasure);
+    const totalSlots = calculateTotalSlots();
+
+    const slotWidth = 25; // Width of each subdivision slot
     const slotHeight = 30; // Height of each slot
     const startX = 10;
     const startY = 20; 
     
     // Multi-line layout calculations
-    const maxBeatsPerLine = beatsPerMeasure; // Show 1 measure per line for better readability
-    const beatsPerLine = maxBeatsPerLine; // Always use full measures per line
+    const beatsPerLine = beatsPerMeasure; // Show 1 measure per line for better readability
     const numberOfLines = Math.ceil(numberOfBeats / beatsPerLine);
     
     // Calculate SVG dimensions for multi-line layout
-    const svgWidth = startX + (beatsPerLine * beatUnit * slotWidth) + startX;
-    const lineHeight = slotHeight + 60; // Extra space for beat numbers and spacing between lines
-    const svgHeight = (numberOfLines * lineHeight) + 20; // Extra space at bottom
+    let maxSlotsPerLine = 0;
+    for (let beat = 0; beat < beatsPerMeasure; beat++) {
+        maxSlotsPerLine += beatSubdivisions[beat] === 'triplet' ? 3 : 4;
+    }
+    
+    const svgWidth = startX + (maxSlotsPerLine * slotWidth) + startX;
+    const lineHeight = slotHeight + 80; // Extra space for beat numbers and triplet brackets
+    const topMargin = 40; // Space for beat numbers at the top
+    const svgHeight = topMargin + (numberOfLines * lineHeight) + 20; // Extra space at bottom
 
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', svgWidth);
@@ -989,76 +1024,133 @@ function renderStrummingPattern() {
 
     const displaySymbols = ['↓', '↑', '-', 'X']; // Display representation
 
+    let slotIndex = 0;
+
     // Draw each line
     for (let line = 0; line < numberOfLines; line++) {
         const lineStartBeat = line * beatsPerLine;
         const lineEndBeat = Math.min(lineStartBeat + beatsPerLine, numberOfBeats);
         const beatsInThisLine = lineEndBeat - lineStartBeat;
-        const lineY = startY + (line * lineHeight);
+        const lineY = topMargin + startY + (line * lineHeight);
         
-        // Draw vertical lines for beats and measure boundaries (exclude the end boundary to avoid extra beat)
+        let currentX = startX;
+
+        // Draw each beat with its subdivisions for this line
         for (let beatIndex = 0; beatIndex < beatsInThisLine; beatIndex++) {
             const globalBeatIndex = lineStartBeat + beatIndex;
-            const x = startX + beatIndex * beatUnit * slotWidth;
-            const isMeasureBoundary = globalBeatIndex > 0 && globalBeatIndex % beatsPerMeasure === 0;
+            const beat = globalBeatIndex % beatsPerMeasure;
+            const subdivision = beatSubdivisions[beat];
+            const subdivisions = subdivision === 'triplet' ? 3 : 4;
+            const beatWidth = subdivisions * slotWidth;
             
-            // Thicker lines for measure boundaries
-            const strokeWidth = isMeasureBoundary ? '3' : '2';
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', x);
-            line.setAttribute('y1', lineY);
-            line.setAttribute('x2', x);
-            line.setAttribute('y2', lineY + slotHeight);
-            line.setAttribute('stroke', 'black');
-            line.setAttribute('stroke-width', strokeWidth);
-            svg.appendChild(line);
+            // Draw beat boundary line (left side)
+            const isMeasureStart = globalBeatIndex > 0 && globalBeatIndex % beatsPerMeasure === 0;
+            const strokeWidth = isMeasureStart ? '3' : '2';
+            const beatLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            beatLine.setAttribute('x1', currentX);
+            beatLine.setAttribute('y1', lineY);
+            beatLine.setAttribute('x2', currentX);
+            beatLine.setAttribute('y2', lineY + slotHeight);
+            beatLine.setAttribute('stroke', 'black');
+            beatLine.setAttribute('stroke-width', strokeWidth);
+            svg.appendChild(beatLine);
             
-            // Add beat numbers above beats
-            const beatInMeasure = (globalBeatIndex % beatsPerMeasure) + 1;
-            const beatLineX = x; // Position directly above the beat line
-            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            text.setAttribute('x', beatLineX);
-            text.setAttribute('y', lineY - 5);
-            text.setAttribute('text-anchor', 'middle');
-            text.setAttribute('font-size', '12');
-            text.textContent = beatInMeasure;
-            svg.appendChild(text);
+            // Draw beat number
+            const beatNumber = beat + 1;
+            const beatNumberX = currentX + beatWidth / 2;
+            const beatNumberY = lineY - 10; // Position beat numbers 10px above the pattern
+            const beatNumberColor = subdivision === 'triplet' ? '#e74c3c' : '#333';
+            const beatText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            beatText.setAttribute('x', beatNumberX);
+            beatText.setAttribute('y', beatNumberY);
+            beatText.setAttribute('text-anchor', 'middle');
+            beatText.setAttribute('font-size', '14');
+            beatText.setAttribute('fill', beatNumberColor);
+            beatText.setAttribute('font-weight', 'bold');
+            beatText.textContent = beatNumber;
+            svg.appendChild(beatText);
+            
+            // Draw triplet bracket and "3" if this is a triplet beat
+            if (subdivision === 'triplet') {
+                const bracketY = lineY - 25;
+                const bracketStartX = currentX + 2;
+                const bracketEndX = currentX + beatWidth - 2;
+                const bracketMidX = (bracketStartX + bracketEndX) / 2;
+                
+                // Draw triplet bracket
+                const bracketPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                bracketPath.setAttribute('d', `M ${bracketStartX} ${bracketY} L ${bracketStartX} ${bracketY - 5} L ${bracketEndX} ${bracketY - 5} L ${bracketEndX} ${bracketY}`);
+                bracketPath.setAttribute('stroke', '#e74c3c');
+                bracketPath.setAttribute('stroke-width', '1.5');
+                bracketPath.setAttribute('fill', 'none');
+                svg.appendChild(bracketPath);
+                
+                // Draw "3" in the middle of the bracket
+                const tripletText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                tripletText.setAttribute('x', bracketMidX);
+                tripletText.setAttribute('y', bracketY - 8);
+                tripletText.setAttribute('text-anchor', 'middle');
+                tripletText.setAttribute('font-size', '12');
+                tripletText.setAttribute('fill', '#e74c3c');
+                tripletText.setAttribute('font-weight', 'bold');
+                tripletText.textContent = '3';
+                svg.appendChild(tripletText);
+            }
+            
+            // Draw subdivision lines (lighter for internal subdivisions)
+            for (let sub = 1; sub < subdivisions; sub++) {
+                const x = currentX + sub * slotWidth;
+                const subLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                subLine.setAttribute('x1', x);
+                subLine.setAttribute('y1', lineY);
+                subLine.setAttribute('x2', x);
+                subLine.setAttribute('y2', lineY + slotHeight);
+                subLine.setAttribute('stroke', 'grey');
+                subLine.setAttribute('stroke-width', '1');
+                svg.appendChild(subLine);
+            }
+            
+            // Add strumming symbols for each subdivision
+            for (let sub = 0; sub < subdivisions; sub++) {
+                const x = currentX + sub * slotWidth;
+                
+                // Ensure index is within bounds of the actual data
+                const symbol = (slotIndex < strummingPatternData.length) ? strummingPatternData[slotIndex] : '-';
+
+                // Map internal symbol (D, U, -, X) to display symbol (↓, ↑, -, X)
+                const symbolIndex = ['D', 'U', '-', 'X'].indexOf(symbol);
+                const displaySymbol = (symbolIndex !== -1) ? displaySymbols[symbolIndex] : '?'; // Use ? for unknown symbols
+
+                const symbolText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                symbolText.setAttribute('x', x + slotWidth / 2);
+                symbolText.setAttribute('y', lineY + slotHeight / 2 + 5); // Adjust for vertical centering
+                symbolText.setAttribute('text-anchor', 'middle');
+                symbolText.setAttribute('font-size', '18');
+                symbolText.setAttribute('fill', 'black');
+                symbolText.textContent = displaySymbol;
+                svg.appendChild(symbolText);
+                
+                slotIndex++;
+            }
+            
+            currentX += beatWidth;
         }
         
-        // Draw the final vertical line at the end of this line
-        const finalX = startX + beatsInThisLine * beatUnit * slotWidth;
+        // Draw final boundary line for this line
         const finalLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        finalLine.setAttribute('x1', finalX);
+        finalLine.setAttribute('x1', currentX);
         finalLine.setAttribute('y1', lineY);
-        finalLine.setAttribute('x2', finalX);
+        finalLine.setAttribute('x2', currentX);
         finalLine.setAttribute('y2', lineY + slotHeight);
         finalLine.setAttribute('stroke', 'black');
         finalLine.setAttribute('stroke-width', '2');
         svg.appendChild(finalLine);
-
-        // Draw vertical lines for 16th note divisions
-        const slotsInThisLine = beatsInThisLine * beatUnit;
-        for (let i = 0; i <= slotsInThisLine; i++) {
-            const x = startX + i * slotWidth;
-            const isOnBeat = i % beatUnit === 0;
-            
-            if (!isOnBeat) {
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', x);
-                line.setAttribute('y1', lineY);
-                line.setAttribute('x2', x);
-                line.setAttribute('y2', lineY + slotHeight);
-                line.setAttribute('stroke', 'grey');
-                line.setAttribute('stroke-width', '1');
-                svg.appendChild(line);
-            }
-        }
-
+        
         // Draw horizontal lines (top and bottom) for this line
         const topLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         topLine.setAttribute('x1', startX);
         topLine.setAttribute('y1', lineY);
-        topLine.setAttribute('x2', startX + slotsInThisLine * slotWidth);
+        topLine.setAttribute('x2', currentX);
         topLine.setAttribute('y2', lineY);
         topLine.setAttribute('stroke', 'black');
         topLine.setAttribute('stroke-width', '2');
@@ -1067,36 +1159,11 @@ function renderStrummingPattern() {
         const bottomLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         bottomLine.setAttribute('x1', startX);
         bottomLine.setAttribute('y1', lineY + slotHeight);
-        bottomLine.setAttribute('x2', startX + slotsInThisLine * slotWidth);
+        bottomLine.setAttribute('x2', currentX);
         bottomLine.setAttribute('y2', lineY + slotHeight);
         bottomLine.setAttribute('stroke', 'black');
         bottomLine.setAttribute('stroke-width', '2');
         svg.appendChild(bottomLine);
-
-        // Add strumming symbols for this line
-        for (let i = 0; i < slotsInThisLine; i++) {
-            const globalSlotIndex = lineStartBeat * beatUnit + i;
-            if (globalSlotIndex >= totalSlots) break; // Don't exceed total slots
-            
-            const x = startX + i * slotWidth;
-            const y = lineY;
-
-            // Ensure index is within bounds of the actual data
-            const symbol = (globalSlotIndex < strummingPatternData.length) ? strummingPatternData[globalSlotIndex] : '-';
-
-            // Map internal symbol (D, U, -, X) to display symbol (↓, ↑, -, X)
-            const symbolIndex = ['D', 'U', '-', 'X'].indexOf(symbol);
-            const displaySymbol = (symbolIndex !== -1) ? displaySymbols[symbolIndex] : '?'; // Use ? for unknown symbols
-
-            const symbolText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            symbolText.setAttribute('x', x + slotWidth / 2);
-            symbolText.setAttribute('y', y + slotHeight / 2 + 5); // Adjust for vertical centering
-            symbolText.setAttribute('text-anchor', 'middle');
-            symbolText.setAttribute('font-size', '18');
-            symbolText.setAttribute('fill', 'black');
-            symbolText.textContent = displaySymbol;
-            svg.appendChild(symbolText);
-        }
     }
 
     container.appendChild(svg);
@@ -1136,11 +1203,9 @@ function saveSelectedVariant(chordName, variant) {
     .then(response => response.json())
     .then(data => {
         if (!data.success) {
-            console.error('Failed to save variant:', data.message);
         }
     })
     .catch(error => {
-        console.error('Error saving variant:', error);
     });
 }
 
@@ -1246,22 +1311,17 @@ function parseChordProgression(progressionText) {
 }
 
 function updateFormattedView() {
-    console.log('updateFormattedView called');
-    console.log('chordProgressionData:', chordProgressionData);
-    
     const chordsPerLine = parseInt(document.getElementById('chords-per-line').value);
     const showBarNumbers = document.getElementById('show-bar-numbers').checked;
     const container = document.getElementById('formatted-progression');
     
     if (!container) {
-        console.error('formatted-progression container not found');
         return;
     }
     
     container.innerHTML = '';
     
     const measures = parseChordProgression(chordProgressionData); // Now returns measures
-    console.log('parsed measures:', measures);
     
     if (measures.length === 0) {
         container.innerHTML = '<p class="text-muted">No chords found in progression</p>';
@@ -1331,8 +1391,6 @@ function updateFormattedView() {
         lineDiv.appendChild(chordRow);
         container.appendChild(lineDiv);
     }
-    
-    console.log('updateFormattedView completed');
 }
 
 function updateCompactView() {
@@ -1413,8 +1471,60 @@ function initChordProgression() {
     const simpleView = document.querySelector('#chord-progression-simple .chord-progression');
     if (simpleView) {
         chordProgressionData = simpleView.textContent.trim();
-        console.log('Chord progression data loaded:', chordProgressionData);
     }
 }
+
+// Initial load and event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // Add event listeners for chord variant dropdowns
+    document.querySelectorAll('.dropdown-item[data-variant]').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const variant = this.getAttribute('data-variant');
+            const chordCard = this.closest('.chord-card');
+            const chordName = chordCard.getAttribute('data-chord-name');
+            const dropdown = this.closest('.dropdown');
+            const dropdownButton = dropdown.querySelector('.dropdown-toggle');
+            const diagramContainer = chordCard.querySelector('.chord-diagram-container');
+            
+            // Update dropdown button text
+            const variantDisplay = variant || 'Default';
+            dropdownButton.textContent = variantDisplay;
+            
+            // Update chord diagram
+            updateChordDiagram(chordName, variant, diagramContainer);
+            
+            // Save selected variant
+            saveSelectedVariant(chordName, variant);
+        });
+    });
+
+    // Render the strumming pattern SVG on page load
+    renderStrummingPattern();
+
+    // Assign the strumming pattern data to the global variable after DOM is loaded
+    let rawStrummingData = {{ song.strumming_pattern_list | tojson }};
+    
+    // Handle different data formats for playback
+    if (typeof rawStrummingData === 'object' && rawStrummingData !== null && 'pattern' in rawStrummingData) {
+        // New triplet format: extract the pattern array
+        strummingPatternData = rawStrummingData.pattern;
+    } else if (Array.isArray(rawStrummingData)) {
+        // Legacy format: use directly
+        strummingPatternData = rawStrummingData;
+    } else {
+        // Invalid format
+        strummingPatternData = [];
+    }
+    
+    // Load subdivision data for triplets
+    const subdivisionData = {{ song.strumming_pattern_subdivisions | tojson }};
+
+    // Initialize chord progression
+    initChordProgression();
+
+});
 </script>
 {% endblock %}
