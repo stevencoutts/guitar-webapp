@@ -1078,22 +1078,29 @@ def backup():
                     user_id_mapping = {}
                     if current_user.is_admin and 'users' in backup_data:
                         for user_data in backup_data['users']:
-                            if user_data.get('id') != current_user.id:  # Don't restore current admin user
-                                user = User.query.get(user_data.get('id'))
-                                if user:
-                                    user.username = user_data.get('username')
-                                    user.password_hash = user_data.get('password_hash')
-                                    user.is_admin = user_data.get('is_admin', False)
-                                    user.disabled = user_data.get('disabled', False)
-                                else:
-                                    user = User(
-                                        id=user_data.get('id'),
-                                        username=user_data.get('username'),
-                                        password_hash=user_data.get('password_hash'),
-                                        is_admin=user_data.get('is_admin', False),
-                                        disabled=user_data.get('disabled', False)
-                                    )
-                                    db.session.add(user)
+                            # Find the existing user by ID
+                            existing_user = User.query.get(user_data.get('id'))
+
+                            if existing_user:
+                                # If user exists, update their details
+                                existing_user.username = user_data.get('username')
+                                existing_user.password_hash = user_data.get('password_hash')
+                                existing_user.is_admin = user_data.get('is_admin', False)
+                                existing_user.disabled = user_data.get('disabled', False) # Explicitly restore disabled status
+                                # Add to mapping for referencing in songs/records
+                                user_id_mapping[user_data.get('id')] = existing_user.id
+                            else:
+                                # If user doesn't exist, create a new one
+                                user = User(
+                                    # Do NOT set ID here, let the database assign a new one
+                                    username=user_data.get('username'),
+                                    password_hash=user_data.get('password_hash'),
+                                    is_admin=user_data.get('is_admin', False),
+                                    disabled=user_data.get('disabled', False) # Explicitly restore disabled status
+                                )
+                                db.session.add(user)
+                                # We need to commit to get the new ID for the mapping, then add to mapping
+                                db.session.flush() # Use flush to get the new ID without ending the transaction
                                 user_id_mapping[user_data.get('id')] = user.id
                     
                     # Restore songs
