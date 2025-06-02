@@ -277,5 +277,10 @@
     // Initial drawing of the grid
     drawGrid();
 
+    // Set the initial value of the display beats dropdown
+    if (displayBeatsSelect) {
+        displayBeatsSelect.value = initialDisplayBeats;
+    }
+
 </script>
 {% endblock %} 
