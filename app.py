@@ -1064,22 +1064,38 @@ def backup():
                     user_id_mapping = {}
                     if current_user.is_admin and 'users' in backup_data:
                         for user_data in backup_data['users']:
-                            if user_data.get('id') != current_user.id:  # Don't restore current admin user
-                                user = User.query.get(user_data.get('id'))
-                                if user:
-                                    user.username = user_data.get('username')
-                                    user.password_hash = user_data.get('password_hash')
-                                    user.is_admin = user_data.get('is_admin', False)
-                                    user.disabled = user_data.get('disabled', False)
+                            # Find if user with this username already exists in the current database
+                            existing_user = User.query.filter_by(username=user_data.get('username')).first()
+
+                            if existing_user:
+                                # If user exists, update their details
+                                # Do not update the current admin user if the backup data is for them
+                                if existing_user.id != current_user.id:
+                                    existing_user.password_hash = user_data.get('password_hash', existing_user.password_hash) # Update password hash
+                                    existing_user.is_admin = user_data.get('is_admin', False)
+                                    existing_user.disabled = user_data.get('disabled', False)
+                                    # Note: We don't update the username as we are using it to find the user
+                                    user_id_mapping[user_data.get('id')] = existing_user.id
                                 else:
-                                    user = User(
-                                        id=user_data.get('id'),
-                                        username=user_data.get('username'),
-                                        password_hash=user_data.get('password_hash'),
-                                        is_admin=user_data.get('is_admin', False),
-                                        disabled=user_data.get('disabled', False)
-                                    )
-                                    db.session.add(user)
+                                    # If the existing user is the current admin, map the old ID to the current admin's ID
+                                    user_id_mapping[user_data.get('id')] = current_user.id
+                                    # Optionally log a warning if the backup admin data is different from current
+                                    if app.logger:
+                                        if existing_user.username != user_data.get('username') or existing_user.is_admin != user_data.get('is_admin', False) or existing_user.disabled != user_data.get('disabled', False):
+                                            app.logger.warning(f"Backup admin user data ({user_data.get('username')}) differs from current admin user ({existing_user.username}). Current admin data is kept.")
+
+                            else:
+                                # If user does not exist, create a new one
+                                user = User(
+                                    # Do NOT set ID here, let the database assign a new one
+                                    username=user_data.get('username'),
+                                    password_hash=user_data.get('password_hash'),
+                                    is_admin=user_data.get('is_admin', False),
+                                    disabled=user_data.get('disabled', False)
+                                )
+                                db.session.add(user)
+                                # We need to flush to get the new ID for the mapping
+                                db.session.flush()
                                 user_id_mapping[user_data.get('id')] = user.id
                     
                     # Restore songs
