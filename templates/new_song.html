@@ -28,6 +28,10 @@
                         <label for="time_signature" class="form-label">Time Signature *</label>
                         <input type="text" class="form-control" id="time_signature" name="time_signature" 
                                placeholder="e.g., 4/4" required>
+                        <div class="form-text">
+                            Traditional: 4/4, 3/4, 6/8, etc. | Irrational: 4/3, 7/5, 5/6, etc.
+                            <br><small class="text-muted">Irrational time signatures: 4/3 = 4 beats where a ⅓ note gets 1 beat</small>
+                        </div>
                     </div>
                     
                     <div class="mb-3">
@@ -66,7 +70,10 @@
                         <label for="strumming_pattern" class="form-label">Strumming Pattern *</label>
                         <svg id="strummingPatternEditor" width="400" height="80"></svg>
                         <input type="hidden" id="strumming_pattern" name="strumming_pattern" value="" required>
-                        <div class="form-text">Click on the pattern slots to change strum direction (↓, ↑, - , X)</div>
+                        <div class="form-text">
+                            Click on pattern slots to change strum direction (↓, ↑, -, X)<br>
+                            <strong>Click beat numbers (1, 2, 3, 4) to toggle triplets:</strong> Regular beats (black) vs Triplet beats (red with bracket)
+                        </div>
                     </div>
                     
                     <div class="mb-3">
@@ -107,6 +114,7 @@
     const startY = 10;
 
     let strummingPattern = Array(totalSlots).fill('-'); // Initialize with rests
+    let beatSubdivisions = Array(beatsPerMeasure).fill('regular'); // Track subdivision type per beat: 'regular' or 'triplet'
 
     const strummingSymbols = ['D', 'U', '-', 'X']; // Down, Up, Rest, Mute
     const displaySymbols = ['↓', '↑', '-', 'X'];
@@ -136,8 +144,22 @@
         const timeSignature = timeSignatureInput.value || '4/4';
         beatsPerMeasure = parseTimeSignature(timeSignature);
         
-        // Recalculate total slots based on new time signature
-        const newTotalSlots = beatsPerMeasure * beatUnit * numberOfMeasures;
+        // Automatically determine subdivision type based on time signature
+        const parts = timeSignature.split('/');
+        const denominator = parseInt(parts[1]) || 4;
+        
+        // Auto-set subdivisions based on the time signature denominator
+        // Powers of 2 (2, 4, 8, 16) = regular subdivisions
+        // Non-powers of 2 (3, 5, 6, 7, 9, 10, etc.) = triplet subdivisions
+        const isPowerOfTwo = (num) => num > 0 && (num & (num - 1)) === 0;
+        const defaultSubdivision = isPowerOfTwo(denominator) ? 'regular' : 'triplet';
+        
+        // Update beatSubdivisions array for new time signature
+        beatSubdivisions = Array(beatsPerMeasure).fill(defaultSubdivision);
+        
+        
+        // Calculate total slots based on subdivision types
+        const newTotalSlots = calculateTotalSlots();
         
         // Adjust strumming pattern array
         if (newTotalSlots > totalSlots) {
@@ -153,82 +175,182 @@
         updateHiddenInput();
     }
 
+    // Calculate total slots based on beat subdivisions
+    function calculateTotalSlots() {
+        let slots = 0;
+        for (let beat = 0; beat < beatsPerMeasure; beat++) {
+            if (beatSubdivisions[beat] === 'triplet') {
+                slots += 3; // Triplet = 3 subdivisions
+            } else {
+                slots += 4; // Regular = 4 sixteenth notes
+            }
+        }
+        return slots * numberOfMeasures;
+    }
+
+    // Toggle subdivision type for a beat
+    function toggleBeatSubdivision(beatIndex) {
+        const oldSubdivision = beatSubdivisions[beatIndex];
+        const newSubdivision = oldSubdivision === 'regular' ? 'triplet' : 'regular';
+        beatSubdivisions[beatIndex] = newSubdivision;
+        
+        // Recalculate pattern array
+        const newTotalSlots = calculateTotalSlots();
+        const oldTotalSlots = strummingPattern.length;
+        
+        if (newTotalSlots !== oldTotalSlots) {
+            // Rebuild pattern array preserving existing values where possible
+            const newPattern = [];
+            let oldIndex = 0;
+            
+            for (let beat = 0; beat < beatsPerMeasure; beat++) {
+                const subdivisions = beatSubdivisions[beat] === 'triplet' ? 3 : 4;
+                for (let sub = 0; sub < subdivisions; sub++) {
+                    if (oldIndex < strummingPattern.length) {
+                        newPattern.push(strummingPattern[oldIndex]);
+                    } else {
+                        newPattern.push('-');
+                    }
+                    oldIndex++;
+                }
+            }
+            
+            strummingPattern = newPattern;
+            totalSlots = newTotalSlots;
+        }
+        
+        drawGrid();
+        updateHiddenInput();
+    }
+
     function drawGrid() {
-        // Calculate SVG dimensions
-        const svgWidth = startX + (beatsPerMeasure * beatUnit * slotWidth * numberOfMeasures) + startX;
-        const svgHeight = startY + slotHeight + 40; // Extra space for beat numbers
+        // Calculate SVG dimensions based on subdivision types
+        let maxSlotsPerLine = 0;
+        for (let beat = 0; beat < beatsPerMeasure; beat++) {
+            maxSlotsPerLine += beatSubdivisions[beat] === 'triplet' ? 3 : 4;
+        }
+        
+        const svgWidth = startX + (maxSlotsPerLine * slotWidth * numberOfMeasures) + startX;
+        const svgHeight = startY + slotHeight + 60; // Extra space for beat numbers and triplet brackets
         
         svg.setAttribute('width', svgWidth);
         svg.setAttribute('height', svgHeight);
         svg.innerHTML = ''; // Clear previous drawings
 
-        // Draw vertical lines for beats and measure boundaries
+        // First, draw all the static SVG content using innerHTML
+        let staticSVGContent = '';
+        let currentX = startX;
+        let slotIndex = 0;
+
+        // Draw each beat with its subdivisions
         for (let measure = 0; measure < numberOfMeasures; measure++) {
-            for (let beat = 0; beat <= beatsPerMeasure; beat++) {
-                const x = startX + (measure * beatsPerMeasure + beat) * beatUnit * slotWidth;
-                const isMainBeat = beat === 0 || beat === beatsPerMeasure;
-                const isMeasureBoundary = beat === 0 && measure > 0;
+            for (let beat = 0; beat < beatsPerMeasure; beat++) {
+                const subdivision = beatSubdivisions[beat];
+                const subdivisions = subdivision === 'triplet' ? 3 : 4;
+                const beatStartX = currentX;
+                const beatWidth = subdivisions * slotWidth;
                 
-                // Thicker lines for measure boundaries, regular thick lines for beats
-                const strokeWidth = isMeasureBoundary ? '3' : (isMainBeat ? '2' : '2');
-                svg.innerHTML += `<line x1="${x}" y1="${startY}" x2="${x}" y2="${startY + slotHeight}" stroke="black" stroke-width="${strokeWidth}"/>`;
+                // Draw beat boundary line (left side)
+                const isMeasureStart = beat === 0 && measure > 0;
+                const strokeWidth = isMeasureStart ? '3' : '2';
+                staticSVGContent += `<line x1="${currentX}" y1="${startY}" x2="${currentX}" y2="${startY + slotHeight}" stroke="black" stroke-width="${strokeWidth}"/>`;
                 
-                // Add beat numbers above beats (not at measure boundaries)
-                if (beat < beatsPerMeasure) {
-                    const beatNumber = beat + 1;
-                    const beatLineX = x; // Position directly above the beat line
-                    svg.innerHTML += `<text x="${beatLineX}" y="${startY - 5}" text-anchor="middle" font-size="12">${beatNumber}</text>`;
+                // Draw clickable beat number (click to toggle subdivision type)
+                const beatNumber = beat + 1;
+                const beatNumberX = currentX + beatWidth / 2;
+                const beatNumberColor = subdivision === 'triplet' ? '#e74c3c' : '#333';
+                staticSVGContent += `<text x="${beatNumberX}" y="${startY - 30}" text-anchor="middle" font-size="14" fill="${beatNumberColor}" style="cursor: pointer; font-weight: bold;" class="beat-number" data-beat="${beat}">${beatNumber}</text>`;
+                
+                // Draw triplet bracket and "3" if this is a triplet beat
+                if (subdivision === 'triplet') {
+                    const bracketY = startY - 20;
+                    const bracketStartX = currentX + 2;
+                    const bracketEndX = currentX + beatWidth - 2;
+                    const bracketMidX = (bracketStartX + bracketEndX) / 2;
+                    
+                    // Draw triplet bracket
+                    staticSVGContent += `<path d="M ${bracketStartX} ${bracketY} L ${bracketStartX} ${bracketY - 5} L ${bracketEndX} ${bracketY - 5} L ${bracketEndX} ${bracketY}" stroke="#e74c3c" stroke-width="1.5" fill="none"/>`;
+                    
+                    // Draw "3" in the middle of the bracket
+                    staticSVGContent += `<text x="${bracketMidX}" y="${bracketY - 8}" text-anchor="middle" font-size="12" fill="#e74c3c" font-weight="bold">3</text>`;
                 }
+                
+                // Draw subdivision lines (lighter for internal subdivisions)
+                for (let sub = 1; sub < subdivisions; sub++) {
+                    const x = currentX + sub * slotWidth;
+                    staticSVGContent += `<line x1="${x}" y1="${startY}" x2="${x}" y2="${startY + slotHeight}" stroke="grey" stroke-width="1"/>`;
+                }
+                
+                slotIndex += subdivisions;
+                currentX += beatWidth;
             }
         }
-
-        // Draw vertical lines for 16th note divisions
-        for (let i = 0; i <= totalSlots; i++) {
-            const x = startX + i * slotWidth;
-            const isOnBeat = i % beatUnit === 0;
-            
-            if (!isOnBeat) {
-                svg.innerHTML += `<line x1="${x}" y1="${startY}" x2="${x}" y2="${startY + slotHeight}" stroke="grey" stroke-width="1"/>`;
-            }
-        }
-
+        
+        // Draw final boundary line
+        staticSVGContent += `<line x1="${currentX}" y1="${startY}" x2="${currentX}" y2="${startY + slotHeight}" stroke="black" stroke-width="2"/>`;
+        
         // Draw horizontal lines (top and bottom)
-        svg.innerHTML += `<line x1="${startX}" y1="${startY}" x2="${startX + totalSlots * slotWidth}" y2="${startY}" stroke="black" stroke-width="2"/>`;
-        svg.innerHTML += `<line x1="${startX}" y1="${startY + slotHeight}" x2="${startX + totalSlots * slotWidth}" y2="${startY + slotHeight}" stroke="black" stroke-width="2"/>`;
-
-        // Draw interactive slots and symbols
-        for (let i = 0; i < totalSlots; i++) {
-            const x = startX + i * slotWidth;
-            const y = startY;
-
-            // Create a clickable area for each slot
-            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            rect.setAttribute('x', x);
-            rect.setAttribute('y', y);
-            rect.setAttribute('width', slotWidth);
-            rect.setAttribute('height', slotHeight);
-            rect.setAttribute('fill', 'transparent'); // Make it invisible but clickable
-            rect.setAttribute('data-index', i); // Store the index of the slot
-            svg.appendChild(rect);
-
-            // Add event listener to the rect
-            rect.addEventListener('click', handleClick);
-            
-            // Add symbol text
-            const symbolText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            symbolText.setAttribute('x', x + slotWidth / 2);
-            symbolText.setAttribute('y', y + slotHeight / 2 + 5); // Adjust for vertical centering
-            symbolText.setAttribute('text-anchor', 'middle');
-            symbolText.setAttribute('font-size', '18');
-            symbolText.setAttribute('fill', 'black');
-            symbolText.classList.add('strum-symbol'); // Add a class for easy selection
-            
-            const currentSymbol = strummingPattern[i] || '-';
-            const symbolIndex = strummingSymbols.indexOf(currentSymbol);
-            symbolText.textContent = (symbolIndex !== -1) ? displaySymbols[symbolIndex] : '-';
-            symbolText.setAttribute('data-index', i); // Store the index on the text too
-            svg.appendChild(symbolText);
+        staticSVGContent += `<line x1="${startX}" y1="${startY}" x2="${currentX}" y2="${startY}" stroke="black" stroke-width="2"/>`;
+        staticSVGContent += `<line x1="${startX}" y1="${startY + slotHeight}" x2="${currentX}" y2="${startY + slotHeight}" stroke="black" stroke-width="2"/>`;
+        
+        // Add all static content at once
+        svg.innerHTML = staticSVGContent;
+        
+        // Now add interactive elements using createElement and appendChild
+        currentX = startX;
+        slotIndex = 0;
+        
+        for (let measure = 0; measure < numberOfMeasures; measure++) {
+            for (let beat = 0; beat < beatsPerMeasure; beat++) {
+                const subdivision = beatSubdivisions[beat];
+                const subdivisions = subdivision === 'triplet' ? 3 : 4;
+                const beatWidth = subdivisions * slotWidth;
+                
+                // Add interactive elements for each subdivision
+                for (let sub = 0; sub < subdivisions; sub++) {
+                    const x = currentX + sub * slotWidth;
+                    
+                    // Create clickable area for each slot
+                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    rect.setAttribute('x', x);
+                    rect.setAttribute('y', startY);
+                    rect.setAttribute('width', slotWidth);
+                    rect.setAttribute('height', slotHeight);
+                    rect.setAttribute('fill', 'transparent');
+                    rect.setAttribute('data-index', slotIndex);
+                    svg.appendChild(rect);
+                    rect.addEventListener('click', handleClick);
+                    
+                    // Add symbol text
+                    const symbolText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    symbolText.setAttribute('x', x + slotWidth / 2);
+                    symbolText.setAttribute('y', startY + slotHeight / 2 + 5);
+                    symbolText.setAttribute('text-anchor', 'middle');
+                    symbolText.setAttribute('font-size', '18');
+                    symbolText.setAttribute('fill', 'black');
+                    symbolText.classList.add('strum-symbol');
+                    
+                    const currentSymbol = strummingPattern[slotIndex] || '-';
+                    const symbolIndex = strummingSymbols.indexOf(currentSymbol);
+                    symbolText.textContent = (symbolIndex !== -1) ? displaySymbols[symbolIndex] : '-';
+                    symbolText.setAttribute('data-index', slotIndex);
+                    svg.appendChild(symbolText);
+                    
+                    slotIndex++;
+                }
+                
+                currentX += beatWidth;
+            }
         }
+        
+        // Add click event listeners to beat numbers (which are now in the DOM)
+        svg.querySelectorAll('.beat-number').forEach(beatNumElement => {
+            beatNumElement.addEventListener('click', function(e) {
+                const beatIndex = parseInt(this.getAttribute('data-beat'));
+                toggleBeatSubdivision(beatIndex);
+                e.stopPropagation(); // Prevent other click handlers
+            });
+        });
     }
 
     function handleClick(event) {
@@ -250,7 +372,11 @@
     }
 
     function updateHiddenInput() {
-        hiddenInput.value = JSON.stringify(strummingPattern);
+        const patternData = {
+            pattern: strummingPattern,
+            subdivisions: beatSubdivisions
+        };
+        hiddenInput.value = JSON.stringify(patternData);
     }
 
     // Add event listener to time signature input

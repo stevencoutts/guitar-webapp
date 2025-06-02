@@ -177,7 +177,16 @@ class Song(db.Model):
         """Deserialize the JSON strumming pattern into a list."""
         if self.strumming_pattern:
             try:
-                return json.loads(self.strumming_pattern)
+                pattern_data = json.loads(self.strumming_pattern)
+                
+                # Handle new triplet format with subdivisions
+                if isinstance(pattern_data, dict) and 'pattern' in pattern_data:
+                    return pattern_data['pattern']
+                # Handle legacy format (just array)
+                elif isinstance(pattern_data, list):
+                    return pattern_data
+                else:
+                    return []
             except json.JSONDecodeError:
                 # Log error and return empty list for invalid JSON
                 if app.logger:
@@ -187,8 +196,12 @@ class Song(db.Model):
 
     @strumming_pattern_list.setter
     def strumming_pattern_list(self, value):
-        """Serialize a list into the JSON strumming pattern string."""
+        """Serialize pattern data into the JSON strumming pattern string."""
         if isinstance(value, list):
+            # Legacy format - just the pattern array
+            self.strumming_pattern = json.dumps(value)
+        elif isinstance(value, dict):
+            # New format - includes subdivisions
             self.strumming_pattern = json.dumps(value)
         elif value is None or value == '':
             self.strumming_pattern = None
@@ -196,7 +209,19 @@ class Song(db.Model):
             # Log error for unexpected type
             if app.logger:
                  app.logger.error(f"Attempted to set strumming_pattern_list with unexpected type for song {self.id}: {type(value)}")
-            self.strumming_pattern = None # Or handle as an error
+            self.strumming_pattern = None
+
+    @property
+    def strumming_pattern_subdivisions(self):
+        """Get subdivision data for triplet support."""
+        if self.strumming_pattern:
+            try:
+                pattern_data = json.loads(self.strumming_pattern)
+                if isinstance(pattern_data, dict) and 'subdivisions' in pattern_data:
+                    return pattern_data['subdivisions']
+            except json.JSONDecodeError:
+                pass
+        return None
 
 class PracticeRecord(db.Model):
     """Practice record model for tracking practice sessions"""
@@ -369,29 +394,39 @@ def new_song():
         strumming_pattern_json = request.form.get('strumming_pattern')
         if strumming_pattern_json:
             try:
-                # Validate and deserialize the JSON. Ensure it's a list of strings.
-                strumming_pattern_list = json.loads(strumming_pattern_json)
-                if isinstance(strumming_pattern_list, list) and all(isinstance(item, str) for item in strumming_pattern_list):
-                     # Use the setter to handle serialization to text
-                    strumming_pattern_to_save = strumming_pattern_list
+                # Validate and deserialize the JSON
+                strumming_pattern_data = json.loads(strumming_pattern_json)
+                
+                # Handle new triplet format with subdivisions
+                if isinstance(strumming_pattern_data, dict) and 'pattern' in strumming_pattern_data:
+                    pattern = strumming_pattern_data['pattern']
+                    subdivisions = strumming_pattern_data.get('subdivisions', [])
+                    
+                    if isinstance(pattern, list) and all(isinstance(item, str) for item in pattern):
+                        # Store the complete data structure
+                        song.strumming_pattern_list = strumming_pattern_data
+                    else:
+                        flash('Invalid strumming pattern data format.', 'danger')
+                        if app.logger:
+                            app.logger.error(f"Invalid pattern array in strumming_pattern JSON for song {song_id}: {strumming_pattern_json}")
+                        
+                # Handle legacy format (just array)
+                elif isinstance(strumming_pattern_data, list) and all(isinstance(item, str) for item in strumming_pattern_data):
+                    # Use the setter to handle serialization to text
+                    song.strumming_pattern_list = strumming_pattern_data
                 else:
                     flash('Invalid strumming pattern data format.', 'danger')
                     # Optionally, log the invalid data
                     if app.logger:
-                        app.logger.error(f"Received invalid strumming_pattern JSON for new song: {strumming_pattern_json}")
-                    # Decide how to handle invalid data on new song creation - perhaps return or set to None/default
-                    # For now, we will continue and allow it to be None if validation fails
-                    strumming_pattern_to_save = None # Or maybe an empty list? Let's stick to None if invalid/empty
+                        app.logger.error(f"Received invalid strumming_pattern JSON for song {song_id}: {strumming_pattern_json}")
 
             except json.JSONDecodeError:
                 flash('Invalid JSON data for strumming pattern.', 'danger')
                  # Optionally, log the error
                 if app.logger:
-                     app.logger.error(f"Error decoding strumming_pattern JSON for new song: {strumming_pattern_json}")
-                strumming_pattern_to_save = None # Or maybe an empty list? Let's stick to None if invalid/empty
-        else:
-             # If no strumming pattern is provided (e.g., field is empty), set it to None
-            strumming_pattern_to_save = None
+                     app.logger.error(f"Error decoding strumming_pattern JSON for song {song_id}: {strumming_pattern_json}")
+        # If no strumming pattern is provided or it's empty, preserve the existing pattern
+        # This prevents accidental clearing of the pattern when other fields are updated
 
         notes = request.form.get('notes', '')  # Get notes with empty string as default
         display_beats = int(request.form.get('display_beats', 4)) # Get selected display beats, default to 4
@@ -408,7 +443,7 @@ def new_song():
             return redirect(url_for('new_song'))
             
         if not re.match(r'^\d+/\d+$', time_signature):
-            flash('Invalid time signature format')
+            flash('Invalid time signature format. Use format like 4/4, 3/4, 4/3, 7/5, etc.')
             return redirect(url_for('new_song'))
             
         try:
@@ -461,11 +496,25 @@ def edit_song(song_id):
         strumming_pattern_json = request.form.get('strumming_pattern')
         if strumming_pattern_json:
             try:
-                # Validate and deserialize the JSON. Ensure it's a list of strings.
-                strumming_pattern_list = json.loads(strumming_pattern_json)
-                if isinstance(strumming_pattern_list, list) and all(isinstance(item, str) for item in strumming_pattern_list):
-                     # Use the setter to handle serialization to text
-                    song.strumming_pattern_list = strumming_pattern_list
+                # Validate and deserialize the JSON
+                strumming_pattern_data = json.loads(strumming_pattern_json)
+                # Handle new triplet format with subdivisions
+                if isinstance(strumming_pattern_data, dict) and 'pattern' in strumming_pattern_data:
+                    pattern = strumming_pattern_data['pattern']
+                    subdivisions = strumming_pattern_data.get('subdivisions', [])
+                    
+                    if isinstance(pattern, list) and all(isinstance(item, str) for item in pattern):
+                        # Store the complete data structure
+                        song.strumming_pattern_list = strumming_pattern_data
+                    else:
+                        flash('Invalid strumming pattern data format.', 'danger')
+                        if app.logger:
+                            app.logger.error(f"Invalid pattern array in strumming_pattern JSON for song {song_id}: {strumming_pattern_json}")
+                        
+                # Handle legacy format (just array)
+                elif isinstance(strumming_pattern_data, list) and all(isinstance(item, str) for item in strumming_pattern_data):
+                    # Use the setter to handle serialization to text
+                    song.strumming_pattern_list = strumming_pattern_data
                 else:
                     flash('Invalid strumming pattern data format.', 'danger')
                     # Optionally, log the invalid data
@@ -490,7 +539,6 @@ def edit_song(song_id):
         return redirect(url_for('view_song', song_id=song.id))
     
     # Add print statement to check strumming_pattern value before rendering template
-    print(f"DEBUG: song.strumming_pattern before rendering edit_song.html: {song.strumming_pattern!r}")
 
     return render_template('edit_song.html', song=song, initial_display_beats=song.display_beats)
 
