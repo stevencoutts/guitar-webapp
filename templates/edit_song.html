@@ -141,7 +141,18 @@
     function updateDisplayBeatsOptions() {
         const timeSignature = timeSignatureInput.value || '4/4';
         beatsPerMeasure = parseTimeSignature(timeSignature);
-        beatSubdivisions = Array(beatsPerMeasure).fill(4); // Default to 16th notes
+        // Determine default subdivision based on denominator
+        const parts = timeSignature.split('/');
+        const denominator = parseInt(parts[1]) || 4;
+        let defaultSubdivision;
+        if (denominator === 3) {
+            defaultSubdivision = 3;
+        } else if ([2, 4, 8, 16].includes(denominator)) {
+            defaultSubdivision = 4;
+        } else {
+            defaultSubdivision = 2;
+        }
+        beatSubdivisions = Array(beatsPerMeasure).fill(defaultSubdivision);
         
         // Clear existing options
         displayBeatsSelect.innerHTML = '';
@@ -255,12 +266,14 @@
                 const beatNumberX = currentX + beatWidth / 2;
                 const beatNumberY = lineY - 10; // Position beat numbers 10px above the pattern
                 staticSVGContent += `<text x="${beatNumberX}" y="${beatNumberY}" text-anchor="middle" font-size="14" fill="#333" style="cursor: pointer; font-weight: bold;" class="beat-number" data-beat="${beat}">${beatNumber}</text>`;
-                
-                // Draw subdivision lines (lighter for internal subdivisions)
-                for (let sub = 1; sub < subdivisions; sub++) {
-                    const x = currentX + sub * slotWidth;
-                    staticSVGContent += `<line x1="${x}" y1="${lineY}" x2="${x}" y2="${lineY + slotHeight}" stroke="grey" stroke-width="1"/>`;
-                }
+                // Draw bracket for every beat
+                const bracketY = lineY - 25;
+                const bracketStartX = currentX + 2;
+                const bracketEndX = currentX + beatWidth - 2;
+                const bracketMidX = (bracketStartX + bracketEndX) / 2;
+                staticSVGContent += `<path d="M ${bracketStartX} ${bracketY} L ${bracketStartX} ${bracketY - 5} L ${bracketEndX} ${bracketY - 5} L ${bracketEndX} ${bracketY}" stroke="#888" stroke-width="1.5" fill="none"/>`;
+                // Draw subdivision count in the middle of the bracket
+                staticSVGContent += `<text x="${bracketMidX}" y="${bracketY - 8}" text-anchor="middle" font-size="12" fill="#888" font-weight="bold">${subdivisions}</text>`;
                 
                 slotIndex += subdivisions;
                 currentX += beatWidth;
