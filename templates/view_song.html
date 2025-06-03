@@ -1162,7 +1162,10 @@ function renderStrummingPattern() {
         if (timeSignatureParts.length === 2 && parseInt(timeSignatureParts[1]) === 3) {
             // For time signatures with denominator 3, each beat gets 3 subdivisions
             beatSubdivisions = Array(beatsPerMeasure).fill(3);
-    } else {
+        } else if (timeSignature === '4/4') {
+            // For 4/4 time signature, use 4 subdivisions per beat (16th notes)
+            beatSubdivisions = Array(beatsPerMeasure).fill(4);
+        } else {
             // Default to 2 subdivisions per beat for other time signatures
             beatSubdivisions = Array(beatsPerMeasure).fill(2);
         }
@@ -1174,6 +1177,9 @@ function renderStrummingPattern() {
         const timeSignatureParts = timeSignature.split('/');
         if (timeSignatureParts.length === 2 && parseInt(timeSignatureParts[1]) === 3) {
             beatSubdivisions = Array(beatsPerMeasure).fill(3);
+        } else if (timeSignature === '4/4') {
+            // For 4/4 time signature, use 4 subdivisions per beat (16th notes)
+            beatSubdivisions = Array(beatsPerMeasure).fill(4);
             } else {
             beatSubdivisions = Array(beatsPerMeasure).fill(2);
         }
@@ -1584,6 +1590,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (timeSignatureParts.length === 2 && parseInt(timeSignatureParts[1]) === 3) {
                 // For time signatures with denominator 3 (like 4/3), each beat has 3 subdivisions
                 subdivisionsPerBeat = 3;
+            } else if (timeSignature === '4/4') {
+                // For 4/4 time signature, use 4 subdivisions per beat (16th notes)
+                subdivisionsPerBeat = 4;
             }
             
             const subdivisionInterval = beatInterval / subdivisionsPerBeat;
