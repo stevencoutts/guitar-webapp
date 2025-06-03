@@ -871,7 +871,7 @@
 
     /* Formatted progression specific styles */
     .bar-container {
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
     }
     
     .bar-label {
@@ -879,6 +879,16 @@
         font-weight: 600;
         color: #6c757d;
         margin-bottom: 0.75rem;
+    }
+    
+    .bar-label-inline {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #6c757d;
+        margin-right: 1rem;
+        align-self: center;
+        flex-shrink: 0;
+        min-width: 3.5rem;
     }
     
     .chord-boxes-container {
@@ -933,63 +943,6 @@
         min-width: 2.5rem;
         padding: 0.5rem 0.75rem;
         font-size: 0.9rem;
-    }
-    
-    .progression-line {
-        margin-bottom: 0.75rem;
-        line-height: 1.8;
-        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-        font-size: 1rem;
-    }
-    
-    .line-number {
-        font-size: 0.85rem;
-        color: #6c757d;
-        margin-right: 0.75rem;
-        font-weight: 600;
-    }
-    
-    .half-measure-container {
-        background: rgba(211, 47, 47, 0.05);
-        border-radius: 4px;
-        padding: 0.1rem 0.3rem;
-        margin: 0 0.2rem;
-    }
-    
-    .pipe-separator {
-        color: var(--primary-color);
-        font-weight: bold;
-        font-size: 1.1rem;
-    }
-    
-    .progression-chord {
-        display: inline-block;
-        min-width: 2.5rem;
-        text-align: center;
-        padding: 0.2rem 0.4rem;
-        margin: 0 0.1rem;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        font-weight: 600;
-    }
-    
-    .progression-chord:hover {
-        background-color: #e9ecef;
-    }
-    
-    .progression-chord.highlighted {
-        background-color: #d32f2f;
-        color: white;
-    }
-    
-    .chord-card-modern.highlighted {
-        background-color: #d32f2f !important;
-        color: white;
-    }
-    
-    .chord-card-modern.highlighted .chord-name {
-        color: white;
     }
 </style>
 
@@ -1494,16 +1447,16 @@ function updateFormattedView() {
         const barContainer = document.createElement('div');
         barContainer.className = 'bar-container mb-4';
         
-        if (showBarNumbers) {
-            const barLabel = document.createElement('div');
-            barLabel.className = 'bar-label mb-2';
-            barLabel.textContent = `Bar ${barNumber}`;
-            barContainer.appendChild(barLabel);
-        }
-        
         // Create chord boxes container
         const chordBoxesContainer = document.createElement('div');
         chordBoxesContainer.className = 'chord-boxes-container';
+        
+        if (showBarNumbers) {
+            const barLabel = document.createElement('div');
+            barLabel.className = 'bar-label-inline';
+            barLabel.textContent = `Bar ${barNumber}`;
+            chordBoxesContainer.appendChild(barLabel);
+        }
         
         lineChords.forEach((item, index) => {
             if (item.type === 'half-measure') {
