@@ -83,7 +83,7 @@ A comprehensive web application designed for guitarists to manage their song lib
 
 1. **Clone and Setup**:
    ```bash
-   git clone https://github.com/yourusername/guitar-webapp.git
+   git clone https://github.com/stevencoutts/guitar-webapp.git
    cd guitar-webapp
    ```
 
@@ -112,7 +112,7 @@ A comprehensive web application designed for guitarists to manage their song lib
 
 2. **Setup Environment**:
    ```bash
-   git clone https://github.com/yourusername/guitar-webapp.git
+   git clone https://github.com/stevencoutts/guitar-webapp.git
    cd guitar-webapp
    python3.11 -m venv venv
    source venv/bin/activate  # Windows: venv\Scripts\activate
@@ -334,9 +334,9 @@ See `requirements.txt` for complete list:
 - Consider PostgreSQL for larger datasets
 
 ### Support Resources
-- **Issues**: [GitHub Issues](https://github.com/yourusername/guitar-webapp/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/guitar-webapp/discussions)
-- **Wiki**: [Project Wiki](https://github.com/yourusername/guitar-webapp/wiki)
+- **Issues**: [GitHub Issues](https://github.com/stevencoutts/guitar-webapp/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/stevencoutts/guitar-webapp/discussions)
+- **Wiki**: [Project Wiki](https://github.com/stevencoutts/guitar-webapp/wiki)
 
 ## 📄 License
 
