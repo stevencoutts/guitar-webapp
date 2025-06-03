@@ -410,7 +410,10 @@
     // Function to redraw the grid and update pattern when beats selection changes
     function updateDisplayBeats(newNumberOfBeats) {
         const oldTotalSlots = strummingPattern.length;
-        const newTotalSlots = newNumberOfBeats * beatUnit;
+        
+        // Update numberOfMeasures based on newNumberOfBeats
+        numberOfMeasures = Math.ceil(newNumberOfBeats / beatsPerMeasure);
+        const newTotalSlots = calculateTotalSlots();
 
         // Adjust strummingPattern array size if necessary
         if (newTotalSlots > oldTotalSlots) {
@@ -480,6 +483,10 @@
                 beatSubdivisions = Array(beatsPerMeasure).fill('regular');
             }
 
+            // Calculate numberOfMeasures based on the loaded display beats
+            const savedDisplayBeats = parseInt(selectedDisplayBeatsInput.value) || beatsPerMeasure;
+            numberOfMeasures = Math.ceil(savedDisplayBeats / beatsPerMeasure);
+            
             // Ensure pattern length matches expected total slots
             const expectedSlots = calculateTotalSlots();
             
