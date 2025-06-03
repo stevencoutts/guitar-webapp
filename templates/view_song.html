@@ -1247,19 +1247,32 @@
     /* Mobile Responsive */
     @media (max-width: 768px) {
         .floating-controls {
-            top: 10px;
-            left: 10px;
-            right: 10px;
-            width: auto;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            top: auto;
+            width: 100%;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
             transform: none;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
         }
 
         .floating-controls.minimized {
-            transform: translateX(calc(100% - 60px));
+            transform: translateY(calc(100% - 60px));
+        }
+
+        .floating-controls-content {
+            padding: 1rem;
+        }
+
+        .tempo-section {
+            margin-bottom: 1rem;
         }
 
         .tempo-controls {
             gap: 0.25rem;
+            justify-content: center;
         }
 
         .btn-tempo {
@@ -1271,6 +1284,16 @@
         .tempo-display span {
             font-size: 1.75rem;
         }
+
+        .btn-floating {
+            padding: 0.625rem 1rem;
+            font-size: 0.8rem;
+        }
+
+        .floating-strumming-display {
+            margin-top: 0.5rem;
+            max-height: 150px;
+        }
     }
 
     @media (max-width: 480px) {
@@ -1280,7 +1303,21 @@
         }
 
         .tempo-section {
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .control-section {
+            margin-bottom: 0.75rem;
+        }
+
+        .tempo-display span {
+            font-size: 1.5rem;
+        }
+
+        .btn-tempo {
+            width: 28px;
+            height: 28px;
+            font-size: 0.7rem;
         }
     }
 
