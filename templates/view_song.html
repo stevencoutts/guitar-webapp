@@ -73,15 +73,6 @@
                     <div id="chord-progression-formatted" class="chord-progression-view" style="display: none;">
                         <div class="progression-controls mb-4">
                             <div class="d-flex gap-4 align-items-center flex-wrap">
-                                <div class="control-group">
-                                    <label class="control-label">Chords per line</label>
-                                    <select class="form-select-modern" id="chords-per-line" onchange="updateFormattedView()">
-                                        <option value="4">4</option>
-                                        <option value="8" selected>8</option>
-                                        <option value="12">12</option>
-                                        <option value="16">16</option>
-                                    </select>
-                                </div>
                                 <div class="form-check-modern">
                                         <input class="form-check-input" type="checkbox" id="show-bar-numbers" checked onchange="updateFormattedView()">
                                     <label class="form-check-label" for="show-bar-numbers">Bar numbers</label>
@@ -879,30 +870,108 @@
     }
 
     /* Formatted progression specific styles */
-    .progression-line {
-        margin-bottom: 0.5rem;
-        line-height: 1.8;
+    .bar-container {
+        margin-bottom: 1.5rem;
     }
     
-    .progression-bar {
-        margin-right: 1rem;
-    }
-    
-    .bar-number {
-        font-size: 0.8rem;
+    .bar-label {
+        font-size: 0.9rem;
+        font-weight: 600;
         color: #6c757d;
-        margin-right: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .chord-boxes-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+    }
+    
+    .chord-box {
+        background: var(--bg-white);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        padding: 0.75rem 1rem;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: var(--shadow-sm);
+        min-width: 3rem;
+        text-align: center;
+    }
+    
+    .chord-box:hover {
+        background: var(--bg-gray-50);
+        border-color: var(--primary-color);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .chord-box.highlighted {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-dark);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .half-measure-group {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        padding: 0.25rem;
+        border-radius: var(--radius-md);
+        background: rgba(211, 47, 47, 0.05);
+        border: 1px dashed var(--primary-color);
+    }
+    
+    .half-measure-chord {
+        margin: 0;
+        min-width: 2.5rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+    }
+    
+    .progression-line {
+        margin-bottom: 0.75rem;
+        line-height: 1.8;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 1rem;
+    }
+    
+    .line-number {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-right: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .half-measure-container {
+        background: rgba(211, 47, 47, 0.05);
+        border-radius: 4px;
+        padding: 0.1rem 0.3rem;
+        margin: 0 0.2rem;
+    }
+    
+    .pipe-separator {
+        color: var(--primary-color);
+        font-weight: bold;
+        font-size: 1.1rem;
     }
     
     .progression-chord {
         display: inline-block;
-        min-width: 3rem;
+        min-width: 2.5rem;
         text-align: center;
-        padding: 0.25rem 0.5rem;
-        margin-right: 0.5rem;
+        padding: 0.2rem 0.4rem;
+        margin: 0 0.1rem;
         border-radius: 4px;
         cursor: pointer;
         transition: all 0.2s ease;
+        font-weight: 600;
     }
     
     .progression-chord:hover {
@@ -921,11 +990,6 @@
     
     .chord-card-modern.highlighted .chord-name {
         color: white;
-    }
-    
-    .bar-separator {
-        color: #6c757d;
-        font-weight: bold;
     }
 </style>
 
@@ -1350,90 +1414,141 @@ function toggleProgessionView(view) {
 // Parse chord progression from text
 function parseChordProgression(text) {
     const lines = text.split('\n');
-    const chords = [];
+    const parsedLines = [];
     
     lines.forEach(line => {
-        const lineChords = line.trim().split(/\s+/).filter(chord => chord.length > 0);
-        lineChords.forEach(chord => {
-            // Basic chord pattern matching
-            if (chord.match(/^[A-G][#b]?[^\s]*$/)) {
-                chords.push({
-                                chord: chord,
-                    original: chord
-                });
+        const trimmedLine = line.trim();
+        if (trimmedLine.length === 0) return;
+        
+        // Split by spaces but keep | | notation intact
+        const parts = trimmedLine.split(/\s+/);
+        const chords = [];
+        let inHalfMeasure = false;
+        let currentHalfMeasure = [];
+        
+        parts.forEach(part => {
+            if (part === '|') {
+                if (inHalfMeasure) {
+                    // End of half measure
+                    chords.push({
+                        type: 'half-measure',
+                        chords: currentHalfMeasure
+                    });
+                    currentHalfMeasure = [];
+                    inHalfMeasure = false;
+                } else {
+                    // Start of half measure
+                    inHalfMeasure = true;
+                }
+            } else if (part.match(/^[A-G][#b]?[^\s]*$/) || part.includes('/')) {
+                // This is a chord
+                if (inHalfMeasure) {
+                    currentHalfMeasure.push({
+                        chord: part,
+                        original: part
+                    });
+                } else {
+                    chords.push({
+                        type: 'chord',
+                        chord: part,
+                        original: part
+                    });
+                }
             }
         });
+        
+        // Handle case where half measure wasn't closed
+        if (inHalfMeasure && currentHalfMeasure.length > 0) {
+            chords.push({
+                type: 'half-measure',
+                chords: currentHalfMeasure
+            });
+        }
+        
+        if (chords.length > 0) {
+            parsedLines.push(chords);
+        }
     });
     
-    return chords;
+    return parsedLines;
 }
 
 function updateFormattedView() {
     const container = document.getElementById('formatted-progression');
-    const chordsPerLine = parseInt(document.getElementById('chords-per-line').value);
     const showBarNumbers = document.getElementById('show-bar-numbers').checked;
     
     container.innerHTML = '';
     
     const chordProgressionData = `{{ song.chord_progression }}`;
-    const chords = parseChordProgression(chordProgressionData);
+    const parsedLines = parseChordProgression(chordProgressionData);
     
-    if (chords.length === 0) {
+    if (parsedLines.length === 0) {
         container.innerHTML = '<p class="text-muted">No chords found in progression</p>';
         return;
     }
     
-    // Parse time signature to determine bar length
-    const timeSignature = "{{ song.time_signature }}";
-    const [numerator] = timeSignature.split('/');
-    const chordsPerBar = parseInt(numerator) || 4;
-    
-    let chordIndex = 0;
     let barNumber = 1;
     
-    while (chordIndex < chords.length) {
-        const line = document.createElement('div');
-        line.className = 'progression-line mb-2';
+    parsedLines.forEach(lineChords => {
+        // Create bar container
+        const barContainer = document.createElement('div');
+        barContainer.className = 'bar-container mb-4';
         
-        for (let lineChord = 0; lineChord < chordsPerLine && chordIndex < chords.length; lineChord += chordsPerBar) {
-            const bar = document.createElement('span');
-            bar.className = 'progression-bar';
-            
-            if (showBarNumbers) {
-                const barNumberSpan = document.createElement('span');
-                barNumberSpan.className = 'bar-number';
-                barNumberSpan.textContent = barNumber + ': ';
-                bar.appendChild(barNumberSpan);
-            }
-            
-            for (let barChord = 0; barChord < chordsPerBar && chordIndex < chords.length; barChord++) {
-                const chordSpan = document.createElement('span');
-                chordSpan.className = 'progression-chord';
-                chordSpan.textContent = chords[chordIndex].chord;
-                chordSpan.setAttribute('data-chord', chords[chordIndex].chord);
+        if (showBarNumbers) {
+            const barLabel = document.createElement('div');
+            barLabel.className = 'bar-label mb-2';
+            barLabel.textContent = `Bar ${barNumber}`;
+            barContainer.appendChild(barLabel);
+        }
+        
+        // Create chord boxes container
+        const chordBoxesContainer = document.createElement('div');
+        chordBoxesContainer.className = 'chord-boxes-container';
+        
+        lineChords.forEach((item, index) => {
+            if (item.type === 'half-measure') {
+                // Create half measure group
+                const halfMeasureGroup = document.createElement('div');
+                halfMeasureGroup.className = 'half-measure-group';
                 
-                // Add click handler for highlighting if enabled
+                item.chords.forEach((chordObj, chordIndex) => {
+                    const chordBox = document.createElement('div');
+                    chordBox.className = 'chord-box half-measure-chord';
+                    chordBox.textContent = chordObj.chord;
+                    chordBox.setAttribute('data-chord', chordObj.chord);
+                    
                     if (document.getElementById('highlight-on-click').checked) {
-                    chordSpan.addEventListener('click', function() {
+                        chordBox.addEventListener('click', function() {
+                            highlightChord(this.getAttribute('data-chord'));
+                        });
+                    }
+                    
+                    halfMeasureGroup.appendChild(chordBox);
+                });
+                
+                chordBoxesContainer.appendChild(halfMeasureGroup);
+                
+            } else if (item.type === 'chord') {
+                // Create regular chord box
+                const chordBox = document.createElement('div');
+                chordBox.className = 'chord-box';
+                chordBox.textContent = item.chord;
+                chordBox.setAttribute('data-chord', item.chord);
+                
+                if (document.getElementById('highlight-on-click').checked) {
+                    chordBox.addEventListener('click', function() {
                         highlightChord(this.getAttribute('data-chord'));
                     });
                 }
                 
-                bar.appendChild(chordSpan);
-                chordIndex++;
+                chordBoxesContainer.appendChild(chordBox);
             }
-            
-            const separator = document.createElement('span');
-            separator.className = 'bar-separator';
-            separator.textContent = ' | ';
-            bar.appendChild(separator);
-            
-            line.appendChild(bar);
-            barNumber++;
-        }
+        });
         
-        container.appendChild(line);
-    }
+        barContainer.appendChild(chordBoxesContainer);
+        container.appendChild(barContainer);
+        barNumber++;
+    });
 }
 
 function highlightChord(chordName) {
@@ -1551,29 +1666,42 @@ document.addEventListener('DOMContentLoaded', function() {
 <style>
     /* Formatted progression specific styles */
     .progression-line {
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
         line-height: 1.8;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 1rem;
     }
     
-    .progression-bar {
-        margin-right: 1rem;
-    }
-    
-    .bar-number {
-        font-size: 0.8rem;
+    .line-number {
+        font-size: 0.85rem;
         color: #6c757d;
-        margin-right: 0.5rem;
+        margin-right: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .half-measure-container {
+        background: rgba(211, 47, 47, 0.05);
+        border-radius: 4px;
+        padding: 0.1rem 0.3rem;
+        margin: 0 0.2rem;
+    }
+    
+    .pipe-separator {
+        color: var(--primary-color);
+        font-weight: bold;
+        font-size: 1.1rem;
     }
     
     .progression-chord {
         display: inline-block;
-        min-width: 3rem;
+        min-width: 2.5rem;
         text-align: center;
-        padding: 0.25rem 0.5rem;
-        margin-right: 0.5rem;
+        padding: 0.2rem 0.4rem;
+        margin: 0 0.1rem;
         border-radius: 4px;
         cursor: pointer;
         transition: all 0.2s ease;
+        font-weight: 600;
     }
     
     .progression-chord:hover {
@@ -1592,11 +1720,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     .chord-card-modern.highlighted .chord-name {
         color: white;
-    }
-    
-    .bar-separator {
-        color: #6c757d;
-        font-weight: bold;
     }
 </style>
 {% endblock %}
