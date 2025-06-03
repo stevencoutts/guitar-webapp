@@ -173,11 +173,8 @@
                         </button>
                     </div>
                         <div class="metronome-display mt-4">
-                            <div class="metronome-dots">
-                                <span class="metronome-dot"></span>
-                                <span class="metronome-dot"></span>
-                                <span class="metronome-dot"></span>
-                                <span class="metronome-dot"></span>
+                            <div class="metronome-dots" id="metronome-dots-container">
+                                <!-- Dots will be dynamically generated based on time signature -->
                         </div>
                     </div>
                 </div>
@@ -1046,6 +1043,17 @@ function startMetronome() {
     const interval = 60000 / bpm;
     
     let beatCount = 0;
+    
+    // Create the correct number of dots based on time signature
+    const dotsContainer = document.getElementById('metronome-dots-container');
+    dotsContainer.innerHTML = ''; // Clear existing dots
+    
+    for (let i = 0; i < beatsPerMeasure; i++) {
+        const dot = document.createElement('span');
+        dot.className = 'metronome-dot';
+        dotsContainer.appendChild(dot);
+    }
+    
     const dots = document.querySelectorAll('.metronome-display .metronome-dot');
     
     // Show metronome display
@@ -1065,7 +1073,7 @@ function startMetronome() {
             dots[beatCount].classList.add('active');
         }
         
-        beatCount = (beatCount + 1) % Math.min(beatsPerMeasure, dots.length);
+        beatCount = (beatCount + 1) % beatsPerMeasure;
         
         metronomeInterval = setTimeout(beat, interval);
     }
