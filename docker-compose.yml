@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   web:
     build: .
@@ -7,6 +5,10 @@ services:
       - "5001:5001"
     volumes:
       - ./instance:/app/instance
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-your-default-secret-key}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///instance/guitar.db}
+      - FLASK_ENV=${FLASK_ENV:-production}
     env_file:
       - .env
     restart: always 
