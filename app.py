@@ -784,7 +784,7 @@ def view_song(song_id):
 
             # SVG dimensions (copying from get_chord_diagram)
             width = 220
-            height = 200
+            height = 220
             fret_height = 30
             string_spacing = 20
             left_margin = 40
@@ -1411,7 +1411,7 @@ def get_chord_diagram(chord_name):
     
     # SVG dimensions
     width = 220
-    height = 200
+    height = 220
     fret_height = 30
     string_spacing = 20
     left_margin = 40
@@ -1436,7 +1436,7 @@ def get_chord_diagram(chord_name):
     for i in range(6):
         x = left_margin + i * string_spacing
         svg += f'<line x1="{x}" y1="{top_margin}" x2="{x}" y2="{top_margin + 4 * fret_height}" class="string"/>'
-    # Draw starting fret number label (e.g., '5fr') to the left of the first fret, inline with the first fret line
+    # Draw starting fret number label (e.g., '5fr') to the left of the first fret, inline with the second fret line
     if start_fret > 0:
         # Position the label inline with the second horizontal line (first fret line)
         # The second horizontal line is at y = top_margin + 1 * fret_height
