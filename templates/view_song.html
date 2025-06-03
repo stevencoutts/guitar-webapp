@@ -1489,48 +1489,46 @@ function renderStrummingPattern(containerId = 'floating-strumming-pattern-displa
         return;
     }
 
-    // Get strumming pattern data passed from Flask
-    let rawStrummingData = {{ song.strumming_pattern_list | tojson }};
+    // Use the global rawStrummingData parsed from song.strumming_pattern
+    // let rawStrummingData = ...; // REMOVE this line
     const timeSignature = "{{ song.time_signature }}"; // Get time signature
+    const displayBeats = {{ song.display_beats if song.display_beats is defined else 4 }};
     
     // Handle different data formats
     let strummingPatternData;
     let beatSubdivisions;
     
-    // Parse time signature to get beats per measure  
-    function parseTimeSignature(timeSignatureStr) {
-        const parts = (timeSignatureStr || '4/4').split('/');
-        if (parts.length === 2) {
-            const numerator = parseInt(parts[0]);
-            const denominator = parseInt(parts[1]);
-            if (denominator === 8 && numerator === 6) {
-                return 2; // 6/8 is typically felt in 2
-            } else if (denominator === 8 && numerator === 9) {
-                return 3; // 9/8 is typically felt in 3
-            } else if (denominator === 8 && numerator === 12) {
-                return 4; // 12/8 is typically felt in 4
-            } else {
-                return numerator;
-            }
-        }
-        return 4;
-    }
-    
-    const beatsPerMeasure = parseTimeSignature(timeSignature);
-    
+    // Always use the subdivisions array from the pattern data if present
     if (typeof rawStrummingData === 'object' && rawStrummingData !== null && 'pattern' in rawStrummingData) {
         strummingPatternData = rawStrummingData.pattern;
         if (Array.isArray(rawStrummingData.subdivisions) && rawStrummingData.subdivisions.length > 0) {
-            beatSubdivisions = rawStrummingData.subdivisions;
+            // Ensure the subdivisions array matches the number of beats to display
+            let needed = displayBeats;
+            let arr = rawStrummingData.subdivisions;
+            if (arr.length === needed) {
+                beatSubdivisions = arr;
+            } else if (arr.length < needed) {
+                // Repeat the array to fill needed beats
+                beatSubdivisions = Array.from({length: needed}, (_, i) => arr[i % arr.length]);
+            } else {
+                // Truncate if too long
+                beatSubdivisions = arr.slice(0, needed);
+            }
         } else {
-            beatSubdivisions = Array(beatsPerMeasure).fill(2);
+            // Fallback: use time signature numerator for beats, 4 subdivisions per beat
+            const tsParts = timeSignature.split('/');
+            const beats = parseInt(tsParts[0]) || 4;
+            beatSubdivisions = Array(beats).fill(4);
         }
     } else if (Array.isArray(rawStrummingData)) {
         strummingPatternData = rawStrummingData;
-        beatSubdivisions = Array(beatsPerMeasure).fill(2);
+        // Fallback: use time signature numerator for beats, 4 subdivisions per beat
+        const tsParts = timeSignature.split('/');
+        const beats = parseInt(tsParts[0]) || 4;
+        beatSubdivisions = Array(beats).fill(4);
     } else {
         strummingPatternData = [];
-        beatSubdivisions = Array(beatsPerMeasure).fill(2);
+        beatSubdivisions = [4,4,4,4];
     }
 
     // Calculate the total number of slots (subdivisions) in the pattern
@@ -1538,12 +1536,14 @@ function renderStrummingPattern(containerId = 'floating-strumming-pattern-displa
     // Calculate the total number of beats in the pattern based on subdivisions
     let numberOfBeats = 0;
     let slotCount = 0;
-    while (slotCount < totalSlots) {
-        for (let b = 0; b < beatSubdivisions.length && slotCount < totalSlots; b++) {
+    while (slotCount < strummingPatternData.length && numberOfBeats < displayBeats) {
+        for (let b = 0; b < beatSubdivisions.length && slotCount < strummingPatternData.length && numberOfBeats < displayBeats; b++) {
             numberOfBeats++;
             slotCount += beatSubdivisions[b];
         }
     }
+    // Only render up to displayBeats beats
+    const beatsToShow = Math.min(numberOfBeats, displayBeats);
     // Now numberOfBeats is the actual number of beats in the pattern
 
     if (!Array.isArray(strummingPatternData) || strummingPatternData.length === 0) {
@@ -1551,9 +1551,9 @@ function renderStrummingPattern(containerId = 'floating-strumming-pattern-displa
         return;
     }
 
-    // Determine how many beats per line (use beatsPerMeasure for multi-line display)
-    const beatsPerLine = beatsPerMeasure;
-    const totalLines = Math.ceil(numberOfBeats / beatsPerLine);
+    // Determine how many beats per line (use beatSubdivisions.length for multi-line display)
+    const beatsPerLine = beatSubdivisions.length;
+    const totalLines = Math.ceil(beatsToShow / beatsPerLine);
     
     // SVG dimensions per line - different for main vs floating display
     const svgWidth = isMainDisplay ? (container.offsetWidth || 600) : 280;
@@ -1569,7 +1569,7 @@ function renderStrummingPattern(containerId = 'floating-strumming-pattern-displa
     let globalSlotIndex = 0;
     for (let lineIndex = 0; lineIndex < totalLines; lineIndex++) {
         const startBeat = lineIndex * beatsPerLine;
-        const endBeat = Math.min(startBeat + beatsPerLine, numberOfBeats);
+        const endBeat = Math.min(startBeat + beatsPerLine, beatsToShow);
         
         // Calculate total slots for this line
         let totalSlotsInLine = 0;
@@ -1620,9 +1620,31 @@ function renderStrummingPattern(containerId = 'floating-strumming-pattern-displa
             beatLabel.setAttribute('text-anchor', 'middle');
             beatLabel.setAttribute('font-size', isMainDisplay ? '12' : '10');
             beatLabel.setAttribute('font-weight', 'bold');
-            beatLabel.setAttribute('fill', (subdivisions === 3) ? '#dc3545' : '#212529');
+            beatLabel.setAttribute('fill', '#212529');
             beatLabel.textContent = (beat - startBeat) + 1;
             svg.appendChild(beatLabel);
+
+            // Draw bracket for every beat
+            const bracketY = (isMainDisplay ? margin.top - 25 : margin.top - 18);
+            const bracketStartX = beatStartX + 2;
+            const bracketEndX = beatEndX - 2;
+            const bracketMidX = (bracketStartX + bracketEndX) / 2;
+            const bracketPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            bracketPath.setAttribute('d', `M ${bracketStartX} ${bracketY} L ${bracketStartX} ${bracketY - 5} L ${bracketEndX} ${bracketY - 5} L ${bracketEndX} ${bracketY}`);
+            bracketPath.setAttribute('stroke', '#888');
+            bracketPath.setAttribute('stroke-width', '1.5');
+            bracketPath.setAttribute('fill', 'none');
+            svg.appendChild(bracketPath);
+            // Draw subdivision count in the middle of the bracket
+            const subCountText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            subCountText.setAttribute('x', bracketMidX);
+            subCountText.setAttribute('y', bracketY - 8);
+            subCountText.setAttribute('text-anchor', 'middle');
+            subCountText.setAttribute('font-size', isMainDisplay ? '12' : '10');
+            subCountText.setAttribute('fill', '#888');
+            subCountText.setAttribute('font-weight', 'bold');
+            subCountText.textContent = subdivisions;
+            svg.appendChild(subCountText);
             
             // Draw subdivision markers
             for (let sub = 0; sub < subdivisions; sub++) {
@@ -1683,9 +1705,9 @@ function renderStrummingPattern(containerId = 'floating-strumming-pattern-displa
             
             // Draw beat separator (heavier line)
             // Only draw a thick separator if this is not the last beat of the measure, line, or pattern
-            const isLastBeatOfMeasure = ((beat + 1) % beatsPerMeasure === 0);
+            const isLastBeatOfMeasure = ((beat + 1) % beatsPerLine === 0);
             const isLastBeatInLine = (beat === endBeat - 1);
-            const isLastBeatInPattern = (beat === numberOfBeats - 1);
+            const isLastBeatInPattern = (beat === beatsToShow - 1);
             if (!isLastBeatOfMeasure && !isLastBeatInLine && !isLastBeatInPattern) {
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 line.setAttribute('x1', beatEndX);
@@ -2234,6 +2256,14 @@ function pulseStrumArrow(strumIndex) {
         void floatArrow.offsetWidth;
         floatArrow.classList.add('pulse-arrow');
     }
+}
+
+// Parse the raw strumming pattern JSON (with subdivisions) from the backend
+let rawStrummingData = null;
+try {
+    rawStrummingData = JSON.parse({{ song.strumming_pattern | tojson | safe }});
+} catch (e) {
+    rawStrummingData = null;
 }
 </script>
 {% endblock %}
