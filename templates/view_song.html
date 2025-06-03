@@ -1347,6 +1347,30 @@
     }
 
     /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: var(--text-muted);
+    }
+
+    /* Pulse animation for strumming arrows */
+    @keyframes pulse-arrow {
+        0% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.18);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+    .pulse-arrow {
+        animation: pulse-arrow 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+        transform-origin: 50% 60%;
+        transform-box: fill-box;
+    }
 </style>
 
 <script>
@@ -1718,6 +1742,7 @@ function renderStrummingPattern(containerId = 'floating-strumming-pattern-displa
                 text.setAttribute('font-weight', 'bold');
                 text.setAttribute('fill', color);
                 text.textContent = symbol;
+                text.setAttribute('data-strum-index', globalSlotIndex); // For animation
                 svg.appendChild(text);
                 
                 // Draw subdivision separator
@@ -2224,6 +2249,7 @@ function startFloatingStrummingPattern() {
         // Play the actual strum sound
         const strumType = strummingPatternData[patternIndex];
         playStrummingSound(strumType);
+        pulseStrumArrow(patternIndex);
         
         patternIndex++;
         floatingStrummingInterval = setTimeout(playNextStrum, subdivisionInterval);
@@ -2265,5 +2291,24 @@ stopMetronome = function() {
 // Variables for intervals
 let floatingMetronomeInterval;
 let floatingStrummingInterval;
+
+function pulseStrumArrow(strumIndex) {
+    // Remove pulse from all arrows in both displays
+    document.querySelectorAll('#main-strumming-pattern-display [data-strum-index], #floating-strumming-pattern-display [data-strum-index]').forEach(el => {
+        el.classList.remove('pulse-arrow');
+    });
+    // Pulse in main display
+    const mainArrow = document.querySelector(`#main-strumming-pattern-display [data-strum-index='${strumIndex}']`);
+    if (mainArrow) {
+        void mainArrow.offsetWidth;
+        mainArrow.classList.add('pulse-arrow');
+    }
+    // Pulse in floating display
+    const floatArrow = document.querySelector(`#floating-strumming-pattern-display [data-strum-index='${strumIndex}']`);
+    if (floatArrow) {
+        void floatArrow.offsetWidth;
+        floatArrow.classList.add('pulse-arrow');
+    }
+}
 </script>
 {% endblock %}
