@@ -1551,8 +1551,8 @@ function renderStrummingPattern(containerId = 'floating-strumming-pattern-displa
         return;
     }
 
-    // Determine how many beats per line (use beatSubdivisions.length for multi-line display)
-    const beatsPerLine = beatSubdivisions.length;
+    // Determine how many beats per line (always 4 for readability)
+    const beatsPerLine = 4;
     const totalLines = Math.ceil(beatsToShow / beatsPerLine);
     
     // SVG dimensions per line - different for main vs floating display
