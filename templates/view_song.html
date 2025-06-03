@@ -1497,40 +1497,26 @@ function renderStrummingPattern(containerId = 'floating-strumming-pattern-displa
     let strummingPatternData;
     let beatSubdivisions;
     
-    // Parse time signature to get beats per measure  
-    function parseTimeSignature(timeSignatureStr) {
-        const parts = (timeSignatureStr || '4/4').split('/');
-        if (parts.length === 2) {
-            const numerator = parseInt(parts[0]);
-            const denominator = parseInt(parts[1]);
-            if (denominator === 8 && numerator === 6) {
-                return 2; // 6/8 is typically felt in 2
-            } else if (denominator === 8 && numerator === 9) {
-                return 3; // 9/8 is typically felt in 3
-            } else if (denominator === 8 && numerator === 12) {
-                return 4; // 12/8 is typically felt in 4
-            } else {
-                return numerator;
-            }
-        }
-        return 4;
-    }
-    
-    const beatsPerMeasure = parseTimeSignature(timeSignature);
-    
+    // Always use the subdivisions array from the pattern data if present
     if (typeof rawStrummingData === 'object' && rawStrummingData !== null && 'pattern' in rawStrummingData) {
         strummingPatternData = rawStrummingData.pattern;
         if (Array.isArray(rawStrummingData.subdivisions) && rawStrummingData.subdivisions.length > 0) {
             beatSubdivisions = rawStrummingData.subdivisions;
         } else {
-            beatSubdivisions = Array(beatsPerMeasure).fill(2);
+            // Fallback: use time signature numerator for beats, 2 subdivisions per beat
+            const tsParts = timeSignature.split('/');
+            const beats = parseInt(tsParts[0]) || 4;
+            beatSubdivisions = Array(beats).fill(2);
         }
     } else if (Array.isArray(rawStrummingData)) {
         strummingPatternData = rawStrummingData;
-        beatSubdivisions = Array(beatsPerMeasure).fill(2);
+        // Fallback: use time signature numerator for beats, 2 subdivisions per beat
+        const tsParts = timeSignature.split('/');
+        const beats = parseInt(tsParts[0]) || 4;
+        beatSubdivisions = Array(beats).fill(2);
     } else {
         strummingPatternData = [];
-        beatSubdivisions = Array(beatsPerMeasure).fill(2);
+        beatSubdivisions = [2,2,2,2];
     }
 
     // Calculate the total number of slots (subdivisions) in the pattern
@@ -1551,8 +1537,8 @@ function renderStrummingPattern(containerId = 'floating-strumming-pattern-displa
         return;
     }
 
-    // Determine how many beats per line (use beatsPerMeasure for multi-line display)
-    const beatsPerLine = beatsPerMeasure;
+    // Determine how many beats per line (use beatSubdivisions.length for multi-line display)
+    const beatsPerLine = beatSubdivisions.length;
     const totalLines = Math.ceil(numberOfBeats / beatsPerLine);
     
     // SVG dimensions per line - different for main vs floating display
@@ -1683,7 +1669,7 @@ function renderStrummingPattern(containerId = 'floating-strumming-pattern-displa
             
             // Draw beat separator (heavier line)
             // Only draw a thick separator if this is not the last beat of the measure, line, or pattern
-            const isLastBeatOfMeasure = ((beat + 1) % beatsPerMeasure === 0);
+            const isLastBeatOfMeasure = ((beat + 1) % beatsPerLine === 0);
             const isLastBeatInLine = (beat === endBeat - 1);
             const isLastBeatInPattern = (beat === numberOfBeats - 1);
             if (!isLastBeatOfMeasure && !isLastBeatInLine && !isLastBeatInPattern) {
