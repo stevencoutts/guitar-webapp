@@ -81,16 +81,28 @@ A comprehensive web application designed for guitarists to manage their song lib
 
 ### Using Docker (Recommended)
 
-1. **Clone and Start**:
+1. **Clone and Setup**:
    ```bash
    git clone https://github.com/yourusername/guitar-webapp.git
    cd guitar-webapp
+   ```
+
+2. **Create Environment File**:
+   Create a `.env` file in the project root:
+   ```env
+   SECRET_KEY=your-secret-key-change-this-in-production
+   DATABASE_URL=sqlite:///instance/guitar.db
+   FLASK_ENV=production
+   ```
+
+3. **Start the Application**:
+   ```bash
    docker-compose up --build -d
    ```
 
-2. **Access the App**: Navigate to `http://localhost:5001`
+4. **Access the App**: Navigate to `http://localhost:5001`
 
-3. **Login**: Use the default admin account:
+5. **Login**: Use the default admin account:
    - Username: `admin`
    - Password: `Password1`
 
