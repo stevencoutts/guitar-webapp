@@ -46,6 +46,21 @@
                 </div>
             </div>
 
+            {% if song.strumming_pattern %}
+            <!-- Strumming Pattern Card -->
+            <div class="card-modern mb-4">
+                <div class="card-header-modern">
+                    <h3 class="card-title-modern">
+                        <i class="fas fa-guitar"></i>
+                        Strumming Pattern
+                    </h3>
+                </div>
+                <div class="card-body-modern">
+                    <div id="main-strumming-pattern-display"></div>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Chord Progression Card -->
             <div class="card-modern mb-4">
                 <div class="card-header-modern">
@@ -54,31 +69,31 @@
                         Chord Progression
                     </h3>
                     <div class="btn-group-modern" role="group">
-                        <button type="button" class="btn-toggle active" id="view-simple-btn" onclick="toggleProgessionView('simple')">
+                        <button type="button" class="btn-toggle" id="view-simple-btn" onclick="toggleProgessionView('simple')">
                             Simple
-                                </button>
-                        <button type="button" class="btn-toggle" id="view-formatted-btn" onclick="toggleProgessionView('formatted')">
+                        </button>
+                        <button type="button" class="btn-toggle active" id="view-formatted-btn" onclick="toggleProgessionView('formatted')">
                             Chart
-                                </button>
-                            </div>
-                        </div>
-                    
+                        </button>
+                    </div>
+                </div>
+
                 <div class="card-body-modern">
                     <!-- Simple View -->
-                    <div id="chord-progression-simple" class="chord-progression-view">
+                    <div id="chord-progression-simple" class="chord-progression-view" style="display: none;">
                         <div class="progression-simple">{{ song.chord_progression }}</div>
                     </div>
                     
                     <!-- Chart View -->
-                    <div id="chord-progression-formatted" class="chord-progression-view" style="display: none;">
+                    <div id="chord-progression-formatted" class="chord-progression-view">
                         <div class="progression-controls mb-4">
                             <div class="d-flex gap-4 align-items-center flex-wrap">
                                 <div class="form-check-modern">
-                                        <input class="form-check-input" type="checkbox" id="show-bar-numbers" checked onchange="updateFormattedView()">
+                                    <input class="form-check-input" type="checkbox" id="show-bar-numbers" checked onchange="updateFormattedView()">
                                     <label class="form-check-label" for="show-bar-numbers">Bar numbers</label>
-                                    </div>
+                                </div>
                                 <div class="form-check-modern">
-                                        <input class="form-check-input" type="checkbox" id="highlight-on-click" checked>
+                                    <input class="form-check-input" type="checkbox" id="highlight-on-click" checked>
                                     <label class="form-check-label" for="highlight-on-click">Click to highlight</label>
                                 </div>
                             </div>
@@ -155,53 +170,72 @@
         <!-- Sidebar -->
         <div class="col-lg-4">
             <div class="sidebar-modern">
-                <!-- Practice Tools -->
-                <div class="card-modern mb-4">
-                    <div class="card-header-modern">
-                        <h3 class="card-title-modern">
-                            <i class="fas fa-clock"></i>
-                            Practice Tools
-                        </h3>
-                    </div>
-                    <div class="card-body-modern">
-                        <div class="practice-controls">
-                            <button class="btn-primary-modern w-100 mb-3" onclick="startMetronome()">
-                                <i class="fas fa-clock me-2"></i>Start Metronome ({{ song.bpm }} BPM)
-                        </button>
-                            <button class="btn-secondary-modern w-100" onclick="stopMetronome()">
-                            <i class="fas fa-stop me-2"></i>Stop Metronome
-                        </button>
-                    </div>
-                        <div class="metronome-display mt-4">
-                            <div class="metronome-dots" id="metronome-dots-container">
-                                <!-- Dots will be dynamically generated based on time signature -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-                <!-- Strumming Pattern Card -->
-                {% if song.strumming_pattern %}
-                <div class="card-modern mb-4">
-                    <div class="card-header-modern">
-                        <h3 class="card-title-modern">
-                            <i class="fas fa-guitar"></i>
-                            Strumming Pattern
-                        </h3>
-                        <button class="btn-primary-modern" id="play-strumming-btn">
-                            <i class="fas fa-play me-2"></i>Play Pattern
-                        </button>
-                        <button class="btn-secondary-modern" id="stop-strumming-btn" style="display: none;">
-                            <i class="fas fa-stop me-2"></i>Stop
-                        </button>
-                    </div>
-                    <div class="card-body-modern">
-                        <div id="strumming-pattern-display"></div>
-                    </div>
-                </div>
-                {% endif %}
+                <!-- Sidebar content removed - practice tools moved to floating controls -->
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Floating Audio Controls Panel -->
+<div id="floating-audio-controls" class="floating-controls">
+    <div class="floating-controls-header">
+        <i class="fas fa-music me-2"></i>
+        <span>Audio Controls</span>
+        <button id="toggle-floating-controls" class="btn-icon" title="Minimize/Maximize">
+            <i class="fas fa-minus"></i>
+        </button>
+    </div>
+    
+    <div id="floating-controls-content" class="floating-controls-content">
+        <!-- Tempo Controls -->
+        <div class="tempo-section">
+            <div class="tempo-display">
+                <span id="current-bpm">{{ song.bpm }}</span>
+                <small>BPM</small>
+            </div>
+            <div class="tempo-controls">
+                <button class="btn-tempo" onclick="adjustTempo(-10)" title="Decrease 10 BPM">
+                    <i class="fas fa-backward"></i>
+                </button>
+                <button class="btn-tempo" onclick="adjustTempo(-5)" title="Decrease 5 BPM">
+                    <i class="fas fa-step-backward"></i>
+                </button>
+                <button class="btn-tempo" onclick="resetTempo()" title="Reset to original BPM">
+                    <i class="fas fa-undo"></i>
+                </button>
+                <button class="btn-tempo" onclick="adjustTempo(5)" title="Increase 5 BPM">
+                    <i class="fas fa-step-forward"></i>
+                </button>
+                <button class="btn-tempo" onclick="adjustTempo(10)" title="Increase 10 BPM">
+                    <i class="fas fa-forward"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Metronome Controls -->
+        <div class="control-section">
+            <button class="btn-floating metronome-btn" onclick="toggleMetronome()" id="floating-metronome-btn">
+                <i class="fas fa-clock me-2"></i>
+                <span id="metronome-status">Start Metronome</span>
+            </button>
+            <div class="floating-metronome-dots" id="floating-metronome-dots">
+                <!-- Dots will be generated dynamically -->
+            </div>
+        </div>
+        
+        {% if song.strumming_pattern %}
+        <!-- Strumming Pattern Controls -->
+        <div class="control-section">
+            <button class="btn-floating strumming-btn" onclick="toggleStrummingPattern()" id="floating-strumming-btn">
+                <i class="fas fa-guitar me-2"></i>
+                <span id="strumming-status">Play Pattern</span>
+            </button>
+            <!-- Strumming Pattern Display -->
+            <div class="floating-strumming-display">
+                <div id="floating-strumming-pattern-display"></div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -941,6 +975,402 @@
         padding: 0.5rem 0.75rem;
         font-size: 0.9rem;
     }
+
+    /* Formatted progression specific styles */
+    .progression-line {
+        margin-bottom: 0.75rem;
+        line-height: 1.8;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 1rem;
+    }
+    
+    .line-number {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-right: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .half-measure-container {
+        background: rgba(211, 47, 47, 0.05);
+        border-radius: 4px;
+        padding: 0.1rem 0.3rem;
+        margin: 0 0.2rem;
+    }
+    
+    .pipe-separator {
+        color: var(--primary-color);
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+    
+    .progression-chord {
+        display: inline-block;
+        min-width: 2.5rem;
+        text-align: center;
+        padding: 0.2rem 0.4rem;
+        margin: 0 0.1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-weight: 600;
+    }
+    
+    .progression-chord:hover {
+        background-color: #e9ecef;
+    }
+    
+    .progression-chord.highlighted {
+        background-color: #d32f2f;
+        color: white;
+    }
+    
+    .chord-card-modern.highlighted {
+        background-color: #d32f2f !important;
+        color: white;
+    }
+    
+    .chord-card-modern.highlighted .chord-name {
+        color: white;
+    }
+
+    /* Floating Audio Controls */
+    .floating-controls {
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        transform: none;
+        width: 320px;
+        background: var(--bg-white);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        border: 1px solid var(--border-color);
+        z-index: 1000;
+        transition: all 0.3s ease;
+    }
+
+    .floating-controls.minimized {
+        transform: translateX(calc(100% - 60px));
+    }
+
+    .floating-controls-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.25rem;
+        background: var(--bg-gray-50);
+        border-bottom: 1px solid var(--border-color);
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .floating-controls-header span {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+    }
+
+    .floating-controls-header i.fa-music {
+        color: var(--primary-color);
+    }
+
+    .btn-icon {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+        padding: 0.25rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+
+    .btn-icon:hover {
+        background: var(--bg-gray-100);
+        color: var(--text-primary);
+    }
+
+    .floating-controls-content {
+        padding: 1.25rem;
+        transition: all 0.3s ease;
+    }
+
+    .floating-controls.minimized .floating-controls-content {
+        display: none;
+    }
+
+    /* Tempo Section */
+    .tempo-section {
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+
+    .tempo-display {
+        margin-bottom: 1rem;
+    }
+
+    .tempo-display span {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        line-height: 1;
+    }
+
+    .tempo-display small {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 0.25rem;
+        font-weight: 500;
+    }
+
+    .tempo-controls {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .btn-tempo {
+        background: var(--bg-gray-100);
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        padding: 0.5rem;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-tempo:hover {
+        background: var(--primary-color);
+        color: white;
+        transform: translateY(-1px);
+        border-color: var(--primary-color);
+    }
+
+    .btn-tempo:active {
+        transform: translateY(0);
+    }
+
+    /* Control Sections */
+    .control-section {
+        margin-bottom: 1rem;
+    }
+
+    .control-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .btn-floating {
+        width: 100%;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 0.75rem 1rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 0.75rem;
+    }
+
+    .btn-floating:hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+    }
+
+    .btn-floating.active {
+        background: #e65100;
+    }
+
+    .btn-floating.strumming-btn {
+        background: #2e7d32;
+    }
+
+    .btn-floating.strumming-btn:hover {
+        background: #1b5e20;
+    }
+
+    .btn-floating.strumming-btn.active {
+        background: #ff6f00;
+    }
+
+    /* Floating Metronome Dots */
+    .floating-metronome-dots {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .floating-metronome-dots .metronome-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--bg-gray-100);
+        border: 2px solid var(--border-color);
+        transition: all 0.2s ease;
+    }
+
+    .floating-metronome-dots .metronome-dot.active {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+        transform: scale(1.2);
+    }
+
+    /* Floating Strumming Pattern Display */
+    .floating-strumming-display {
+        margin-top: 0.75rem;
+        max-height: 200px;
+        overflow-y: auto;
+        border-radius: var(--radius-sm);
+        background: var(--bg-gray-50);
+        border: 1px solid var(--border-color);
+    }
+
+    .floating-strumming-display svg {
+        width: 100%;
+        height: auto;
+        display: block;
+        background: var(--bg-gray-50);
+        border-radius: var(--radius-sm);
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .floating-controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            top: auto;
+            width: 100%;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            transform: none;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .floating-controls.minimized {
+            transform: translateY(calc(100% - 60px));
+        }
+
+        .floating-controls-content {
+            padding: 1rem;
+        }
+
+        .tempo-section {
+            margin-bottom: 1rem;
+        }
+
+        .tempo-controls {
+            gap: 0.25rem;
+            justify-content: center;
+        }
+
+        .btn-tempo {
+            width: 32px;
+            height: 32px;
+            font-size: 0.75rem;
+        }
+
+        .tempo-display span {
+            font-size: 1.75rem;
+        }
+
+        .btn-floating {
+            padding: 0.625rem 1rem;
+            font-size: 0.8rem;
+        }
+
+        .floating-strumming-display {
+            margin-top: 0.5rem;
+            max-height: 150px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .floating-controls-header,
+        .floating-controls-content {
+            padding: 0.75rem;
+        }
+
+        .tempo-section {
+            margin-bottom: 0.75rem;
+        }
+
+        .control-section {
+            margin-bottom: 0.75rem;
+        }
+
+        .tempo-display span {
+            font-size: 1.5rem;
+        }
+
+        .btn-tempo {
+            width: 28px;
+            height: 28px;
+            font-size: 0.7rem;
+        }
+    }
+
+    /* Notes */
+    .notes-content {
+        background: var(--bg-gray-50);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 0.875rem;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        color: var(--text-primary);
+    }
+
+    /* Main Strumming Pattern Display */
+    #main-strumming-pattern-display {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    #main-strumming-pattern-display svg {
+        width: 100%;
+        height: auto;
+        display: block;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: var(--text-muted);
+    }
+
+    /* Pulse animation for strumming arrows */
+    @keyframes pulse-arrow {
+        0% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.18);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+    .pulse-arrow {
+        animation: pulse-arrow 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+        transform-origin: 50% 60%;
+        transform-box: fill-box;
+    }
 </style>
 
 <script>
@@ -1031,67 +1461,11 @@ function playStrummingSound(strumType) {
 
 // Metronome functions
 function startMetronome() {
-    if (isMetronomePlaying) return;
-    
-    // Initialize audio context on user interaction
-    initializeAudio();
-    
-    isMetronomePlaying = true;
-    const bpm = {{ song.bpm }};
-    const timeSignature = "{{ song.time_signature }}";
-    const beatsPerMeasure = parseInt(timeSignature.split('/')[0]) || 4;
-    const interval = 60000 / bpm;
-    
-    let beatCount = 0;
-    
-    // Create the correct number of dots based on time signature
-    const dotsContainer = document.getElementById('metronome-dots-container');
-    dotsContainer.innerHTML = ''; // Clear existing dots
-    
-    for (let i = 0; i < beatsPerMeasure; i++) {
-        const dot = document.createElement('span');
-        dot.className = 'metronome-dot';
-        dotsContainer.appendChild(dot);
-    }
-    
-    const dots = document.querySelectorAll('.metronome-display .metronome-dot');
-    
-    // Show metronome display
-    document.querySelector('.metronome-display').style.display = 'block';
-    
-    function beat() {
-        if (!isMetronomePlaying) return;
-        
-        // Play metronome click sound (downbeat on beat 1)
-        playMetronomeClick(beatCount === 0);
-        
-        // Reset all dots
-        dots.forEach(dot => dot.classList.remove('active'));
-        
-        // Activate current beat dot
-        if (dots[beatCount]) {
-            dots[beatCount].classList.add('active');
-        }
-        
-        beatCount = (beatCount + 1) % beatsPerMeasure;
-        
-        metronomeInterval = setTimeout(beat, interval);
-    }
-    
-    beat();
+    // No-op: main metronome removed
 }
 
 function stopMetronome() {
-    isMetronomePlaying = false;
-    clearTimeout(metronomeInterval);
-
-    // Remove active state from dots
-    document.querySelectorAll('.metronome-display .metronome-dot').forEach(dot => {
-        dot.classList.remove('active');
-    });
-    
-    // Hide metronome display
-    document.querySelector('.metronome-display').style.display = 'none';
+    // No-op: main metronome removed
 }
 
 // Chord variant change function
@@ -1109,15 +1483,14 @@ function changeChordVariant(selectElement) {
 }
 
 // Function to render the strumming pattern as SVG
-function renderStrummingPattern() {
-    const container = document.getElementById('strumming-pattern-display');
+function renderStrummingPattern(containerId = 'floating-strumming-pattern-display', isMainDisplay = false) {
+    const container = document.getElementById(containerId);
     if (!container) {
         return;
     }
 
     // Get strumming pattern data passed from Flask
     let rawStrummingData = {{ song.strumming_pattern_list | tojson }};
-    const numberOfBeats = {{ song.display_beats | tojson }}; // Number of beats to display
     const timeSignature = "{{ song.time_signature }}"; // Get time signature
     
     // Handle different data formats
@@ -1130,8 +1503,6 @@ function renderStrummingPattern() {
         if (parts.length === 2) {
             const numerator = parseInt(parts[0]);
             const denominator = parseInt(parts[1]);
-            
-            // Handle traditional compound time signatures with special groupings
             if (denominator === 8 && numerator === 6) {
                 return 2; // 6/8 is typically felt in 2
             } else if (denominator === 8 && numerator === 9) {
@@ -1139,80 +1510,76 @@ function renderStrummingPattern() {
             } else if (denominator === 8 && numerator === 12) {
                 return 4; // 12/8 is typically felt in 4
             } else {
-                // For all other time signatures (including irrational ones), use the numerator
-                // The numerator always represents the number of beats per measure
                 return numerator;
             }
         }
-        return 4; // Default to 4/4 if parsing fails
+        return 4;
     }
     
     const beatsPerMeasure = parseTimeSignature(timeSignature);
     
     if (typeof rawStrummingData === 'object' && rawStrummingData !== null && 'pattern' in rawStrummingData) {
-        // New triplet format
         strummingPatternData = rawStrummingData.pattern;
-        beatSubdivisions = rawStrummingData.subdivisions || [];
-    } else if (Array.isArray(rawStrummingData)) {
-        // Legacy format: create subdivisions array assuming all regular beats
-        strummingPatternData = rawStrummingData;
-        
-        // Special handling for time signatures with denominator 3 (like 4/3)
-        const timeSignatureParts = timeSignature.split('/');
-        if (timeSignatureParts.length === 2 && parseInt(timeSignatureParts[1]) === 3) {
-            // For time signatures with denominator 3, each beat gets 3 subdivisions
-            beatSubdivisions = Array(beatsPerMeasure).fill(3);
-        } else if (timeSignature === '4/4') {
-            // For 4/4 time signature, use 4 subdivisions per beat (16th notes)
-            beatSubdivisions = Array(beatsPerMeasure).fill(4);
+        if (Array.isArray(rawStrummingData.subdivisions) && rawStrummingData.subdivisions.length > 0) {
+            beatSubdivisions = rawStrummingData.subdivisions;
         } else {
-            // Default to 2 subdivisions per beat for other time signatures
             beatSubdivisions = Array(beatsPerMeasure).fill(2);
         }
+    } else if (Array.isArray(rawStrummingData)) {
+        strummingPatternData = rawStrummingData;
+        beatSubdivisions = Array(beatsPerMeasure).fill(2);
     } else {
-        // Invalid format
         strummingPatternData = [];
-        
-        // Special handling for time signatures with denominator 3 (like 4/3)
-        const timeSignatureParts = timeSignature.split('/');
-        if (timeSignatureParts.length === 2 && parseInt(timeSignatureParts[1]) === 3) {
-            beatSubdivisions = Array(beatsPerMeasure).fill(3);
-        } else if (timeSignature === '4/4') {
-            // For 4/4 time signature, use 4 subdivisions per beat (16th notes)
-            beatSubdivisions = Array(beatsPerMeasure).fill(4);
-            } else {
-            beatSubdivisions = Array(beatsPerMeasure).fill(2);
-        }
+        beatSubdivisions = Array(beatsPerMeasure).fill(2);
     }
 
+    // Calculate the total number of slots (subdivisions) in the pattern
+    const totalSlots = strummingPatternData.length;
+    // Calculate the total number of beats in the pattern based on subdivisions
+    let numberOfBeats = 0;
+    let slotCount = 0;
+    while (slotCount < totalSlots) {
+        for (let b = 0; b < beatSubdivisions.length && slotCount < totalSlots; b++) {
+            numberOfBeats++;
+            slotCount += beatSubdivisions[b];
+        }
+    }
+    // Now numberOfBeats is the actual number of beats in the pattern
+
     if (!Array.isArray(strummingPatternData) || strummingPatternData.length === 0) {
-        container.innerHTML = '<p class="text-muted">No strumming pattern available</p>';
+        container.innerHTML = '<p class="text-muted text-center p-2">No strumming pattern available</p>';
         return;
     }
 
-    // Determine how many beats per line (4 beats is standard)
-    const beatsPerLine = 4;
+    // Determine how many beats per line (use beatsPerMeasure for multi-line display)
+    const beatsPerLine = beatsPerMeasure;
     const totalLines = Math.ceil(numberOfBeats / beatsPerLine);
     
-    // SVG dimensions per line
-    const svgWidth = container.offsetWidth || 600;
-    const svgHeight = 120;
-    const margin = { top: 20, right: 20, bottom: 20, left: 40 };
+    // SVG dimensions per line - different for main vs floating display
+    const svgWidth = isMainDisplay ? (container.offsetWidth || 600) : 280;
+    const svgHeight = isMainDisplay ? 120 : 100;
+    const margin = isMainDisplay ? 
+        { top: 20, right: 20, bottom: 20, left: 40 } : 
+        { top: 15, right: 15, bottom: 15, left: 30 };
     
     // Clear container
     container.innerHTML = '';
     
     // Create multiple SVGs, one for each line
+    let globalSlotIndex = 0;
     for (let lineIndex = 0; lineIndex < totalLines; lineIndex++) {
         const startBeat = lineIndex * beatsPerLine;
         const endBeat = Math.min(startBeat + beatsPerLine, numberOfBeats);
         
         // Calculate total slots for this line
         let totalSlotsInLine = 0;
+        let beatIndicesInLine = [];
+        let tempSlotIndex = globalSlotIndex;
         for (let beat = startBeat; beat < endBeat; beat++) {
-            const beatIndex = beat % beatsPerMeasure;
+            const beatIndex = beat % beatSubdivisions.length;
             const subdivisions = beatSubdivisions[beatIndex] || 2;
             totalSlotsInLine += subdivisions;
+            beatIndicesInLine.push(beatIndex);
         }
         
         const plotWidth = svgWidth - margin.left - margin.right;
@@ -1224,43 +1591,37 @@ function renderStrummingPattern() {
         svg.setAttribute('width', svgWidth);
         svg.setAttribute('height', svgHeight);
         svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
-        svg.style.background = '#f8f9fa';
-        svg.style.border = '1px solid #dee2e6';
-        svg.style.borderRadius = '8px';
-        svg.style.marginBottom = '10px';
         
-        let currentSlotInLine = 0;
-        let globalSlotIndex = 0;
-        
-        // Calculate global slot index for start of this line
-        for (let beat = 0; beat < startBeat; beat++) {
-            const beatIndex = beat % beatsPerMeasure;
-            const subdivisions = beatSubdivisions[beatIndex] || 2;
-            globalSlotIndex += subdivisions;
+        if (isMainDisplay) {
+            svg.style.background = '#f8f9fa';
+            svg.style.border = '1px solid #dee2e6';
+            svg.style.borderRadius = '8px';
+            svg.style.marginBottom = '10px';
+        } else {
+            svg.style.background = 'var(--bg-gray-50)';
+            svg.style.border = '1px solid var(--border-color)';
+            svg.style.borderRadius = 'var(--radius-sm)';
+            svg.style.marginBottom = '8px';
         }
         
+        let currentSlotInLine = 0;
         // Draw beats for this line
         for (let beat = startBeat; beat < endBeat; beat++) {
-            const beatIndex = beat % beatsPerMeasure;
+            const beatIndex = beat % beatSubdivisions.length;
             const subdivisions = beatSubdivisions[beatIndex] || 2;
             const beatStartX = margin.left + currentSlotInLine * slotWidth;
             const beatEndX = margin.left + (currentSlotInLine + subdivisions) * slotWidth;
             const beatCenterX = (beatStartX + beatEndX) / 2;
             
-            // Draw beat number
+            // Draw beat number (restart at 1 for each line)
             const beatLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             beatLabel.setAttribute('x', beatCenterX);
-            beatLabel.setAttribute('y', margin.top - 10);
+            beatLabel.setAttribute('y', isMainDisplay ? margin.top - 10 : margin.top - 5);
             beatLabel.setAttribute('text-anchor', 'middle');
-            beatLabel.setAttribute('font-size', '12');
+            beatLabel.setAttribute('font-size', isMainDisplay ? '12' : '10');
             beatLabel.setAttribute('font-weight', 'bold');
-            
-            // Check if this is a time signature with denominator 3 (like 4/3)
-            const timeSignatureParts = timeSignature.split('/');
-            const isDenominator3 = timeSignatureParts.length === 2 && parseInt(timeSignatureParts[1]) === 3;
-            
-            beatLabel.setAttribute('fill', (subdivisions === 3 || isDenominator3) ? '#dc3545' : '#212529');
-            beatLabel.textContent = (beat % beatsPerMeasure) + 1;
+            beatLabel.setAttribute('fill', (subdivisions === 3) ? '#dc3545' : '#212529');
+            beatLabel.textContent = (beat - startBeat) + 1;
             svg.appendChild(beatLabel);
             
             // Draw subdivision markers
@@ -1296,21 +1657,22 @@ function renderStrummingPattern() {
                 
                 const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 text.setAttribute('x', x);
-                text.setAttribute('y', y + 5);
+                text.setAttribute('y', isMainDisplay ? y + 5 : y + 3);
                 text.setAttribute('text-anchor', 'middle');
-                text.setAttribute('font-size', '18');
+                text.setAttribute('font-size', isMainDisplay ? '18' : '14');
                 text.setAttribute('font-weight', 'bold');
                 text.setAttribute('fill', color);
                 text.textContent = symbol;
+                text.setAttribute('data-strum-index', globalSlotIndex); // For animation
                 svg.appendChild(text);
                 
-                // Draw subdivision separator
-                if (sub < subdivisions - 1) {
+                // Draw subdivision separator only if more than one subdivision in this beat
+                if (subdivisions > 1 && sub < subdivisions - 1) {
                     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                     line.setAttribute('x1', margin.left + (currentSlotInLine + sub + 1) * slotWidth);
-                    line.setAttribute('y1', margin.top + 10);
+                    line.setAttribute('y1', isMainDisplay ? margin.top + 10 : margin.top + 8);
                     line.setAttribute('x2', margin.left + (currentSlotInLine + sub + 1) * slotWidth);
-                    line.setAttribute('y2', margin.top + plotHeight - 10);
+                    line.setAttribute('y2', isMainDisplay ? margin.top + plotHeight - 10 : margin.top + plotHeight - 8);
                     line.setAttribute('stroke', '#dee2e6');
                     line.setAttribute('stroke-width', '1');
                     svg.appendChild(line);
@@ -1320,7 +1682,11 @@ function renderStrummingPattern() {
             }
             
             // Draw beat separator (heavier line)
-            if (beat < endBeat - 1) {
+            // Only draw a thick separator if this is not the last beat of the measure, line, or pattern
+            const isLastBeatOfMeasure = ((beat + 1) % beatsPerMeasure === 0);
+            const isLastBeatInLine = (beat === endBeat - 1);
+            const isLastBeatInPattern = (beat === numberOfBeats - 1);
+            if (!isLastBeatOfMeasure && !isLastBeatInLine && !isLastBeatInPattern) {
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 line.setAttribute('x1', beatEndX);
                 line.setAttribute('y1', margin.top);
@@ -1566,8 +1932,9 @@ let isStrummingPlaying = false;
 let strummingInterval;
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Render the strumming pattern SVG on page load
-    renderStrummingPattern();
+    // Render the strumming pattern SVG on page load for both displays
+    renderStrummingPattern('main-strumming-pattern-display', true); // Main display
+    renderStrummingPattern('floating-strumming-pattern-display', false); // Floating display
 
     // Assign the strumming pattern data to the global variable after DOM is loaded
     let rawStrummingData = {{ song.strumming_pattern_list | tojson }};
@@ -1584,134 +1951,289 @@ document.addEventListener('DOMContentLoaded', function() {
         strummingPatternData = [];
     }
     
-    // Set up strumming pattern playback
-    const playBtn = document.getElementById('play-strumming-btn');
-    const stopBtn = document.getElementById('stop-strumming-btn');
-    
-    if (playBtn) {
-        playBtn.addEventListener('click', function() {
-            if (isStrummingPlaying) return;
-            
-            // Initialize audio context on user interaction
-            initializeAudio();
-            
-            isStrummingPlaying = true;
-            playBtn.style.display = 'none';
-            stopBtn.style.display = 'inline-block';
-            
-            const bpm = {{ song.bpm }};
-            const timeSignature = "{{ song.time_signature }}";
-            
-            // Calculate interval based on time signature and subdivision
-            const beatInterval = 60000 / bpm;
-            
-            // Determine subdivisions per beat based on time signature
-            const timeSignatureParts = timeSignature.split('/');
-            let subdivisionsPerBeat = 2; // Default
-            
-            if (timeSignatureParts.length === 2 && parseInt(timeSignatureParts[1]) === 3) {
-                // For time signatures with denominator 3 (like 4/3), each beat has 3 subdivisions
-                subdivisionsPerBeat = 3;
-            } else if (timeSignature === '4/4') {
-                // For 4/4 time signature, use 4 subdivisions per beat (16th notes)
-                subdivisionsPerBeat = 4;
-            }
-            
-            const subdivisionInterval = beatInterval / subdivisionsPerBeat;
-            
-            let patternIndex = 0;
-            
-            function playNextStrum() {
-                if (!isStrummingPlaying) return;
-                
-                if (patternIndex >= strummingPatternData.length) {
-                    patternIndex = 0; // Loop the pattern
-                }
-                
-                // Play the actual strum sound
-                const strumType = strummingPatternData[patternIndex];
-                playStrummingSound(strumType);
-                
-                patternIndex++;
-                strummingInterval = setTimeout(playNextStrum, subdivisionInterval);
-            }
-            
-            playNextStrum();
-        });
-    }
-    
-    if (stopBtn) {
-        stopBtn.addEventListener('click', function() {
-            isStrummingPlaying = false;
-            clearTimeout(strummingInterval);
-            
-            playBtn.style.display = 'inline-block';
-            stopBtn.style.display = 'none';
-        });
-    }
-
-    // Initialize chord progression
+    // Initialize chord progression with formatted view as default
+    currentProgressionView = 'formatted';
     updateFormattedView();
 });
-</script>
 
-<style>
-    /* Formatted progression specific styles */
-    .progression-line {
-        margin-bottom: 0.75rem;
-        line-height: 1.8;
-        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-        font-size: 1rem;
+// Initialize metronome dots when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    renderStrummingPattern();
+    updateFormattedView();
+});
+
+// Global variables for floating controls
+let currentBPM = {{ song.bpm }};
+const originalBPM = {{ song.bpm }};
+let isFloatingMetronomeActive = false;
+let isFloatingStrummingActive = false;
+
+// Floating controls toggle functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleBtn = document.getElementById('toggle-floating-controls');
+    const floatingControls = document.getElementById('floating-audio-controls');
+    const toggleIcon = toggleBtn.querySelector('i');
+    
+    // Header click to toggle
+    document.querySelector('.floating-controls-header').addEventListener('click', function(e) {
+        if (e.target.closest('#toggle-floating-controls')) return;
+        toggleFloatingControls();
+    });
+    
+    // Toggle button click
+    toggleBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        toggleFloatingControls();
+    });
+    
+    function toggleFloatingControls() {
+        floatingControls.classList.toggle('minimized');
+        const isMinimized = floatingControls.classList.contains('minimized');
+        toggleIcon.className = isMinimized ? 'fas fa-plus' : 'fas fa-minus';
     }
     
-    .line-number {
-        font-size: 0.85rem;
-        color: #6c757d;
-        margin-right: 0.75rem;
-        font-weight: 600;
+    // Initialize floating metronome dots
+    updateFloatingMetronomeDots();
+});
+
+// Tempo adjustment functions
+function adjustTempo(change) {
+    const newBPM = Math.max(20, Math.min(300, currentBPM + change));
+    if (newBPM !== currentBPM) {
+        currentBPM = newBPM;
+        updateBPMDisplay();
+        
+        // Update metronome if it's running
+        if (isMetronomePlaying || isFloatingMetronomeActive) {
+            stopMetronome();
+            stopFloatingMetronome();
+            setTimeout(() => {
+                if (isFloatingMetronomeActive) {
+                    startFloatingMetronome();
+                } else {
+                    startMetronome();
+                }
+            }, 100);
+        }
+    }
+}
+
+function resetTempo() {
+    if (currentBPM !== originalBPM) {
+        currentBPM = originalBPM;
+        updateBPMDisplay();
+        
+        // Update metronome if it's running
+        if (isMetronomePlaying || isFloatingMetronomeActive) {
+            stopMetronome();
+            stopFloatingMetronome();
+            setTimeout(() => {
+                if (isFloatingMetronomeActive) {
+                    startFloatingMetronome();
+                } else {
+                    startMetronome();
+                }
+            }, 100);
+        }
+    }
+}
+
+function updateBPMDisplay() {
+    document.getElementById('current-bpm').textContent = currentBPM;
+}
+
+// Floating metronome functions
+function updateFloatingMetronomeDots() {
+    const timeSignature = "{{ song.time_signature }}";
+    const beatsPerMeasure = parseInt(timeSignature.split('/')[0]) || 4;
+    const dotsContainer = document.getElementById('floating-metronome-dots');
+    
+    dotsContainer.innerHTML = '';
+    for (let i = 0; i < beatsPerMeasure; i++) {
+        const dot = document.createElement('span');
+        dot.className = 'metronome-dot';
+        dotsContainer.appendChild(dot);
+    }
+}
+
+function toggleMetronome() {
+    if (isFloatingMetronomeActive) {
+        stopFloatingMetronome();
+    } else {
+        // Stop any existing metronome
+        stopMetronome();
+        startFloatingMetronome();
+    }
+}
+
+function startFloatingMetronome() {
+    if (isFloatingMetronomeActive) return;
+    
+    initializeAudio();
+    
+    isFloatingMetronomeActive = true;
+    const timeSignature = "{{ song.time_signature }}";
+    const beatsPerMeasure = parseInt(timeSignature.split('/')[0]) || 4;
+    const interval = 60000 / currentBPM;
+    
+    let beatCount = 0;
+    const dots = document.querySelectorAll('#floating-metronome-dots .metronome-dot');
+    
+    // Update button state
+    const btn = document.getElementById('floating-metronome-btn');
+    const status = document.getElementById('metronome-status');
+    btn.classList.add('active');
+    status.textContent = 'Stop Metronome';
+    
+    function beat() {
+        if (!isFloatingMetronomeActive) return;
+        
+        // Play metronome click
+        playMetronomeClick(beatCount === 0);
+        
+        // Update dots
+        dots.forEach(dot => dot.classList.remove('active'));
+        if (dots[beatCount]) {
+            dots[beatCount].classList.add('active');
+        }
+        
+        beatCount = (beatCount + 1) % beatsPerMeasure;
+        floatingMetronomeInterval = setTimeout(beat, interval);
     }
     
-    .half-measure-container {
-        background: rgba(211, 47, 47, 0.05);
-        border-radius: 4px;
-        padding: 0.1rem 0.3rem;
-        margin: 0 0.2rem;
+    beat();
+}
+
+function stopFloatingMetronome() {
+    isFloatingMetronomeActive = false;
+    clearTimeout(floatingMetronomeInterval);
+    
+    // Update button state
+    const btn = document.getElementById('floating-metronome-btn');
+    const status = document.getElementById('metronome-status');
+    btn.classList.remove('active');
+    status.textContent = 'Start Metronome';
+    
+    // Clear dots
+    document.querySelectorAll('#floating-metronome-dots .metronome-dot').forEach(dot => {
+        dot.classList.remove('active');
+    });
+}
+
+// Floating strumming pattern functions
+function toggleStrummingPattern() {
+    if (isFloatingStrummingActive) {
+        stopFloatingStrummingPattern();
+    } else {
+        startFloatingStrummingPattern();
+    }
+}
+
+function startFloatingStrummingPattern() {
+    if (isFloatingStrummingActive || !strummingPatternData.length) return;
+    
+    initializeAudio();
+    isFloatingStrummingActive = true;
+    
+    // Update button state
+    const btn = document.getElementById('floating-strumming-btn');
+    const status = document.getElementById('strumming-status');
+    btn.classList.add('active');
+    status.textContent = 'Stop Pattern';
+    
+    // Start strumming pattern playback
+    const bpm = currentBPM;
+    const timeSignature = "{{ song.time_signature }}";
+    
+    // Calculate interval based on time signature and subdivision
+    const beatInterval = 60000 / bpm;
+    
+    // Determine subdivisions per beat based on time signature
+    const timeSignatureParts = timeSignature.split('/');
+    let subdivisionsPerBeat = 2; // Default
+    
+    if (timeSignatureParts.length === 2 && parseInt(timeSignatureParts[1]) === 3) {
+        // For time signatures with denominator 3 (like 4/3), each beat has 3 subdivisions
+        subdivisionsPerBeat = 3;
+    } else if (timeSignature === '4/4') {
+        // For 4/4 time signature, use 4 subdivisions per beat (16th notes)
+        subdivisionsPerBeat = 4;
     }
     
-    .pipe-separator {
-        color: var(--primary-color);
-        font-weight: bold;
-        font-size: 1.1rem;
+    const subdivisionInterval = beatInterval / subdivisionsPerBeat;
+    
+    let patternIndex = 0;
+    
+    function playNextStrum() {
+        if (!isFloatingStrummingActive) return;
+        
+        if (patternIndex >= strummingPatternData.length) {
+            patternIndex = 0; // Loop the pattern
+        }
+        
+        // Play the actual strum sound
+        const strumType = strummingPatternData[patternIndex];
+        playStrummingSound(strumType);
+        pulseStrumArrow(patternIndex);
+        
+        patternIndex++;
+        floatingStrummingInterval = setTimeout(playNextStrum, subdivisionInterval);
     }
     
-    .progression-chord {
-        display: inline-block;
-        min-width: 2.5rem;
-        text-align: center;
-        padding: 0.2rem 0.4rem;
-        margin: 0 0.1rem;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        font-weight: 600;
-    }
+    playNextStrum();
+}
+
+function stopFloatingStrummingPattern() {
+    isFloatingStrummingActive = false;
+    clearTimeout(floatingStrummingInterval);
     
-    .progression-chord:hover {
-        background-color: #e9ecef;
+    // Update button state
+    const btn = document.getElementById('floating-strumming-btn');
+    const status = document.getElementById('strumming-status');
+    btn.classList.remove('active');
+    status.textContent = 'Play Pattern';
+}
+
+function checkStrummingPatternStatus() {
+    // This function is no longer needed since we handle playback directly
+    return;
+}
+
+// Override original metronome functions to sync with floating controls
+const originalStartMetronome = startMetronome;
+const originalStopMetronome = stopMetronome;
+
+startMetronome = function() {
+    stopFloatingMetronome(); // Stop floating if active
+    originalStartMetronome();
+};
+
+stopMetronome = function() {
+    originalStopMetronome();
+    // Don't automatically start floating - let user control it
+};
+
+// Variables for intervals
+let floatingMetronomeInterval;
+let floatingStrummingInterval;
+
+function pulseStrumArrow(strumIndex) {
+    // Remove pulse from all arrows in both displays
+    document.querySelectorAll('#main-strumming-pattern-display [data-strum-index], #floating-strumming-pattern-display [data-strum-index]').forEach(el => {
+        el.classList.remove('pulse-arrow');
+    });
+    // Pulse in main display
+    const mainArrow = document.querySelector(`#main-strumming-pattern-display [data-strum-index='${strumIndex}']`);
+    if (mainArrow) {
+        void mainArrow.offsetWidth;
+        mainArrow.classList.add('pulse-arrow');
     }
-    
-    .progression-chord.highlighted {
-        background-color: #d32f2f;
-        color: white;
+    // Pulse in floating display
+    const floatArrow = document.querySelector(`#floating-strumming-pattern-display [data-strum-index='${strumIndex}']`);
+    if (floatArrow) {
+        void floatArrow.offsetWidth;
+        floatArrow.classList.add('pulse-arrow');
     }
-    
-    .chord-card-modern.highlighted {
-        background-color: #d32f2f !important;
-        color: white;
-    }
-    
-    .chord-card-modern.highlighted .chord-name {
-        color: white;
-    }
-</style>
+}
+</script>
 {% endblock %}
