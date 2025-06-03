@@ -1162,7 +1162,10 @@ function renderStrummingPattern() {
         if (timeSignatureParts.length === 2 && parseInt(timeSignatureParts[1]) === 3) {
             // For time signatures with denominator 3, each beat gets 3 subdivisions
             beatSubdivisions = Array(beatsPerMeasure).fill(3);
-    } else {
+        } else if (timeSignature === '4/4') {
+            // For 4/4 time signature, use 4 subdivisions per beat (16th notes)
+            beatSubdivisions = Array(beatsPerMeasure).fill(4);
+        } else {
             // Default to 2 subdivisions per beat for other time signatures
             beatSubdivisions = Array(beatsPerMeasure).fill(2);
         }
@@ -1174,6 +1177,9 @@ function renderStrummingPattern() {
         const timeSignatureParts = timeSignature.split('/');
         if (timeSignatureParts.length === 2 && parseInt(timeSignatureParts[1]) === 3) {
             beatSubdivisions = Array(beatsPerMeasure).fill(3);
+        } else if (timeSignature === '4/4') {
+            // For 4/4 time signature, use 4 subdivisions per beat (16th notes)
+            beatSubdivisions = Array(beatsPerMeasure).fill(4);
             } else {
             beatSubdivisions = Array(beatsPerMeasure).fill(2);
         }
@@ -1184,131 +1190,153 @@ function renderStrummingPattern() {
         return;
     }
 
-    // SVG dimensions
+    // Determine how many beats per line (4 beats is standard)
+    const beatsPerLine = 4;
+    const totalLines = Math.ceil(numberOfBeats / beatsPerLine);
+    
+    // SVG dimensions per line
     const svgWidth = container.offsetWidth || 600;
     const svgHeight = 120;
     const margin = { top: 20, right: 20, bottom: 20, left: 40 };
-    const plotWidth = svgWidth - margin.left - margin.right;
-    const plotHeight = svgHeight - margin.top - margin.bottom;
-
-    // Create SVG
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('width', svgWidth);
-    svg.setAttribute('height', svgHeight);
-    svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
-    svg.style.background = '#f8f9fa';
-    svg.style.border = '1px solid #dee2e6';
-    svg.style.borderRadius = '8px';
-
-    // Calculate total slots across all beats
-    let totalSlots = 0;
-    for (let beat = 0; beat < numberOfBeats; beat++) {
-        const beatIndex = beat % beatsPerMeasure;
-        const subdivisions = beatSubdivisions[beatIndex] || 2;
-        totalSlots += subdivisions;
-    }
-
-    const slotWidth = plotWidth / totalSlots;
     
-    let currentSlot = 0;
+    // Clear container
+    container.innerHTML = '';
     
-    // Draw beat labels and pattern
-    for (let beat = 0; beat < numberOfBeats; beat++) {
-        const beatIndex = beat % beatsPerMeasure;
-        const subdivisions = beatSubdivisions[beatIndex] || 2;
-        const beatStartX = margin.left + currentSlot * slotWidth;
-        const beatEndX = margin.left + (currentSlot + subdivisions) * slotWidth;
-        const beatCenterX = (beatStartX + beatEndX) / 2;
+    // Create multiple SVGs, one for each line
+    for (let lineIndex = 0; lineIndex < totalLines; lineIndex++) {
+        const startBeat = lineIndex * beatsPerLine;
+        const endBeat = Math.min(startBeat + beatsPerLine, numberOfBeats);
+        
+        // Calculate total slots for this line
+        let totalSlotsInLine = 0;
+        for (let beat = startBeat; beat < endBeat; beat++) {
+            const beatIndex = beat % beatsPerMeasure;
+            const subdivisions = beatSubdivisions[beatIndex] || 2;
+            totalSlotsInLine += subdivisions;
+        }
+        
+        const plotWidth = svgWidth - margin.left - margin.right;
+        const plotHeight = svgHeight - margin.top - margin.bottom;
+        const slotWidth = plotWidth / totalSlotsInLine;
+        
+        // Create SVG for this line
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', svgWidth);
+        svg.setAttribute('height', svgHeight);
+        svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
+        svg.style.background = '#f8f9fa';
+        svg.style.border = '1px solid #dee2e6';
+        svg.style.borderRadius = '8px';
+        svg.style.marginBottom = '10px';
+        
+        let currentSlotInLine = 0;
+        let globalSlotIndex = 0;
+        
+        // Calculate global slot index for start of this line
+        for (let beat = 0; beat < startBeat; beat++) {
+            const beatIndex = beat % beatsPerMeasure;
+            const subdivisions = beatSubdivisions[beatIndex] || 2;
+            globalSlotIndex += subdivisions;
+        }
+        
+        // Draw beats for this line
+        for (let beat = startBeat; beat < endBeat; beat++) {
+            const beatIndex = beat % beatsPerMeasure;
+            const subdivisions = beatSubdivisions[beatIndex] || 2;
+            const beatStartX = margin.left + currentSlotInLine * slotWidth;
+            const beatEndX = margin.left + (currentSlotInLine + subdivisions) * slotWidth;
+            const beatCenterX = (beatStartX + beatEndX) / 2;
             
             // Draw beat number
-        const beatLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        beatLabel.setAttribute('x', beatCenterX);
-        beatLabel.setAttribute('y', margin.top - 10);
-        beatLabel.setAttribute('text-anchor', 'middle');
-        beatLabel.setAttribute('font-size', '12');
-        beatLabel.setAttribute('font-weight', 'bold');
-        
-        // Check if this is a time signature with denominator 3 (like 4/3)
-        const timeSignatureParts = timeSignature.split('/');
-        const isDenominator3 = timeSignatureParts.length === 2 && parseInt(timeSignatureParts[1]) === 3;
-        
-        beatLabel.setAttribute('fill', (subdivisions === 3 || isDenominator3) ? '#dc3545' : '#212529');
-        beatLabel.textContent = (beat % beatsPerMeasure) + 1;
-        svg.appendChild(beatLabel);
-        
-        // Draw subdivision markers
+            const beatLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            beatLabel.setAttribute('x', beatCenterX);
+            beatLabel.setAttribute('y', margin.top - 10);
+            beatLabel.setAttribute('text-anchor', 'middle');
+            beatLabel.setAttribute('font-size', '12');
+            beatLabel.setAttribute('font-weight', 'bold');
+            
+            // Check if this is a time signature with denominator 3 (like 4/3)
+            const timeSignatureParts = timeSignature.split('/');
+            const isDenominator3 = timeSignatureParts.length === 2 && parseInt(timeSignatureParts[1]) === 3;
+            
+            beatLabel.setAttribute('fill', (subdivisions === 3 || isDenominator3) ? '#dc3545' : '#212529');
+            beatLabel.textContent = (beat % beatsPerMeasure) + 1;
+            svg.appendChild(beatLabel);
+            
+            // Draw subdivision markers
             for (let sub = 0; sub < subdivisions; sub++) {
-            const slotIndex = currentSlot + sub;
-            if (slotIndex >= strummingPatternData.length) break;
-            
-            const x = margin.left + (currentSlot + sub + 0.5) * slotWidth;
-            const y = margin.top + plotHeight / 2;
-            
-            const strum = strummingPatternData[slotIndex];
-            let symbol = '';
-            let color = '#6c757d';
-            
-            switch (strum) {
-                case 'D':
-                    symbol = '↓';
-                    color = '#28a745';
-                    break;
-                case 'U':
-                    symbol = '↑';
-                    color = '#17a2b8';
-                    break;
-                case 'X':
-                    symbol = 'X';
-                    color = '#dc3545';
-                    break;
-                case '-':
-                default:
-                    symbol = '-';
-                    color = '#6c757d';
-                    break;
+                if (globalSlotIndex >= strummingPatternData.length) break;
+                
+                const x = margin.left + (currentSlotInLine + sub + 0.5) * slotWidth;
+                const y = margin.top + plotHeight / 2;
+                
+                const strum = strummingPatternData[globalSlotIndex];
+                let symbol = '';
+                let color = '#6c757d';
+                
+                switch (strum) {
+                    case 'D':
+                        symbol = '↓';
+                        color = '#28a745';
+                        break;
+                    case 'U':
+                        symbol = '↑';
+                        color = '#17a2b8';
+                        break;
+                    case 'X':
+                        symbol = 'X';
+                        color = '#dc3545';
+                        break;
+                    case '-':
+                    default:
+                        symbol = '-';
+                        color = '#6c757d';
+                        break;
+                }
+                
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', x);
+                text.setAttribute('y', y + 5);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('font-size', '18');
+                text.setAttribute('font-weight', 'bold');
+                text.setAttribute('fill', color);
+                text.textContent = symbol;
+                svg.appendChild(text);
+                
+                // Draw subdivision separator
+                if (sub < subdivisions - 1) {
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', margin.left + (currentSlotInLine + sub + 1) * slotWidth);
+                    line.setAttribute('y1', margin.top + 10);
+                    line.setAttribute('x2', margin.left + (currentSlotInLine + sub + 1) * slotWidth);
+                    line.setAttribute('y2', margin.top + plotHeight - 10);
+                    line.setAttribute('stroke', '#dee2e6');
+                    line.setAttribute('stroke-width', '1');
+                    svg.appendChild(line);
+                }
+                
+                globalSlotIndex++;
             }
             
-            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            text.setAttribute('x', x);
-            text.setAttribute('y', y + 5);
-            text.setAttribute('text-anchor', 'middle');
-            text.setAttribute('font-size', '18');
-            text.setAttribute('font-weight', 'bold');
-            text.setAttribute('fill', color);
-            text.textContent = symbol;
-            svg.appendChild(text);
-            
-            // Draw subdivision separator
-            if (sub < subdivisions - 1) {
+            // Draw beat separator (heavier line)
+            if (beat < endBeat - 1) {
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', margin.left + (currentSlot + sub + 1) * slotWidth);
-                line.setAttribute('y1', margin.top + 10);
-                line.setAttribute('x2', margin.left + (currentSlot + sub + 1) * slotWidth);
-                line.setAttribute('y2', margin.top + plotHeight - 10);
-                line.setAttribute('stroke', '#dee2e6');
-                line.setAttribute('stroke-width', '1');
+                line.setAttribute('x1', beatEndX);
+                line.setAttribute('y1', margin.top);
+                line.setAttribute('x2', beatEndX);
+                line.setAttribute('y2', margin.top + plotHeight);
+                line.setAttribute('stroke', '#495057');
+                line.setAttribute('stroke-width', '2');
                 svg.appendChild(line);
             }
+            
+            currentSlotInLine += subdivisions;
         }
         
-        // Draw beat separator (heavier line)
-        if (beat < numberOfBeats - 1) {
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', beatEndX);
-            line.setAttribute('y1', margin.top);
-            line.setAttribute('x2', beatEndX);
-            line.setAttribute('y2', margin.top + plotHeight);
-            line.setAttribute('stroke', '#495057');
-            line.setAttribute('stroke-width', '2');
-            svg.appendChild(line);
-        }
-        
-        currentSlot += subdivisions;
+        // Add this line's SVG to the container
+        container.appendChild(svg);
     }
-
-    // Clear container and add SVG
-    container.innerHTML = '';
-    container.appendChild(svg);
 }
 
 function updateChordDiagram(chordName, variant, container) {
@@ -1584,6 +1612,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (timeSignatureParts.length === 2 && parseInt(timeSignatureParts[1]) === 3) {
                 // For time signatures with denominator 3 (like 4/3), each beat has 3 subdivisions
                 subdivisionsPerBeat = 3;
+            } else if (timeSignature === '4/4') {
+                // For 4/4 time signature, use 4 subdivisions per beat (16th notes)
+                subdivisionsPerBeat = 4;
             }
             
             const subdivisionInterval = beatInterval / subdivisionsPerBeat;
