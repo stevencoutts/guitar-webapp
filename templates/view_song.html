@@ -470,8 +470,9 @@
         line-height: 1.8;
         white-space: pre-wrap;
         color: var(--text-primary);
-        max-height: 400px;
-        overflow-y: auto;
+        /* Remove max-height and overflow-y to always show all content */
+        max-height: none;
+        overflow-y: visible;
     }
 
     /* Form Controls */
