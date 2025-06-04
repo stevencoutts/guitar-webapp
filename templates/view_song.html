@@ -1503,7 +1503,15 @@ function renderStrummingPattern(containerId = 'floating-strumming-pattern-displa
     // Use the global rawStrummingData parsed from song.strumming_pattern
     // let rawStrummingData = ...; // REMOVE this line
     const timeSignature = "{{ song.time_signature }}"; // Get time signature
-    const displayBeats = {{ song.display_beats if song.display_beats is defined else 4 }};
+    let displayBeats = null;
+    {% if song.display_beats is defined and song.display_beats %}
+        displayBeats = {{ song.display_beats }};
+    {% endif %}
+    const tsParts = timeSignature.split('/');
+    const beatsInBar = parseInt(tsParts[0]) || 4;
+    if (!displayBeats || displayBeats <= 0) {
+        displayBeats = beatsInBar;
+    }
     
     // Handle different data formats
     let strummingPatternData;
