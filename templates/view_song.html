@@ -2255,5 +2255,218 @@ try {
 } catch (e) {
     rawStrummingData = null;
 }
+
+// --- Practice Mode Logic (updated) ---
+let practiceModeActive = false;
+let practiceChordList = [];
+let practiceChordIndex = 0;
+let practiceTimeout = null;
+let practiceCountdownInterval = null;
+let beatsInPattern = 4; // default, will be set dynamically
+
+function getBeatsInStrummingPattern() {
+  // Try to get from strumming pattern subdivisions or time signature
+  if (typeof rawStrummingData === 'object' && rawStrummingData !== null && 'subdivisions' in rawStrummingData) {
+    return Array.isArray(rawStrummingData.subdivisions) ? rawStrummingData.subdivisions.length : 4;
+  }
+  // fallback: use time signature numerator
+  const ts = "{{ song.time_signature }}";
+  const parts = ts.split('/');
+  return parseInt(parts[0]) || 4;
+}
+
+function addPracticeModeButton() {
+  const cardHeader = document.querySelector('.card-header-modern .card-title-modern i.fa-music').parentElement.parentElement;
+  if (!document.getElementById('practice-mode-btn')) {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-primary-modern ms-3';
+    btn.id = 'practice-mode-btn';
+    btn.innerHTML = '<i class="fas fa-running me-2"></i>Practice Mode';
+    btn.onclick = openPracticeModeModal;
+    cardHeader.appendChild(btn);
+  }
+}
+document.addEventListener('DOMContentLoaded', addPracticeModeButton);
+
+function openPracticeModeModal() {
+  const modal = new bootstrap.Modal(document.getElementById('practiceModeModal'));
+  document.getElementById('practice-countdown').textContent = '3';
+  document.getElementById('practice-instructions').textContent = 'Get ready...';
+  modal.show();
+  startPracticeCountdown(modal);
+}
+
+function startPracticeCountdown(modal) {
+  let count = 3;
+  document.getElementById('practice-countdown').textContent = count;
+  document.getElementById('practice-instructions').textContent = 'Get ready...';
+  practiceModeActive = false;
+  clearTimeout(practiceTimeout);
+  clearInterval(practiceCountdownInterval);
+  practiceCountdownInterval = setInterval(() => {
+    if (count > 0) {
+      document.getElementById('practice-countdown').textContent = count;
+      playMetronomeClick(false); // Play beep for each count
+    } else if (count === 0) {
+      document.getElementById('practice-countdown').textContent = 'Go!';
+      document.getElementById('practice-instructions').textContent = '';
+      playMetronomeClick(true); // Higher beep for Go!
+    } else {
+      clearInterval(practiceCountdownInterval);
+      document.getElementById('practice-countdown').textContent = '';
+      // Hide modal after countdown
+      bootstrap.Modal.getInstance(document.getElementById('practiceModeModal')).hide();
+      startPracticeMode();
+    }
+    count--;
+  }, 1000);
+}
+
+let practiceShouldStartMetronome = true;
+document.addEventListener('DOMContentLoaded', function() {
+  const metCheck = document.getElementById('practice-start-metronome');
+  if (metCheck) {
+    metCheck.addEventListener('change', function() {
+      practiceShouldStartMetronome = this.checked;
+    });
+    practiceShouldStartMetronome = metCheck.checked;
+  }
+});
+
+function startPracticeMode() {
+  practiceModeActive = true;
+  document.getElementById('practiceModeIndicator').style.display = 'block';
+  // Optionally start metronome
+  if (practiceShouldStartMetronome) {
+    if (!isFloatingMetronomeActive) startFloatingMetronome();
+  }
+  // Parse chords from formatted progression
+  practiceChordList = getPracticeChordListWithSplits();
+  practiceChordIndex = 0;
+  highlightPracticeChord(-1); // Clear any highlights
+  advancePracticeChord();
+  // Stop button in floating indicator
+  document.getElementById('stopPracticeFloatingBtn').onclick = stopPracticeMode;
+  // Also handle modal stop button (if user opens modal again)
+  document.getElementById('stopPracticeBtn').onclick = function() {
+    bootstrap.Modal.getInstance(document.getElementById('practiceModeModal')).hide();
+    stopPracticeMode();
+  };
+  // Do NOT stop practice mode on modal hidden event anymore
+}
+
+function stopPracticeMode() {
+  practiceModeActive = false;
+  clearTimeout(practiceTimeout);
+  clearInterval(practiceCountdownInterval);
+  highlightPracticeChord(-1); // Clear highlights
+  document.getElementById('practiceModeIndicator').style.display = 'none';
+  // Optionally stop metronome
+  if (practiceShouldStartMetronome && isFloatingMetronomeActive) {
+    stopFloatingMetronome();
+  }
+}
+
+function getPracticeChordListWithSplits() {
+  // Determine the full strumming pattern length in beats
+  let totalBeatsInPattern = 0;
+  if (typeof rawStrummingData === 'object' && rawStrummingData !== null && 'subdivisions' in rawStrummingData) {
+    totalBeatsInPattern = Array.isArray(rawStrummingData.subdivisions) ? rawStrummingData.subdivisions.length : 4;
+  } else {
+    // fallback: use time signature numerator
+    const ts = "{{ song.time_signature }}";
+    const tsParts = ts.split('/');
+    totalBeatsInPattern = parseInt(tsParts[0]) || 4;
+  }
+  const displayBeats = {{ song.display_beats if song.display_beats is defined else 'null' }};
+  if (displayBeats && displayBeats > 0) {
+    totalBeatsInPattern = displayBeats;
+  }
+
+  // Collect chords in correct visual order (left to right, including half-measure in place)
+  const chords = [];
+  const barContainers = Array.from(document.querySelectorAll('#formatted-progression .bar-container'));
+  barContainers.forEach(bar => {
+    // Get all direct children of the chord-boxes-container (could be .chord-box or .half-measure-group)
+    const chordBoxesContainer = bar.querySelector('.chord-boxes-container');
+    if (!chordBoxesContainer) return;
+    Array.from(chordBoxesContainer.children).forEach(child => {
+      if (child.classList.contains('chord-box')) {
+        chords.push({
+          el: child,
+          chord: child.textContent.trim(),
+          beats: totalBeatsInPattern
+        });
+      } else if (child.classList.contains('half-measure-group')) {
+        // Add each half-measure chord in order
+        Array.from(child.querySelectorAll('.half-measure-chord')).forEach(box => {
+          chords.push({
+            el: box,
+            chord: box.textContent.trim(),
+            beats: totalBeatsInPattern / 2
+          });
+        });
+      }
+    });
+  });
+  return chords;
+}
+
+function advancePracticeChord() {
+  if (!practiceModeActive || practiceChordIndex >= practiceChordList.length) {
+    stopPracticeMode();
+    return;
+  }
+  // Highlight current chord
+  highlightPracticeChord(practiceChordIndex);
+  // Calculate duration
+  const bpm = currentBPM;
+  const msPerBeat = 60000 / bpm;
+  const beats = practiceChordList[practiceChordIndex].beats;
+  const duration = msPerBeat * beats;
+  practiceChordIndex++;
+  practiceTimeout = setTimeout(advancePracticeChord, duration);
+}
+
+function highlightPracticeChord(idx) {
+  // Remove highlight from all
+  document.querySelectorAll('#formatted-progression .chord-box, #formatted-progression .half-measure-chord').forEach(el => {
+    el.classList.remove('highlighted');
+  });
+  if (idx >= 0 && idx < practiceChordList.length) {
+    practiceChordList[idx].el.classList.add('highlighted');
+    // Scroll into view if needed
+    practiceChordList[idx].el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+  }
+}
 </script>
+
+<!-- Add Practice Mode Modal -->
+<div class="modal fade" id="practiceModeModal" tabindex="-1" aria-labelledby="practiceModeLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="practiceModeLabel">Practice Mode</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <div id="practice-countdown" style="font-size:2.5rem; font-weight:bold; margin-bottom:1rem;">3</div>
+        <div id="practice-instructions">Get ready...</div>
+        <div class="form-check mt-3 mb-2" style="display:flex;align-items:center;justify-content:center;gap:0.5em;">
+          <input class="form-check-input" type="checkbox" id="practice-start-metronome" checked>
+          <label class="form-check-label" for="practice-start-metronome">Start metronome with practice</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-danger" id="stopPracticeBtn">Stop Practice</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Floating Practice Mode Indicator -->
+<div id="practiceModeIndicator" style="display:none; position:fixed; top:20px; right:20px; z-index:2000; background:#d32f2f; color:white; padding:0.75rem 1.5rem; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.12); font-weight:600; font-size:1rem;">
+  Practice Mode
+  <button id="stopPracticeFloatingBtn" style="background:rgba(255,255,255,0.15); color:white; border:none; border-radius:6px; margin-left:1rem; padding:0.25rem 0.75rem; font-size:0.95em; cursor:pointer;">Stop</button>
+</div>
 {% endblock %}
