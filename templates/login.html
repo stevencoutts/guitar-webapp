@@ -30,7 +30,9 @@
                 </form>
                 
                 <div class="text-center mt-3">
+                    {% if registration_enabled %}
                     <p class="mb-0">Don't have an account? <a href="{{ url_for('register') }}" class="text-primary">Register here</a></p>
+                    {% endif %}
                 </div>
             </div>
         </div>

@@ -2,6 +2,26 @@
 
 {% block content %}
 <div class="container-fluid py-4">
+    <!-- Registration Toggle -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <form method="POST" action="{{ url_for('toggle_registration') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="alert alert-info d-flex align-items-center justify-content-between mb-0">
+                    <div>
+                        <strong>User Registration:</strong>
+                        <span class="ms-2 fw-bold text-{{ 'success' if registration_enabled else 'danger' }}">
+                            {{ 'Enabled' if registration_enabled else 'Disabled' }}
+                        </span>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-{{ 'danger' if registration_enabled else 'success' }}">
+                        {{ 'Disable' if registration_enabled else 'Enable' }} Registration
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Statistics Cards -->
     <div class="row mb-4">
         <div class="col-md-3">
