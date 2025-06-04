@@ -416,6 +416,7 @@ def new_song():
         
         # Handle strumming pattern JSON data
         strumming_pattern_json = request.form.get('strumming_pattern')
+        strumming_pattern_to_save = None
         if strumming_pattern_json:
             try:
                 # Validate and deserialize the JSON
@@ -428,29 +429,27 @@ def new_song():
                     
                     if isinstance(pattern, list) and all(isinstance(item, str) for item in pattern):
                         # Store the complete data structure
-                        song.strumming_pattern_list = strumming_pattern_data
+                        strumming_pattern_to_save = strumming_pattern_data
                     else:
                         flash('Invalid strumming pattern data format.', 'danger')
+                        # Optionally, log the invalid data
                         if app.logger:
-                            app.logger.error(f"Invalid pattern array in strumming_pattern JSON for song {song_id}: {strumming_pattern_json}")
-                        
+                            app.logger.error(f"Invalid pattern array in strumming_pattern JSON for new song: {strumming_pattern_json}")
                 # Handle legacy format (just array)
                 elif isinstance(strumming_pattern_data, list) and all(isinstance(item, str) for item in strumming_pattern_data):
                     # Use the setter to handle serialization to text
-                    song.strumming_pattern_list = strumming_pattern_data
+                    strumming_pattern_to_save = strumming_pattern_data
                 else:
                     flash('Invalid strumming pattern data format.', 'danger')
                     # Optionally, log the invalid data
                     if app.logger:
-                        app.logger.error(f"Received invalid strumming_pattern JSON for song {song_id}: {strumming_pattern_json}")
-
+                        app.logger.error(f"Received invalid strumming_pattern JSON for new song: {strumming_pattern_json}")
             except json.JSONDecodeError:
                 flash('Invalid JSON data for strumming pattern.', 'danger')
-                 # Optionally, log the error
+                # Optionally, log the error
                 if app.logger:
-                     app.logger.error(f"Error decoding strumming_pattern JSON for song {song_id}: {strumming_pattern_json}")
-        # If no strumming pattern is provided or it's empty, preserve the existing pattern
-        # This prevents accidental clearing of the pattern when other fields are updated
+                    app.logger.error(f"Error decoding strumming_pattern JSON for new song: {strumming_pattern_json}")
+        # If no strumming pattern is provided or it's empty, strumming_pattern_to_save remains None
 
         notes = request.form.get('notes', '')  # Get notes with empty string as default
         display_beats = int(request.form.get('display_beats', 4)) # Get selected display beats, default to 4
@@ -489,7 +488,6 @@ def new_song():
             bpm=bpm,
             capo=capo,
             chord_progression=chord_progression,
-            # Use the processed strumming_pattern_to_save
             strumming_pattern_list=strumming_pattern_to_save, # Use the setter
             notes=notes,
             user_id=current_user.id,
