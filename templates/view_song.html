@@ -90,7 +90,7 @@
                             <div class="d-flex gap-4 align-items-center flex-wrap">
                                 <div class="form-check-modern">
                                     <input class="form-check-input" type="checkbox" id="show-bar-numbers" checked onchange="updateFormattedView()">
-                                    <label class="form-check-label" for="show-bar-numbers">Bar numbers</label>
+                                    <label class="form-check-label" for="show-bar-numbers">Line numbers</label>
                                 </div>
                                 <div class="form-check-modern">
                                     <input class="form-check-input" type="checkbox" id="highlight-on-click" checked>
@@ -1879,7 +1879,7 @@ function updateFormattedView() {
         if (showBarNumbers) {
             const barLabel = document.createElement('div');
             barLabel.className = 'bar-label-inline';
-            barLabel.textContent = `Bar ${barNumber}`;
+            barLabel.textContent = `Line ${barNumber}`;
             chordBoxesContainer.appendChild(barLabel);
         }
         
