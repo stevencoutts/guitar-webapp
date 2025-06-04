@@ -130,16 +130,8 @@
         const parts = (timeSignatureStr || '4/4').split('/');
         if (parts.length === 2) {
             const numerator = parseInt(parts[0]);
-            const denominator = parseInt(parts[1]);
-            if (denominator === 8 && numerator === 6) {
-                return 2;
-            } else if (denominator === 8 && numerator === 9) {
-                return 3;
-            } else if (denominator === 8 && numerator === 12) {
-                return 4;
-            } else {
-                return numerator;
-            }
+            // Always use numerator for grid
+            return isNaN(numerator) ? 4 : numerator;
         }
         return 4;
     }
