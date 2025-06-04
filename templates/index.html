@@ -159,9 +159,11 @@
                         <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">
                             <i class="fas fa-sign-in-alt me-2"></i>Login
                         </a>
+                        {% if registration_enabled %}
                         <a href="{{ url_for('register') }}" class="btn btn-outline-primary btn-lg">
                             <i class="fas fa-user-plus me-2"></i>Register
                         </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>

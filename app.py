@@ -41,7 +41,7 @@ app.debug = False
 
 # Define application version (if it exists here)
 # Assuming version is defined somewhere, let's add a placeholder if not found or update if found
-app.config['VERSION'] = 'v1.0' # Set the version number
+app.config['VERSION'] = '1.1' # Set the version number
 
 # Configure logging
 if not app.debug:
@@ -315,26 +315,47 @@ def create_default_chord_pairs():
     
     db.session.commit()
 
+# Add a simple SiteOption model for global settings
+class SiteOption(db.Model):
+    __tablename__ = 'site_option'
+    key = db.Column(db.String(64), primary_key=True)
+    value = db.Column(db.String(256), nullable=False)
+
+    @staticmethod
+    def get(key, default=None):
+        opt = SiteOption.query.filter_by(key=key).first()
+        return opt.value if opt else default
+
+    @staticmethod
+    def set(key, value):
+        opt = SiteOption.query.filter_by(key=key).first()
+        if not opt:
+            opt = SiteOption(key=key, value=value)
+            db.session.add(opt)
+        else:
+            opt.value = value
+        db.session.commit()
+
 # Routes
 @app.route('/')
 def index():
     """Display the main dashboard"""
+    registration_enabled = SiteOption.get('registration_enabled', '1') == '1'
     if current_user.is_authenticated:
         songs = Song.query.filter_by(user_id=current_user.id).all()
-        return render_template('index.html', songs=songs)
-    return render_template('index.html', songs=None)
+        return render_template('index.html', songs=songs, registration_enabled=registration_enabled)
+    return render_template('index.html', songs=None, registration_enabled=registration_enabled)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Handle user login"""
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-        
+    registration_enabled = SiteOption.get('registration_enabled', '1') == '1'
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
-        
         if user and user.check_password(password):
             if user.disabled:
                 flash('Your account has been disabled. Please contact an administrator.')
@@ -343,12 +364,15 @@ def login():
             return redirect(url_for('index'))
         else:
             flash('Invalid username or password')
-            
-    return render_template('login.html')
+    return render_template('login.html', registration_enabled=registration_enabled)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     """Handle user registration"""
+    # Check if registration is disabled
+    if SiteOption.get('registration_enabled', '1') != '1':
+        flash('New user registration is currently disabled by the administrator.', 'danger')
+        return redirect(url_for('login'))
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -865,9 +889,9 @@ def admin():
     if not current_user.is_admin:
         flash('You do not have permission to access the admin page.')
         return redirect(url_for('index'))
-    
     users = User.query.all()
-    return render_template('admin.html', users=users)
+    registration_enabled = SiteOption.get('registration_enabled', '1') == '1'
+    return render_template('admin.html', users=users, registration_enabled=registration_enabled)
 
 @app.route('/admin/user/<int:user_id>/toggle_admin', methods=['POST'])
 @login_required
@@ -1649,6 +1673,18 @@ def delete_chord_shape(chord_id):
     db.session.commit()
     flash('Chord shape deleted successfully!')
     return redirect(url_for('admin_chords'))
+
+# Admin route to toggle registration
+@app.route('/admin/toggle_registration', methods=['POST'])
+@login_required
+def toggle_registration():
+    if not current_user.is_admin:
+        flash('You do not have permission to perform this action.')
+        return redirect(url_for('admin'))
+    enabled = SiteOption.get('registration_enabled', '1')
+    SiteOption.set('registration_enabled', '0' if enabled == '1' else '1')
+    flash(f"User registration is now {'enabled' if enabled == '0' else 'disabled'}.", 'success')
+    return redirect(url_for('admin'))
 
 if __name__ == '__main__':
     with app.app_context():
