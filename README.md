@@ -21,6 +21,7 @@ A comprehensive web application designed for guitarists to manage their song lib
   - Support for half-measures using `| |` notation
   - Bar-by-bar organization with optional numbering
   - Click-to-highlight chord functionality
+- **Practice Mode**: Hands-free play-along with auto-advance, countdown, and metronome sync
 
 ### 🎼 Advanced Strumming Pattern Editor
 - **Interactive Visual Editor**: Click-based pattern creation with SVG display
@@ -168,6 +169,64 @@ A comprehensive web application designed for guitarists to manage their song lib
 - **Metronome**: Click "Start Metronome" on any song page
 - **Strumming Playback**: Use "Play Pattern" button
 - **Volume**: Audio levels are balanced for comfortable practice
+
+## 🎸 Practice Mode & Play-Along (NEW)
+
+### What is Practice Mode?
+Practice Mode is a hands-free, interactive way to play through a song's chord progression in time with the strumming pattern and metronome. It highlights each chord in sequence, auto-scrolls the progression, and can start the metronome automatically. Great for real practice sessions when you can't touch the screen!
+
+### How to Use Practice Mode
+1. **Open a Song**: Go to any song's detail page.
+2. **Click 'Practice Mode'**: Button is in the Chord Progression card.
+3. **Countdown**: A 3-2-1-Go! countdown (with audio beeps) gives you time to get ready.
+4. **Play-Along**: Chords are highlighted in order, each for the correct musical duration:
+   - **Full-measure chords**: Highlighted for the full strumming pattern length (e.g., 4 beats for a 4/4 pattern).
+   - **Half-measure chords**: (e.g., two chords inside | |) Each is highlighted for half the strumming pattern duration.
+   - **Custom durations**: Chords written as `C (4 beats)` are held for the specified number of beats.
+5. **Metronome Sync**: Optionally, the metronome starts automatically and stops with practice mode.
+6. **Stop Anytime**: Use the floating 'Stop' button or modal to exit practice mode.
+
+### Practice Mode Features
+- **Auto-advance**: No need to scroll or tap—chords move in time with the music.
+- **Visual Highlighting**: The current chord is always highlighted and scrolled into view.
+- **Metronome Integration**: Practice in perfect time.
+- **Countdown with Beeps**: Get ready before you start.
+- **Supports all time signatures and strumming patterns**: Including triplets, multi-bar patterns, and custom subdivisions.
+
+## 📝 How to Enter Chord Progressions (Editing/Adding Songs)
+
+### Basic Syntax
+- **Chords**: Enter chord names separated by spaces. Example: `C G Am F`
+- **Barlines**: Use a new line for each bar (recommended for clarity), or group bars visually.
+- **Half-measure chords**: Use vertical bars to enclose two chords that share a bar: `| C G |` (C for half, G for half)
+- **Section headers**: Start a line with `#` for section labels (e.g., `# Verse 1`, `# Chorus`)
+- **Custom beat durations**: Add `(N beats)` after a chord for custom duration: `C (4 beats) G (2 beats)`
+
+### Examples
+```
+# Verse 1
+C G Am F
+| C G | C Am Fmaj7
+
+# Chorus
+F G C (4 beats)
+```
+- The first line is a section header.
+- The second line is four chords, one per bar.
+- The third line is a bar with two half-measure chords, then three full-measure chords.
+- The chorus has a chord with a custom duration.
+
+### Tips
+- **Half-measure**: Only use `| |` for two chords per bar. For more complex splits, use custom durations.
+- **Section headers**: These are displayed visually in the chart view.
+- **Formatting**: Extra spaces and blank lines are ignored.
+- **Supported chords**: Any chord name recognized by the app (e.g., C, G, Am, Fmaj7, D7, etc.)
+
+## 🆕 Strumming Pattern & Practice Mode Integration
+- The strumming pattern's length (in beats) determines how long each chord is held in practice mode.
+- If a strumming pattern covers multiple bars, each chord (or half-measure chord) is held for the full pattern duration (or half, if inside | |).
+- Custom durations override the default.
+- Practice mode always matches the musical feel of your strumming pattern and progression.
 
 ## 🛠️ Technical Details
 
