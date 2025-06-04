@@ -59,7 +59,7 @@
                     <div id="main-strumming-pattern-display"></div>
                 </div>
             </div>
-            {% endif %}
+                        {% endif %}
 
             <!-- Chord Progression Card -->
             <div class="card-modern mb-4">
@@ -82,8 +82,8 @@
                     <!-- Simple View -->
                     <div id="chord-progression-simple" class="chord-progression-view" style="display: none;">
                         <div class="progression-simple">{{ song.chord_progression }}</div>
-                    </div>
-                    
+            </div>
+
                     <!-- Chart View -->
                     <div id="chord-progression-formatted" class="chord-progression-view">
                         <div class="progression-controls mb-4">
@@ -123,21 +123,21 @@
                                 <div class="chord-card-modern" data-chord-index="{{ loop.index0 }}" data-chord-name="{{ chord_name }}">
                                     <div class="chord-header">
                                         <h4 class="chord-name">{{ chord_name }}</h4>
-                                        {% if shapes|length > 1 %}
+                                                {% if shapes|length > 1 %}
                                         <select class="variant-select" onchange="changeChordVariant(this)">
-                                            {% for shape in shapes %}
-                                                {% set variant_value = shape.variant if shape.variant is not none else '' %}
-                                                {% set variant_display = shape.variant if shape.variant is not none and shape.variant != '' else 'Default' %}
+                                                            {% for shape in shapes %}
+                                                                {% set variant_value = shape.variant if shape.variant is not none else '' %}
+                                                                {% set variant_display = shape.variant if shape.variant is not none and shape.variant != '' else 'Default' %}
                                                 {% set initial_shape = initial_shapes_dict.get(chord_name) %}
                                                 <option value="{{ variant_value }}" {% if initial_shape and initial_shape.variant == variant_value %}selected{% endif %}>
                                                     {{ variant_display }}
                                                 </option>
-                                            {% endfor %}
+                                                            {% endfor %}
                                         </select>
-                                        {% endif %}
-                </div>
+                                                {% endif %}
+                                            </div>
                                     <div class="chord-diagram">
-                                        {{ initial_diagram_svgs.get(chord_name) | safe }}
+                                            {{ initial_diagram_svgs.get(chord_name) | safe }}
                                     </div>
                                 </div>
                             {% endfor %}
@@ -146,7 +146,7 @@
                             <p>No chord shapes found.</p>
                             <a href="{{ url_for('admin_chords') }}" class="btn-primary-modern">Add Chords</a>
             </div>
-            {% endif %}
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -159,22 +159,22 @@
                         <i class="fas fa-sticky-note"></i>
                         Notes
                     </h3>
-                </div>
+                            </div>
                 <div class="card-body-modern">
                     <div class="notes-content">{{ song.notes }}</div>
-                </div>
-            </div>
+                        </div>
+                        </div>
             {% endif %}
-        </div>
-
+                    </div>
+                    
         <!-- Sidebar -->
         <div class="col-lg-4">
             <div class="sidebar-modern">
                 <!-- Sidebar content removed - practice tools moved to floating controls -->
-            </div>
-        </div>
-    </div>
-</div>
+                                </div>
+                                    </div>
+                                </div>
+                                    </div>
 
 <!-- Floating Audio Controls Panel -->
 <div id="floating-audio-controls" class="floating-controls">
@@ -184,8 +184,8 @@
         <button id="toggle-floating-controls" class="btn-icon" title="Minimize/Maximize">
             <i class="fas fa-minus"></i>
         </button>
-    </div>
-    
+            </div>
+
     <div id="floating-controls-content" class="floating-controls-content">
         <!-- Tempo Controls -->
         <div class="tempo-section">
@@ -196,7 +196,7 @@
             <div class="tempo-controls">
                 <button class="btn-tempo" onclick="adjustTempo(-10)" title="Decrease 10 BPM">
                     <i class="fas fa-backward"></i>
-                </button>
+                        </button>
                 <button class="btn-tempo" onclick="adjustTempo(-5)" title="Decrease 5 BPM">
                     <i class="fas fa-step-backward"></i>
                 </button>
@@ -208,9 +208,9 @@
                 </button>
                 <button class="btn-tempo" onclick="adjustTempo(10)" title="Increase 10 BPM">
                     <i class="fas fa-forward"></i>
-                </button>
-            </div>
-        </div>
+                        </button>
+                    </div>
+                </div>
         
         <!-- Metronome Controls -->
         <div class="control-section">
@@ -220,21 +220,21 @@
             </button>
             <div class="floating-metronome-dots" id="floating-metronome-dots">
                 <!-- Dots will be generated dynamically -->
-            </div>
+                </div>
         </div>
-        
+
         {% if song.strumming_pattern %}
         <!-- Strumming Pattern Controls -->
         <div class="control-section">
             <button class="btn-floating strumming-btn" onclick="toggleStrummingPattern()" id="floating-strumming-btn">
                 <i class="fas fa-guitar me-2"></i>
                 <span id="strumming-status">Play Pattern</span>
-            </button>
+                        </button>
             <!-- Strumming Pattern Display -->
             <div class="floating-strumming-display">
                 <div id="floating-strumming-pattern-display"></div>
-            </div>
-        </div>
+                    </div>
+                        </div>
         {% endif %}
     </div>
 </div>
@@ -602,7 +602,7 @@
     }
 
     .chord-grid-main .chord-name {
-        font-size: 0.9rem;
+            font-size: 0.9rem;
         margin: 0 0 0.3rem 0;
     }
 
@@ -643,7 +643,7 @@
         flex-shrink: 0;
         width: 100%;
     }
-
+    
     .chord-name {
         font-size: 0.75rem;
         font-weight: 600;
@@ -674,7 +674,7 @@
         overflow: visible;
         width: 100%;
     }
-
+    
     .chord-diagram svg {
         max-width: 100%;
         max-height: 75px;
@@ -780,7 +780,7 @@
     @media (max-width: 767.98px) {
         .song-header-modern,
         .card-body-modern {
-            padding: 1rem;
+        padding: 1rem;
         }
 
         .card-header-modern {
@@ -952,7 +952,7 @@
         transform: translateY(-1px);
         box-shadow: var(--shadow-md);
     }
-    
+
     .chord-box.highlighted {
         background: var(--primary-color);
         color: white;
@@ -1069,9 +1069,9 @@
     .floating-controls-header span {
         font-weight: 600;
         color: var(--text-primary);
-        font-size: 0.9rem;
-    }
-
+            font-size: 0.9rem;
+        }
+        
     .floating-controls-header i.fa-music {
         color: var(--primary-color);
     }
@@ -1503,7 +1503,15 @@ function renderStrummingPattern(containerId = 'floating-strumming-pattern-displa
     // Use the global rawStrummingData parsed from song.strumming_pattern
     // let rawStrummingData = ...; // REMOVE this line
     const timeSignature = "{{ song.time_signature }}"; // Get time signature
-    const displayBeats = {{ song.display_beats if song.display_beats is defined else 4 }};
+    let displayBeats = null;
+    {% if song.display_beats is defined and song.display_beats %}
+        displayBeats = {{ song.display_beats }};
+    {% endif %}
+    const tsParts = timeSignature.split('/');
+    const beatsInBar = parseInt(tsParts[0]) || 4;
+    if (!displayBeats || displayBeats <= 0) {
+        displayBeats = beatsInBar;
+    }
     
     // Handle different data formats
     let strummingPatternData;
@@ -1563,7 +1571,7 @@ function renderStrummingPattern(containerId = 'floating-strumming-pattern-displa
     }
 
     // Determine how many beats per line (always 4 for readability)
-    const beatsPerLine = 4;
+    const beatsPerLine = beatsInBar; // Always 1 measure per line
     const totalLines = Math.ceil(beatsToShow / beatsPerLine);
     
     // SVG dimensions per line - different for main vs floating display
@@ -1598,9 +1606,9 @@ function renderStrummingPattern(containerId = 'floating-strumming-pattern-displa
         const slotWidth = plotWidth / totalSlotsInLine;
         
         // Create SVG for this line
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('width', svgWidth);
-        svg.setAttribute('height', svgHeight);
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', svgWidth);
+    svg.setAttribute('height', svgHeight);
         svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
         
         if (isMainDisplay) {
@@ -1639,13 +1647,13 @@ function renderStrummingPattern(containerId = 'floating-strumming-pattern-displa
             const bracketY = (isMainDisplay ? margin.top - 25 : margin.top - 18);
             const bracketStartX = beatStartX + 2;
             const bracketEndX = beatEndX - 2;
-            const bracketMidX = (bracketStartX + bracketEndX) / 2;
-            const bracketPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            bracketPath.setAttribute('d', `M ${bracketStartX} ${bracketY} L ${bracketStartX} ${bracketY - 5} L ${bracketEndX} ${bracketY - 5} L ${bracketEndX} ${bracketY}`);
+                const bracketMidX = (bracketStartX + bracketEndX) / 2;
+                const bracketPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                bracketPath.setAttribute('d', `M ${bracketStartX} ${bracketY} L ${bracketStartX} ${bracketY - 5} L ${bracketEndX} ${bracketY - 5} L ${bracketEndX} ${bracketY}`);
             bracketPath.setAttribute('stroke', '#888');
-            bracketPath.setAttribute('stroke-width', '1.5');
-            bracketPath.setAttribute('fill', 'none');
-            svg.appendChild(bracketPath);
+                bracketPath.setAttribute('stroke-width', '1.5');
+                bracketPath.setAttribute('fill', 'none');
+                svg.appendChild(bracketPath);
             // Draw subdivision count in the middle of the bracket
             const subCountText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             subCountText.setAttribute('x', bracketMidX);
@@ -1734,7 +1742,7 @@ function renderStrummingPattern(containerId = 'floating-strumming-pattern-displa
         }
         
         // Add this line's SVG to the container
-        container.appendChild(svg);
+    container.appendChild(svg);
     }
 }
 
@@ -2372,7 +2380,7 @@ function getPracticeChordListWithSplits() {
   let totalBeatsInPattern = 0;
   if (typeof rawStrummingData === 'object' && rawStrummingData !== null && 'subdivisions' in rawStrummingData) {
     totalBeatsInPattern = Array.isArray(rawStrummingData.subdivisions) ? rawStrummingData.subdivisions.length : 4;
-  } else {
+    } else {
     // fallback: use time signature numerator
     const ts = "{{ song.time_signature }}";
     const tsParts = ts.split('/');

@@ -121,20 +121,10 @@
         const parts = (timeSignatureStr || '4/4').split('/');
         if (parts.length === 2) {
             const numerator = parseInt(parts[0]);
-            const denominator = parseInt(parts[1]);
-            // For strumming patterns, we count in terms of the main beats
-            // So 4/4 = 4 beats, 3/4 = 3 beats, 6/8 = 2 beats (felt in 2), etc.
-            if (denominator === 8 && numerator === 6) {
-                return 2; // 6/8 is typically felt in 2
-            } else if (denominator === 8 && numerator === 9) {
-                return 3; // 9/8 is typically felt in 3
-            } else if (denominator === 8 && numerator === 12) {
-                return 4; // 12/8 is typically felt in 4
-            } else {
-                return numerator; // For most time signatures, use the numerator
-            }
+            // Always use numerator for grid
+            return isNaN(numerator) ? 4 : numerator;
         }
-        return 4; // Default to 4/4 if parsing fails
+        return 4;
     }
 
     // Function to update display beats dropdown based on time signature
