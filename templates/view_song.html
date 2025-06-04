@@ -90,7 +90,7 @@
                             <div class="d-flex gap-4 align-items-center flex-wrap">
                                 <div class="form-check-modern">
                                     <input class="form-check-input" type="checkbox" id="show-bar-numbers" checked onchange="updateFormattedView()">
-                                    <label class="form-check-label" for="show-bar-numbers">Bar numbers</label>
+                                    <label class="form-check-label" for="show-bar-numbers">Line numbers</label>
                                 </div>
                                 <div class="form-check-modern">
                                     <input class="form-check-input" type="checkbox" id="highlight-on-click" checked>
@@ -470,8 +470,9 @@
         line-height: 1.8;
         white-space: pre-wrap;
         color: var(--text-primary);
-        max-height: 400px;
-        overflow-y: auto;
+        /* Remove max-height and overflow-y to always show all content */
+        max-height: none;
+        overflow-y: visible;
     }
 
     /* Form Controls */
@@ -1371,6 +1372,16 @@
         transform-origin: 50% 60%;
         transform-box: fill-box;
     }
+
+    /* Add style for section headers */
+    .progression-section-header {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: var(--primary-color);
+        margin-top: 2rem;
+        margin-bottom: 0.5rem;
+        letter-spacing: 0.01em;
+    }
 </style>
 
 <script>
@@ -1792,139 +1803,118 @@ function toggleProgessionView(view) {
 function parseChordProgression(text) {
     const lines = text.split('\n');
     const parsedLines = [];
-    
+    let currentSection = null;
     lines.forEach(line => {
         const trimmedLine = line.trim();
         if (trimmedLine.length === 0) return;
-        
+        // Detect section header
+        if (trimmedLine.startsWith('#')) {
+            currentSection = trimmedLine.replace(/^#+\s*/, '');
+            parsedLines.push({ type: 'section', label: currentSection });
+            return;
+        }
         // Split by spaces but keep | | notation intact
         const parts = trimmedLine.split(/\s+/);
         const chords = [];
         let inHalfMeasure = false;
         let currentHalfMeasure = [];
-        
         parts.forEach(part => {
             if (part === '|') {
                 if (inHalfMeasure) {
-                    // End of half measure
-                    chords.push({
-                        type: 'half-measure',
-                        chords: currentHalfMeasure
-                    });
+                    chords.push({ type: 'half-measure', chords: currentHalfMeasure });
                     currentHalfMeasure = [];
                     inHalfMeasure = false;
                 } else {
-                    // Start of half measure
                     inHalfMeasure = true;
                 }
-            } else if (part.match(/^[A-G][#b]?[^\s]*$/) || part.includes('/')) {
-                // This is a chord
+            } else if (/^[A-G][#b]?([a-zA-Z0-9()+\/-]*)$/.test(part)) {
+                // This is a chord (robust regex)
                 if (inHalfMeasure) {
-                    currentHalfMeasure.push({
-                        chord: part,
-                        original: part
-                    });
+                    currentHalfMeasure.push({ chord: part, original: part });
                 } else {
-                    chords.push({
-                        type: 'chord',
-                        chord: part,
-                        original: part
-                    });
+                    chords.push({ type: 'chord', chord: part, original: part });
                 }
             }
         });
-        
         // Handle case where half measure wasn't closed
         if (inHalfMeasure && currentHalfMeasure.length > 0) {
-            chords.push({
-                type: 'half-measure',
-                chords: currentHalfMeasure
-            });
+            chords.push({ type: 'half-measure', chords: currentHalfMeasure });
         }
-        
+        // Always push a chord-line if any chords found
         if (chords.length > 0) {
-            parsedLines.push(chords);
+            parsedLines.push({ type: 'chord-line', chords });
         }
     });
-    
     return parsedLines;
 }
 
 function updateFormattedView() {
     const container = document.getElementById('formatted-progression');
     const showBarNumbers = document.getElementById('show-bar-numbers').checked;
-    
     container.innerHTML = '';
-    
     const chordProgressionData = `{{ song.chord_progression }}`;
     const parsedLines = parseChordProgression(chordProgressionData);
-    
     if (parsedLines.length === 0) {
         container.innerHTML = '<p class="text-muted">No chords found in progression</p>';
         return;
     }
-    
     let barNumber = 1;
-    
-    parsedLines.forEach(lineChords => {
-        // Create bar container
-        const barContainer = document.createElement('div');
-        barContainer.className = 'bar-container mb-4';
-        
-        // Create chord boxes container
-        const chordBoxesContainer = document.createElement('div');
-        chordBoxesContainer.className = 'chord-boxes-container';
-        
-        if (showBarNumbers) {
-            const barLabel = document.createElement('div');
-            barLabel.className = 'bar-label-inline';
-            barLabel.textContent = `Bar ${barNumber}`;
-            chordBoxesContainer.appendChild(barLabel);
-        }
-        
-        lineChords.forEach((item, index) => {
-            if (item.type === 'half-measure') {
-                // Create half measure group
-                const halfMeasureGroup = document.createElement('div');
-                halfMeasureGroup.className = 'half-measure-group';
-                
-                item.chords.forEach((chordObj, chordIndex) => {
+    parsedLines.forEach(lineObj => {
+        if (lineObj.type === 'section') {
+            // Add section header
+            const sectionDiv = document.createElement('div');
+            sectionDiv.className = 'progression-section-header';
+            sectionDiv.textContent = lineObj.label;
+            container.appendChild(sectionDiv);
+        } else if (lineObj.type === 'chord-line') {
+            // Create bar container
+            const barContainer = document.createElement('div');
+            barContainer.className = 'bar-container mb-4';
+            // Create chord boxes container
+            const chordBoxesContainer = document.createElement('div');
+            chordBoxesContainer.className = 'chord-boxes-container';
+            if (showBarNumbers) {
+                const barLabel = document.createElement('div');
+                barLabel.className = 'bar-label-inline';
+                barLabel.textContent = `Line ${barNumber}`;
+                chordBoxesContainer.appendChild(barLabel);
+            }
+            lineObj.chords.forEach((item, index) => {
+                if (item.type === 'half-measure') {
+                    // Create half measure group
+                    const halfMeasureGroup = document.createElement('div');
+                    halfMeasureGroup.className = 'half-measure-group';
+                    item.chords.forEach((chordObj, chordIndex) => {
+                        const chordBox = document.createElement('div');
+                        chordBox.className = 'chord-box half-measure-chord';
+                        chordBox.textContent = chordObj.chord;
+                        chordBox.setAttribute('data-chord', chordObj.chord);
+                        if (document.getElementById('highlight-on-click').checked) {
+                            chordBox.addEventListener('click', function() {
+                                highlightChord(this.getAttribute('data-chord'));
+                            });
+                        }
+                        halfMeasureGroup.appendChild(chordBox);
+                    });
+                    chordBoxesContainer.appendChild(halfMeasureGroup);
+                } else if (item.type === 'chord') {
+                    // Create regular chord box
                     const chordBox = document.createElement('div');
-                    chordBox.className = 'chord-box half-measure-chord';
-                    chordBox.textContent = chordObj.chord;
-                    chordBox.setAttribute('data-chord', chordObj.chord);
-                    
+                    chordBox.className = 'chord-box';
+                    chordBox.textContent = item.chord;
+                    chordBox.setAttribute('data-chord', item.chord);
                     if (document.getElementById('highlight-on-click').checked) {
                         chordBox.addEventListener('click', function() {
                             highlightChord(this.getAttribute('data-chord'));
                         });
                     }
-                    
-                    halfMeasureGroup.appendChild(chordBox);
-                });
-                
-                chordBoxesContainer.appendChild(halfMeasureGroup);
-                
-            } else if (item.type === 'chord') {
-                // Create regular chord box
-                const chordBox = document.createElement('div');
-                chordBox.className = 'chord-box';
-                chordBox.textContent = item.chord;
-                chordBox.setAttribute('data-chord', item.chord);
-                
-                if (document.getElementById('highlight-on-click').checked) {
-                    chordBox.addEventListener('click', function() {
-                        highlightChord(this.getAttribute('data-chord'));
-                    });
+                    chordBoxesContainer.appendChild(chordBox);
                 }
-                
-                chordBoxesContainer.appendChild(chordBox);
-            }
-        });
-        
-        barContainer.appendChild(chordBoxesContainer);
-        container.appendChild(barContainer);
-        barNumber++;
+            });
+            barContainer.appendChild(chordBoxesContainer);
+            container.appendChild(barContainer);
+            barNumber++;
+        }
     });
 }
 
