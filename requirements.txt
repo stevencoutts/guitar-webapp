@@ -10,5 +10,5 @@ SQLAlchemy==2.0.28
 alembic==1.13.1
 humanize==4.10.0
 beautifulsoup4==4.12.3
-requests==2.31.0
+requests==2.32.4
 Pillow==10.2.0 
