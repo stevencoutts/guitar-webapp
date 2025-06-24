@@ -16,14 +16,14 @@ if ! command_exists docker; then
     exit 1
 fi
 
-if ! command_exists docker-compose; then
-    echo "❌ Docker Compose is not installed. Please install Docker Compose first."
+if ! docker compose version >/dev/null 2>&1; then
+    echo "❌ Docker Compose v2 (plugin) is not installed. Please install or upgrade Docker Compose."
     exit 1
 fi
 
 # Stop any running containers
 echo "🛑 Stopping running containers..."
-docker-compose down
+docker compose down
 
 # Pull latest changes from git
 echo "📥 Pulling latest changes from git..."
@@ -39,27 +39,27 @@ docker system prune -f
 
 # Rebuild the Docker image
 echo "🏗️  Rebuilding Docker image..."
-docker-compose build --no-cache
+docker compose build --no-cache
 
 # Start the application
 echo "🚀 Starting the application..."
-docker-compose up -d
+docker compose up -d
 
 # Wait for the application to start
 echo "⏳ Waiting for the application to start..."
 sleep 5
 
 # Check if the application is running
-if docker-compose ps | grep -q "Up"; then
+if docker compose ps | grep -q "Up"; then
     echo "✅ Application is running successfully!"
     echo "🌐 Access the application at http://localhost:5001"
 else
-    echo "❌ Application failed to start. Check the logs with: docker-compose logs"
+    echo "❌ Application failed to start. Check the logs with: docker compose logs"
     exit 1
 fi
 
 # Show logs
 echo "📋 Showing application logs..."
-docker-compose logs --tail=50
+docker compose logs --tail=50
 
 echo "✨ Update process completed!" 
