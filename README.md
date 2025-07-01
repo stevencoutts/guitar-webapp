@@ -41,6 +41,11 @@ A comprehensive web application designed for guitarists to manage their song lib
   - Realistic guitar sounds using Web Audio API
   - Proper timing for 16th notes, triplets, and complex patterns
   - Volume-balanced audio across all features
+- **Microphone Strum Detection (Chord Changes Page)**:
+  - New **Test Microphone Sensitivity** button lets you test and adjust mic sensitivity before practice.
+  - Live microphone input visualization and real-time strum detection feedback.
+  - Adjustable sensitivity slider with persistent settings.
+  - Improved strum detection accuracy using rolling average and user calibration.
 
 ### 🎯 Interactive Chord Library
 - **Dynamic Chord Diagrams**: SVG-generated chord fingerings

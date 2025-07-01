@@ -29,10 +29,13 @@
                     </div>
                 </div>
                 <div class="mb-3 d-flex align-items-center justify-content-end">
-                    <div class="form-check form-switch">
+                    <div class="form-check form-switch me-3">
                         <input class="form-check-input" type="checkbox" id="micToggle">
                         <label class="form-check-label" for="micToggle">Use Microphone to Count Strums</label>
                     </div>
+                    <button id="testMicBtn" class="btn btn-outline-secondary" type="button">
+                        <i class="fas fa-microphone-alt me-1"></i>Test Microphone Sensitivity
+                    </button>
                 </div>
                 <div class="card mb-4">
                     <div class="card-body">
@@ -202,6 +205,43 @@
     </div>
 </div>
 
+<!-- Mic Sensitivity Modal -->
+<div class="modal fade" id="micSensitivityModal" tabindex="-1" aria-labelledby="micSensitivityModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="micSensitivityModalLabel"><i class="fas fa-microphone-alt me-2"></i>Test Microphone Sensitivity</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Live Microphone Input</label>
+          <div class="progress" style="height: 18px;">
+            <div id="micLevelBar" class="progress-bar bg-info" role="progressbar" style="width: 0%"></div>
+          </div>
+          <div class="mt-2 d-flex align-items-center gap-2">
+            <span id="micLevelValue" class="text-muted small">0.00</span>
+            <span id="strumDetectedBadge" class="badge bg-success ms-2" style="display:none;">Strum Detected!</span>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label for="sensitivitySlider" class="form-label">Detection Sensitivity</label>
+          <input type="range" class="form-range" min="0.01" max="0.2" step="0.005" id="sensitivitySlider">
+          <div class="d-flex justify-content-between">
+            <span class="small">More Sensitive</span>
+            <span class="small">Less Sensitive</span>
+          </div>
+        </div>
+        <div class="mb-2 text-muted small">Strum your guitar or make a percussive sound to test detection. Adjust the slider if needed. Your setting will be saved for future use.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="saveSensitivityBtn">Save Sensitivity</button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <style>
 .chord-pair {
     transition: all 0.3s ease;
@@ -253,7 +293,9 @@
     gap: 1rem;
 }
 </style>
+{% endblock %}
 
+{% block scripts %}
 <script>
 let timeLeft = 60;
 let timerInterval;
@@ -267,9 +309,95 @@ let chordPairsModal = null;
 let micStream = null;
 let audioProcessor = null;
 let lastRms = 0;
-let strumThreshold = 0.07; // Increased sensitivity
+let strumThreshold = 0.07; // Default sensitivity
 let strumCooldown = 300; // ms between strums
 let lastStrumTime = 0;
+
+// --- Mic Sensitivity Modal Logic ---
+let micTestStream = null;
+let micTestAudioCtx = null;
+let micTestAnalyser = null;
+let micTestData = null;
+let micTestInterval = null;
+let micTestLastRms = 0;
+let micTestLastStrumTime = 0;
+const micTestCooldown = 250; // ms
+
+const micSensitivityModal = new bootstrap.Modal(document.getElementById('micSensitivityModal'));
+const micLevelBar = document.getElementById('micLevelBar');
+const micLevelValue = document.getElementById('micLevelValue');
+const strumDetectedBadge = document.getElementById('strumDetectedBadge');
+const sensitivitySlider = document.getElementById('sensitivitySlider');
+const saveSensitivityBtn = document.getElementById('saveSensitivityBtn');
+
+sensitivitySlider.value = strumThreshold;
+sensitivitySlider.addEventListener('input', function() {
+    strumThreshold = parseFloat(this.value);
+    localStorage.setItem('strumThreshold', strumThreshold);
+});
+
+function startMicTest() {
+    if (micTestStream) return;
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        micTestStream = stream;
+        micTestAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = micTestAudioCtx.createMediaStreamSource(micTestStream);
+        micTestAnalyser = micTestAudioCtx.createAnalyser();
+        micTestAnalyser.fftSize = 2048;
+        source.connect(micTestAnalyser);
+        micTestData = new Float32Array(micTestAnalyser.fftSize);
+        micTestInterval = setInterval(() => {
+            micTestAnalyser.getFloatTimeDomainData(micTestData);
+            let rms = 0;
+            for (let i = 0; i < micTestData.length; i++) rms += micTestData[i] * micTestData[i];
+            rms = Math.sqrt(rms / micTestData.length);
+            micLevelBar.style.width = Math.min(100, rms * 400) + '%';
+            micLevelValue.textContent = rms.toFixed(3);
+            const now = Date.now();
+            if (rms > strumThreshold && micTestLastRms <= strumThreshold && now - micTestLastStrumTime > micTestCooldown) {
+                strumDetectedBadge.style.display = '';
+                strumDetectedBadge.classList.add('pulse-arrow');
+                setTimeout(() => strumDetectedBadge.classList.remove('pulse-arrow'), 200);
+                micTestLastStrumTime = now;
+            } else if (rms <= strumThreshold) {
+                strumDetectedBadge.style.display = 'none';
+            }
+            micTestLastRms = rms;
+        }, 30);
+    }).catch(e => {
+        alert('Could not access microphone: ' + e.message);
+        micSensitivityModal.hide();
+    });
+}
+
+function stopMicTest() {
+    if (micTestInterval) clearInterval(micTestInterval);
+    micTestInterval = null;
+    if (micTestStream) {
+        micTestStream.getTracks().forEach(track => track.stop());
+        micTestStream = null;
+    }
+    if (micTestAudioCtx) {
+        micTestAudioCtx.close();
+        micTestAudioCtx = null;
+    }
+    micLevelBar.style.width = '0%';
+    micLevelValue.textContent = '0.00';
+    strumDetectedBadge.style.display = 'none';
+}
+
+document.getElementById('testMicBtn').addEventListener('click', function() {
+    sensitivitySlider.value = strumThreshold;
+    micSensitivityModal.show();
+    setTimeout(startMicTest, 300); // Wait for modal animation
+});
+
+document.getElementById('micSensitivityModal').addEventListener('hidden.bs.modal', stopMicTest);
+saveSensitivityBtn.addEventListener('click', function() {
+    localStorage.setItem('strumThreshold', strumThreshold);
+    micSensitivityModal.hide();
+});
+// --- End Mic Sensitivity Modal Logic ---
 
 function createAudioContext() {
     if (!audioContext) {
@@ -526,6 +654,11 @@ function addChordInputListeners() {
     });
 }
 
+// --- Improved Strum Detection (main logic) ---
+// Use a short rolling average to reduce false positives
+let rmsHistory = [];
+const rmsHistorySize = 4;
+
 async function startMic() {
     if (micStream) return;
     try {
@@ -541,12 +674,16 @@ async function startMic() {
             let rms = 0;
             for (let i = 0; i < data.length; i++) rms += data[i] * data[i];
             rms = Math.sqrt(rms / data.length);
+            // Rolling average
+            rmsHistory.push(rms);
+            if (rmsHistory.length > rmsHistorySize) rmsHistory.shift();
+            const avgRms = rmsHistory.reduce((a, b) => a + b, 0) / rmsHistory.length;
             const now = Date.now();
-            if (rms > strumThreshold && lastRms <= strumThreshold && now - lastStrumTime > strumCooldown) {
+            if (avgRms > strumThreshold && lastRms <= strumThreshold && now - lastStrumTime > strumCooldown) {
                 incrementScore();
                 lastStrumTime = now;
             }
-            lastRms = rms;
+            lastRms = avgRms;
         }, 30);
     } catch (e) {
         alert('Could not access microphone: ' + e.message);
