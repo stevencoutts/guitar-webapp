@@ -98,13 +98,16 @@ A comprehensive web application designed for guitarists to manage their song lib
    ```env
    SECRET_KEY=your-secret-key-change-this-in-production
    DATABASE_URL=sqlite:///instance/guitar.db
-   FLASK_ENV=production
+   FLASK_ENV=production  # or development for dev mode
    ```
+   - The `FLASK_ENV` variable controls whether the app runs in development (Flask dev server) or production (Gunicorn) mode.
 
 3. **Start the Application**:
    ```bash
-   docker-compose up --build -d
+   ./update.sh
    ```
+   - This script will update dependencies, rebuild the Docker image, and start the app using Docker Compose.
+   - The environment is determined by the `.env` file and `docker-compose.yml`.
 
 4. **Access the App**: Navigate to `http://localhost:5001`
 
