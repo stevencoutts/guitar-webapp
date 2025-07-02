@@ -2217,7 +2217,7 @@ function toggleStrummingPattern() {
     }
 }
 
-function startFloatingStrummingPattern() {
+function startFloatingStrummingPattern(practiceSyncWithChords = false) {
     if (isFloatingStrummingActive || !strummingPatternData.length) return;
     
     initializeAudio();
@@ -2226,8 +2226,10 @@ function startFloatingStrummingPattern() {
     // Update button state
     const btn = document.getElementById('floating-strumming-btn');
     const status = document.getElementById('strumming-status');
-    btn.classList.add('active');
-    status.textContent = 'Stop Pattern';
+    if (btn && status) {
+        btn.classList.add('active');
+        status.textContent = 'Stop Pattern';
+    }
     
     // Start strumming pattern playback
     const bpm = currentBPM;
@@ -2251,12 +2253,17 @@ function startFloatingStrummingPattern() {
     const subdivisionInterval = beatInterval / subdivisionsPerBeat;
     
     let patternIndex = 0;
+    let lastPatternIndex = -1;
     
     function playNextStrum() {
         if (!isFloatingStrummingActive) return;
         
         if (patternIndex >= strummingPatternData.length) {
             patternIndex = 0; // Loop the pattern
+            // If in practice mode and syncing with strumming, advance the chord here
+            if (practiceModeActive && practiceSyncMode === 'strumming') {
+                advancePracticeChordStrummingSync();
+            }
         }
         
         // Play the actual strum sound
@@ -2594,7 +2601,7 @@ function startPracticeMode() {
     if (!isFloatingMetronomeActive) startFloatingMetronome();
     if (isFloatingStrummingActive) stopFloatingStrummingPattern();
   } else if (practiceSyncMode === 'strumming') {
-    if (!isFloatingStrummingActive) startFloatingStrummingPattern();
+    if (!isFloatingStrummingActive) startFloatingStrummingPattern(true);
     if (isFloatingMetronomeActive) stopFloatingMetronome();
   } else if (practiceSyncMode === 'none') {
     if (isFloatingMetronomeActive) stopFloatingMetronome();
@@ -2632,6 +2639,51 @@ function updatePracticeSyncButtonStyles() {
 }
 
 document.addEventListener('DOMContentLoaded', updatePracticeSyncButtonStyles);
+
+// New function: advance chord only when called by strumming pattern
+function advancePracticeChordStrummingSync() {
+    if (!practiceModeActive || practiceChordIndex >= practiceChordList.length) {
+        stopPracticeMode();
+        return;
+    }
+    highlightPracticeChord(practiceChordIndex);
+    practiceChordIndex++;
+}
+
+// Patch startPracticeMode to use new sync logic
+const originalStartPracticeMode = startPracticeMode;
+startPracticeMode = function() {
+    practiceModeActive = true;
+    document.getElementById('practiceModeIndicator').style.display = 'block';
+    // Start only the selected sync
+    if (practiceSyncMode === 'metronome') {
+        if (!isFloatingMetronomeActive) startFloatingMetronome();
+        if (isFloatingStrummingActive) stopFloatingStrummingPattern();
+    } else if (practiceSyncMode === 'strumming') {
+        if (!isFloatingStrummingActive) startFloatingStrummingPattern(true);
+        if (isFloatingMetronomeActive) stopFloatingMetronome();
+    } else if (practiceSyncMode === 'none') {
+        if (isFloatingMetronomeActive) stopFloatingMetronome();
+        if (isFloatingStrummingActive) stopFloatingStrummingPattern();
+    }
+    // Parse chords from formatted progression
+    practiceChordList = getPracticeChordListWithSplits();
+    practiceChordIndex = 0;
+    if (practiceSyncMode === 'strumming') {
+        highlightPracticeChord(0); // Highlight the first chord immediately
+        practiceChordIndex = 1;    // Next sync will highlight the second chord
+    } else {
+        highlightPracticeChord(-1); // Clear any highlights
+        advancePracticeChord();
+    }
+    // Stop button in floating indicator
+    document.getElementById('stopPracticeFloatingBtn').onclick = stopPracticeMode;
+    // Also handle modal stop button (if user opens modal again)
+    document.getElementById('stopPracticeBtn').onclick = function() {
+        bootstrap.Modal.getInstance(document.getElementById('practiceModeModal')).hide();
+        stopPracticeMode();
+    };
+};
 </script>
 
 <!-- Add Practice Mode Modal -->
