@@ -1382,6 +1382,73 @@
         margin-bottom: 0.5rem;
         letter-spacing: 0.01em;
     }
+
+    .practice-sync-group {
+      display: flex;
+      justify-content: center;
+      gap: 1em;
+      margin: 1.5em 0 1em 0;
+      flex-wrap: wrap;
+    }
+    .practice-sync-btn {
+      flex: 1 1 0;
+      min-width: 160px;
+      max-width: 220px;
+      min-height: 70px;
+      font-size: 1.08rem;
+      font-weight: 600;
+      border-radius: 14px;
+      border: 2.5px solid #bbb;
+      background: #fff;
+      color: #b71c1c;
+      transition: all 0.18s cubic-bezier(.4,0,.2,1);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      outline: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 0.5em 1.2em;
+      margin: 0;
+    }
+    .practice-sync-btn.selected.metronome {
+      background: #dc3545;
+      color: #fff;
+      border-color: #dc3545;
+    }
+    .practice-sync-btn.selected.strumming {
+      background: #388e3c;
+      color: #fff;
+      border-color: #388e3c;
+    }
+    .practice-sync-btn.selected.none {
+      background: #6c757d;
+      color: #fff;
+      border-color: #6c757d;
+    }
+    .practice-sync-btn:not(.selected):hover {
+      border-color: #888;
+      background: #f8f9fa;
+      color: #b71c1c;
+    }
+    .practice-sync-btn.selected {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+      transform: translateY(-2px) scale(1.04);
+    }
+    @media (max-width: 900px) {
+      .practice-sync-group {
+        flex-direction: column;
+        gap: 0.75em;
+        align-items: stretch;
+      }
+      .practice-sync-btn {
+        min-width: 120px;
+        max-width: 100%;
+        min-height: 56px;
+        font-size: 1rem;
+      }
+    }
 </style>
 
 <script>
@@ -2447,6 +2514,123 @@ function highlightPracticeChord(idx) {
     practiceChordList[idx].el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
   }
 }
+
+let practiceSyncMode = 'metronome';
+let practiceModeCountdownStarted = false;
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Radio button logic
+  document.getElementById('practice-sync-metronome').addEventListener('change', function() {
+    if (this.checked) practiceSyncMode = 'metronome';
+    updatePracticeSyncButtonStyles();
+  });
+  document.getElementById('practice-sync-strumming').addEventListener('change', function() {
+    if (this.checked) practiceSyncMode = 'strumming';
+    updatePracticeSyncButtonStyles();
+  });
+  document.getElementById('practice-sync-none').addEventListener('change', function() {
+    if (this.checked) practiceSyncMode = 'none';
+    updatePracticeSyncButtonStyles();
+  });
+  // Start button logic
+  document.getElementById('startPracticeBtn').addEventListener('click', function() {
+    document.getElementById('practice-instructions').textContent = 'Get ready...';
+    document.getElementById('practice-countdown').style.display = '';
+    practiceModeCountdownStarted = true;
+    startPracticeCountdown(bootstrap.Modal.getInstance(document.getElementById('practiceModeModal')));
+    this.disabled = true;
+  });
+  // Reset modal state on open
+  document.getElementById('practiceModeModal').addEventListener('show.bs.modal', function() {
+    document.getElementById('practice-instructions').textContent = 'Choose sync mode and press Start.';
+    document.getElementById('practice-countdown').style.display = 'none';
+    document.getElementById('startPracticeBtn').disabled = false;
+    practiceModeCountdownStarted = false;
+  });
+});
+
+function openPracticeModeModal() {
+  const modal = new bootstrap.Modal(document.getElementById('practiceModeModal'));
+  document.getElementById('practice-countdown').textContent = '3';
+  document.getElementById('practice-instructions').textContent = 'Choose sync mode and press Start.';
+  document.getElementById('practice-countdown').style.display = 'none';
+  document.getElementById('startPracticeBtn').disabled = false;
+  practiceModeCountdownStarted = false;
+  modal.show();
+}
+
+function startPracticeCountdown(modal) {
+  let count = 3;
+  document.getElementById('practice-countdown').textContent = count;
+  document.getElementById('practice-instructions').textContent = 'Get ready...';
+  practiceModeActive = false;
+  clearTimeout(practiceTimeout);
+  clearInterval(practiceCountdownInterval);
+  practiceCountdownInterval = setInterval(() => {
+    if (count > 0) {
+      document.getElementById('practice-countdown').textContent = count;
+      playMetronomeClick(false); // Play beep for each count
+    } else if (count === 0) {
+      document.getElementById('practice-countdown').textContent = 'Go!';
+      document.getElementById('practice-instructions').textContent = '';
+      playMetronomeClick(true); // Higher beep for Go!
+    } else {
+      clearInterval(practiceCountdownInterval);
+      document.getElementById('practice-countdown').textContent = '';
+      // Hide modal after countdown
+      bootstrap.Modal.getInstance(document.getElementById('practiceModeModal')).hide();
+      startPracticeMode();
+    }
+    count--;
+  }, 1000);
+}
+
+function startPracticeMode() {
+  practiceModeActive = true;
+  document.getElementById('practiceModeIndicator').style.display = 'block';
+  // Start only the selected sync
+  if (practiceSyncMode === 'metronome') {
+    if (!isFloatingMetronomeActive) startFloatingMetronome();
+    if (isFloatingStrummingActive) stopFloatingStrummingPattern();
+  } else if (practiceSyncMode === 'strumming') {
+    if (!isFloatingStrummingActive) startFloatingStrummingPattern();
+    if (isFloatingMetronomeActive) stopFloatingMetronome();
+  } else if (practiceSyncMode === 'none') {
+    if (isFloatingMetronomeActive) stopFloatingMetronome();
+    if (isFloatingStrummingActive) stopFloatingStrummingPattern();
+  }
+  // Parse chords from formatted progression
+  practiceChordList = getPracticeChordListWithSplits();
+  practiceChordIndex = 0;
+  highlightPracticeChord(-1); // Clear any highlights
+  advancePracticeChord();
+  // Stop button in floating indicator
+  document.getElementById('stopPracticeFloatingBtn').onclick = stopPracticeMode;
+  // Also handle modal stop button (if user opens modal again)
+  document.getElementById('stopPracticeBtn').onclick = function() {
+    bootstrap.Modal.getInstance(document.getElementById('practiceModeModal')).hide();
+    stopPracticeMode();
+  };
+}
+
+function stopPracticeMode() {
+  practiceModeActive = false;
+  clearTimeout(practiceTimeout);
+  clearInterval(practiceCountdownInterval);
+  highlightPracticeChord(-1); // Clear highlights
+  document.getElementById('practiceModeIndicator').style.display = 'none';
+  // Stop both metronome and strumming pattern
+  if (isFloatingMetronomeActive) stopFloatingMetronome();
+  if (isFloatingStrummingActive) stopFloatingStrummingPattern();
+}
+
+function updatePracticeSyncButtonStyles() {
+  document.getElementById('label-sync-metronome').classList.toggle('selected', practiceSyncMode === 'metronome');
+  document.getElementById('label-sync-strumming').classList.toggle('selected', practiceSyncMode === 'strumming');
+  document.getElementById('label-sync-none').classList.toggle('selected', practiceSyncMode === 'none');
+}
+
+document.addEventListener('DOMContentLoaded', updatePracticeSyncButtonStyles);
 </script>
 
 <!-- Add Practice Mode Modal -->
@@ -2458,12 +2642,17 @@ function highlightPracticeChord(idx) {
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body text-center">
-        <div id="practice-countdown" style="font-size:2.5rem; font-weight:bold; margin-bottom:1rem;">3</div>
-        <div id="practice-instructions">Get ready...</div>
-        <div class="form-check mt-3 mb-2" style="display:flex;align-items:center;justify-content:center;gap:0.5em;">
-          <input class="form-check-input" type="checkbox" id="practice-start-metronome" checked>
-          <label class="form-check-label" for="practice-start-metronome">Start metronome with practice</label>
+        <div id="practice-countdown" style="font-size:2.5rem; font-weight:bold; margin-bottom:1rem; display:none;">3</div>
+        <div id="practice-instructions">Choose sync mode and press Start.</div>
+        <div class="practice-sync-group" role="group" aria-label="Practice Sync Mode">
+          <input type="radio" class="btn-check" name="practice-sync-mode" id="practice-sync-metronome" autocomplete="off" checked hidden>
+          <label class="practice-sync-btn metronome" for="practice-sync-metronome" id="label-sync-metronome">Sync with Metronome</label>
+          <input type="radio" class="btn-check" name="practice-sync-mode" id="practice-sync-strumming" autocomplete="off" hidden>
+          <label class="practice-sync-btn strumming" for="practice-sync-strumming" id="label-sync-strumming">Sync with Strumming Pattern</label>
+          <input type="radio" class="btn-check" name="practice-sync-mode" id="practice-sync-none" autocomplete="off" hidden>
+          <label class="practice-sync-btn none" for="practice-sync-none" id="label-sync-none">No Sync</label>
         </div>
+        <button type="button" class="btn btn-success mt-3" id="startPracticeBtn"><i class="fas fa-play me-2"></i>Start Practice</button>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-danger" id="stopPracticeBtn">Stop Practice</button>
