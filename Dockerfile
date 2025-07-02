@@ -29,5 +29,9 @@ ENV FLASK_DEBUG=1
 # Expose port
 EXPOSE 5001
 
-# Run the application with Flask development server
-CMD ["python3", "app.py"] 
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+# CMD ["python3", "app.py"] 
