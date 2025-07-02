@@ -1883,7 +1883,7 @@ function parseChordProgression(text) {
         const trimmedLine = line.trim();
         if (trimmedLine.length === 0) return;
         // Detect section header
-        if (trimmedLine.startsWith('#')) {
+        if (/^#+\s/.test(trimmedLine)) {
             currentSection = trimmedLine.replace(/^#+\s*/, '');
             parsedLines.push({ type: 'section', label: currentSection });
             return;
@@ -1902,7 +1902,7 @@ function parseChordProgression(text) {
                 } else {
                     inHalfMeasure = true;
                 }
-            } else if (/^[A-G][#b]?([a-zA-Z0-9()+\/-]*)$/.test(part)) {
+            } else if (/^[A-G][#b]?([a-zA-Z0-9()+]*)?(\/[A-G][#b]?)?$/.test(part)) {
                 // This is a chord (robust regex)
                 if (inHalfMeasure) {
                     currentHalfMeasure.push({ chord: part, original: part });
@@ -1941,7 +1941,8 @@ function updateFormattedView() {
             sectionDiv.className = 'progression-section-header';
             sectionDiv.textContent = lineObj.label;
             container.appendChild(sectionDiv);
-        } else if (lineObj.type === 'chord-line') {
+        }
+        if (lineObj.type === 'chord-line') {
             // Create bar container
             const barContainer = document.createElement('div');
             barContainer.className = 'bar-container mb-4';
