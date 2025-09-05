@@ -31,15 +31,15 @@ git pull
 
 # Update Python dependencies
 echo "📦 Updating Python dependencies..."
-pip install --upgrade -r requirements.txt
+pip install -r requirements.txt
 
 # Clean up Docker resources
 echo "🧹 Cleaning up Docker resources..."
-docker system prune -f
+docker system prune -af
 
 # Rebuild the Docker image
 echo "🏗️  Rebuilding Docker image..."
-docker compose build --no-cache
+docker compose build
 
 # Start the application
 echo "🚀 Starting the application..."
